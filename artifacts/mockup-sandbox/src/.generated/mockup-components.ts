@@ -6,7 +6,6 @@ export const modules: ModuleMap = {
   "./components/mockups/designmd/GuidedDiscovery.tsx": () => import("../components/mockups/designmd/GuidedDiscovery.tsx"),
   "./components/mockups/designmd/Homepage.tsx": () => import("../components/mockups/designmd/Homepage.tsx"),
   "./components/mockups/designmd/LibraryResults.tsx": () => import("../components/mockups/designmd/LibraryResults.tsx"),
-  "./components/mockups/designmd/Shared.tsx": () => import("../components/mockups/designmd/Shared.tsx"),
   "./components/mockups/designmd/UrlGenerator.tsx": () => import("../components/mockups/designmd/UrlGenerator.tsx"),
   "./components/mockups/designmd/Voting.tsx": () => import("../components/mockups/designmd/Voting.tsx")
 };

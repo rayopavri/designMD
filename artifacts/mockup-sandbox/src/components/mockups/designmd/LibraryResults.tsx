@@ -1,5 +1,5 @@
 import { CheckCircle2, ChevronDown, Clock, Filter, X } from "lucide-react";
-import { Header, PaletteStrip } from "./Shared";
+import { Header, PaletteStrip } from "./_Shared";
 import "./_group.css";
 
 const bundles = [

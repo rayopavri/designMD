@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { CheckCircle2 } from "lucide-react";
-import { Header, PaletteStrip } from "./Shared";
+import { Header, PaletteStrip } from "./_Shared";
 import "./_group.css";
 
 export function GuidedDiscovery() {

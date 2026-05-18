@@ -1,5 +1,5 @@
 import { CheckCircle2, ChevronRight, Copy, Download, Terminal, ThumbsDown, ThumbsUp } from "lucide-react";
-import { Header, PaletteStrip, CoverageBar } from "./Shared";
+import { Header, PaletteStrip, CoverageBar } from "./_Shared";
 import "./_group.css";
 
 export function BundleDetail() {

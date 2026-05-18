@@ -1,4 +1,4 @@
-import { ArrowRight, Box, CheckCircle2, ChevronRight, Copy, Download, ExternalLink, FileCode2, Info, Layout, LayoutTemplate, Palette, Search, Settings2, ShieldAlert, Sparkles, Terminal, Type, Zap } from "lucide-react";
+import { ArrowRight, CheckCircle2, Copy, Layout, Search, Sparkles } from "lucide-react";
 import "./_group.css";
 
 function Header() {

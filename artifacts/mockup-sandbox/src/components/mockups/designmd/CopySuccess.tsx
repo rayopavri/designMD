@@ -1,5 +1,5 @@
 import { Check, Copy } from "lucide-react";
-import { Header } from "./Shared";
+import { Header } from "./_Shared";
 import "./_group.css";
 
 export function CopySuccess() {
