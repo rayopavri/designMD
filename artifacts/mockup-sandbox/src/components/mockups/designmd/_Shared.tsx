@@ -12,6 +12,7 @@ export function Header() {
           </a>
           <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-[#6B6A66]">
             <a href="#" className="text-[#111110] transition-colors hover:text-[#111110]">Library</a>
+            <a href="#" className="transition-colors hover:text-[#111110]">Design systems</a>
             <a href="#" className="transition-colors hover:text-[#111110]">Generate</a>
             <a href="#" className="transition-colors hover:text-[#111110]">Docs</a>
             <a href="#" className="transition-colors hover:text-[#111110]">Vote queue</a>
