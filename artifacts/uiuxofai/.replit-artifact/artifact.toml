@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "UIUXofAi"
+version = "1.0.0"
+id = "artifacts/uiuxofai"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 22952
+
+[services.development]
+run = "pnpm --filter @workspace/uiuxofai run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/uiuxofai", "run", "build" ]
+publicDir = "artifacts/uiuxofai/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22952"
+BASE_PATH = "/"
