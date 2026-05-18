@@ -1,8 +1,50 @@
+import { useState } from "react";
 import { Check, Copy } from "lucide-react";
 import { Header } from "./_Shared";
 import "./_group.css";
 
+type ToolKey = "Claude" | "Cursor" | "Lovable" | "Figma Make";
+
+const toolSteps: Record<ToolKey, { title: string; steps: { label: string; hint: string }[] }> = {
+  Claude: {
+    title: "How to apply this in Claude Projects",
+    steps: [
+      { label: "Create a new Project in Claude and open Project Instructions", hint: "Projects → New project → Instructions" },
+      { label: "Paste the copied bundle at the top of the instructions", hint: "Cmd + V" },
+      { label: "Start a new chat in the Project — every reply now follows the system", hint: "Try the test prompt below" },
+    ],
+  },
+  Cursor: {
+    title: "How to apply this in Cursor",
+    steps: [
+      { label: "Open your project root and create .cursor/rules/design-system.mdc", hint: "touch .cursor/rules/design-system.mdc" },
+      { label: "Paste the copied bundle into the file and save", hint: "Cmd + V, Cmd + S" },
+      { label: "Reload the Cursor workspace so the rule is picked up", hint: "Cmd + Shift + P → Reload Window" },
+    ],
+  },
+  Lovable: {
+    title: "How to apply this in Lovable",
+    steps: [
+      { label: "Open your Lovable project and go to Settings → Knowledge", hint: "lovable.dev/projects/[id]/knowledge" },
+      { label: "Paste the bundle as a new knowledge entry titled 'Design system'", hint: "Cmd + V" },
+      { label: "Resume your chat — Lovable will style new components from the system", hint: "No restart needed" },
+    ],
+  },
+  "Figma Make": {
+    title: "How to apply this in Figma Make",
+    steps: [
+      { label: "Open Figma Make and click the system prompt icon in the chat input", hint: "Figma Make → System prompt" },
+      { label: "Paste the bundle into the system prompt field", hint: "Cmd + V" },
+      { label: "Generate a frame — output follows the tokens, type, and spacing exactly", hint: "Try the test prompt below" },
+    ],
+  },
+};
+
 export function CopySuccess() {
+  const [activeTool, setActiveTool] = useState<ToolKey>("Claude");
+  const tools: ToolKey[] = ["Claude", "Cursor", "Lovable", "Figma Make"];
+  const active = toolSteps[activeTool];
+
   return (
     <div className="designmd-root bg-white">
       <Header />
@@ -17,37 +59,39 @@ export function CopySuccess() {
 
         <div className="w-full text-left rounded-xl border border-[#E8E6DF] bg-white shadow-sm overflow-hidden">
           <div className="flex border-b border-[#E8E6DF] bg-[#FDFCF8]">
-            <button className="flex-1 py-3 text-sm font-medium border-b-2 border-[#111110] text-[#111110]">Claude</button>
-            <button className="flex-1 py-3 text-sm font-medium text-[#6B6A66] hover:text-[#111110]">Cursor</button>
-            <button className="flex-1 py-3 text-sm font-medium text-[#6B6A66] hover:text-[#111110]">Lovable</button>
-            <button className="flex-1 py-3 text-sm font-medium text-[#6B6A66] hover:text-[#111110]">Figma Make</button>
+            {tools.map((tool) => (
+              <button
+                key={tool}
+                onClick={() => setActiveTool(tool)}
+                className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors ${
+                  activeTool === tool
+                    ? "border-[#111110] text-[#111110]"
+                    : "border-transparent text-[#6B6A66] hover:text-[#111110]"
+                }`}
+              >
+                {tool}
+              </button>
+            ))}
           </div>
           
           <div className="p-8">
-            <h3 className="font-semibold text-[#111110] mb-6">How to apply this in Claude Projects</h3>
+            <h3 className="font-semibold text-[#111110] mb-6">{active.title}</h3>
             
             <div className="space-y-8">
-              <div className="flex gap-4">
-                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#111110] text-xs text-white">1</div>
-                <div>
-                  <p className="text-sm font-medium text-[#111110] mb-2">Create a new Project in Claude and open Project Instructions</p>
-                  <div className="rounded-lg border border-[#E8E6DF] bg-[#FAFAFA] p-4 text-[#6B6A66] text-xs designmd-mono flex items-center justify-center h-20">
-                    [ Claude UI representation ]
+              {active.steps.map((step, i) => (
+                <div key={i} className="flex gap-4">
+                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#111110] text-xs text-white">
+                    {i + 1}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-[#111110] mb-2">{step.label}</p>
+                    <div className="rounded-lg border border-[#E8E6DF] bg-[#FAFAFA] p-3 text-[#6B6A66] text-xs designmd-mono flex items-center gap-2">
+                      {i === 1 ? <Copy className="h-3 w-3" /> : null}
+                      {step.hint}
+                    </div>
                   </div>
                 </div>
-              </div>
-              
-              <div className="flex gap-4">
-                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#111110] text-xs text-white">2</div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-[#111110] mb-2">Paste the copied bundle</p>
-                  <div className="rounded-lg border border-[#2563EB] bg-[#F0F5FF] p-4">
-                    <p className="text-xs text-[#2563EB] font-medium flex items-center gap-2">
-                      <Copy className="h-3 w-3" /> Cmd + V
-                    </p>
-                  </div>
-                </div>
-              </div>
+              ))}
             </div>
           </div>
         </div>

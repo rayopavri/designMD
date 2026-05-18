@@ -12,6 +12,20 @@ export function GuidedDiscovery() {
   const feels = ["Minimal", "Editorial", "Bold", "Playful", "Brutalist", "Corporate", "Warm"];
   const tools = ["Claude", "Cursor", "Lovable", "Figma Make", "All"];
 
+  const typeWeight: Record<string, number> = {
+    Dashboard: 96, "Landing page": 134, "Mobile app": 71, "Marketing site": 118, "Internal tool": 58, "Docs site": 42,
+  };
+  const feelWeight: Record<string, number> = {
+    Minimal: 1.4, Editorial: 0.9, Bold: 1.1, Playful: 0.6, Brutalist: 0.4, Corporate: 1.0, Warm: 0.7,
+  };
+  const toolWeight: Record<string, number> = {
+    Claude: 0.95, Cursor: 0.78, Lovable: 0.62, "Figma Make": 0.55, All: 1.0,
+  };
+  const matchCount = Math.max(
+    3,
+    Math.round((typeWeight[selectedType] ?? 80) * (feelWeight[selectedFeel] ?? 1) * (toolWeight[selectedTool] ?? 1)),
+  );
+
   return (
     <div className="designmd-root">
       <Header />
@@ -88,7 +102,7 @@ export function GuidedDiscovery() {
         <div className="mt-20 pt-12 border-t border-[#E8E6DF]">
           <div className="flex items-center justify-between mb-8">
             <h3 className="designmd-serif text-2xl font-medium text-[#111110]">
-              <span className="text-[#2563EB]">142</span> bundles match
+              <span className="text-[#2563EB]">{matchCount}</span> bundles match
             </h3>
             <button className="text-sm font-medium text-[#111110] hover:underline">View all results →</button>
           </div>
