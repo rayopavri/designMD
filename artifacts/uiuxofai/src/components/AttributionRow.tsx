@@ -20,7 +20,7 @@ function methodColor(m: DiscoveryMethod): string {
 }
 
 function methodLabel(m: DiscoveryMethod, handle?: string): string {
-  if (m === "Community") return handle ? `Community · ${handle}` : "Community";
+  if (m === "Community") return handle ? `Community by ${handle}` : "Community";
   if (m === "Auto-discovered") return "Auto-discovered";
   return "Editorial";
 }
