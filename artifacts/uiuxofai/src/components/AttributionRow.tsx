@@ -67,6 +67,8 @@ export function AttributionRow({ attr }: { attr: Attribution }) {
         {methodLabel(attr.discoveryMethod, attr.communityHandle)}
       </span>
       <span style={{ color: BORDER }}>·</span>
+      <span style={{ color: SUB }}>discovered {attr.discoveredAt}</span>
+      <span style={{ color: BORDER }}>·</span>
       <span style={{ color: SUB }}>verified {attr.verifiedAt}</span>
     </div>
   );

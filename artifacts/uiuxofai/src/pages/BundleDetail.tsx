@@ -302,6 +302,7 @@ function NonBundleView({ item }: { item: SkillItem | AgentItem | McpItem }) {
             >
               <span className="inline-flex items-center gap-1.5">
                 <span className="h-1.5 w-1.5 rounded-full" style={{ background: meta.accent }} />
+                <span style={{ color: meta.accent, fontSize: 13, lineHeight: 1 }}>{meta.icon}</span>
                 {meta.label}
               </span>
               <span style={{ color: BORDER }}>·</span>

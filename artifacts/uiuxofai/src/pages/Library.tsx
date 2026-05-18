@@ -326,6 +326,7 @@ function ItemCard({ item }: { item: Item }) {
           style={{ fontFamily: MONO, color: MUTED }}
         >
           <span className="h-1.5 w-1.5 rounded-full" style={{ background: meta.accent }} />
+          <span style={{ color: meta.accent, fontSize: 11, lineHeight: 1 }}>{meta.icon}</span>
           {meta.label} · № {item.num}
         </span>
         {item.type === "bundle" ? (
