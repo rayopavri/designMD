@@ -114,7 +114,7 @@ version: 1.0.0
             <button className="flex flex-col items-center justify-center gap-2 rounded-xl border border-[#E8E6DF] bg-white p-4 text-[#111110] shadow-sm transition-hover hover:bg-[#F4F3EE]">
               <Terminal className="h-5 w-5" />
               <span className="font-medium text-sm">CLI Install</span>
-              <span className="text-xs text-[#6B6A66]">npx designmd add stripe</span>
+              <span className="text-xs text-[#6B6A66]">npx uiuxofai add stripe</span>
             </button>
           </div>
 

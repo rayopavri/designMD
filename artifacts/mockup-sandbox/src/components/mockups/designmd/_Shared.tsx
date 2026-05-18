@@ -7,7 +7,7 @@ export function Header() {
         <div className="flex items-center gap-8">
           <a href="#" className="flex items-center gap-2">
             <span className="designmd-serif text-2xl font-bold tracking-tight text-[#111110]">
-              designmd
+              UIUXofAi
             </span>
           </a>
           <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-[#6B6A66]">

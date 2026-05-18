@@ -22,7 +22,7 @@ export function Homepage() {
                     Give AI your design system.
                   </h1>
                   <p className="max-w-[42rem] leading-relaxed text-[#6B6A66] sm:text-xl sm:leading-8">
-                    designmd packages brand design systems into a structured <code className="designmd-mono text-sm bg-[#E8E6DF]/50 px-1.5 py-0.5 rounded text-[#111110]">design.md</code> spec and a calibrated companion prompt. Stop fighting hallucinations and start generating on-brand UI.
+                    UIUXofAi packages brand design systems into a structured <code className="designmd-mono text-sm bg-[#E8E6DF]/50 px-1.5 py-0.5 rounded text-[#111110]">design.md</code> spec and a calibrated companion prompt. Stop fighting hallucinations and start generating on-brand UI.
                   </p>
                 </div>
                 <div className="flex flex-col gap-3 sm:flex-row">
@@ -156,7 +156,7 @@ export function Homepage() {
       <footer className="border-t border-[#E8E6DF] bg-white py-12">
         <div className="mx-auto max-w-7xl px-6 flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex items-center gap-2">
-            <span className="designmd-serif text-xl font-bold text-[#111110]">designmd</span>
+            <span className="designmd-serif text-xl font-bold text-[#111110]">UIUXofAi</span>
             <span className="text-sm text-[#6B6A66]">© 2024</span>
           </div>
           <div className="flex gap-6 text-sm text-[#6B6A66]">

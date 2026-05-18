@@ -152,7 +152,7 @@ export function DesignSystemDetail() {
             <div>
               <h2 className="designmd-serif text-2xl font-medium text-[#111110] mb-2">Coverage breakdown</h2>
               <p className="text-sm text-[#6B6A66] mb-8">
-                Scored against the designmd extraction rubric &mdash; what each surface area provides out of the box.
+                Scored against the UIUXofAi extraction rubric &mdash; what each surface area provides out of the box.
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
                 <CoverageBar label="Color tokens" score={98} />
@@ -305,7 +305,7 @@ what design.md declares.`}
             <div className="rounded-xl border border-[#E8E6DF] bg-[#FDFCF8] p-5">
               <h3 className="text-sm font-semibold text-[#111110] mb-3">Editorial notes</h3>
               <p className="text-xs text-[#3F3E3A] leading-relaxed">
-                Verified May 14 by the designmd editorial team. Carbon scores highest of any enterprise
+                Verified May 14 by the UIUXofAi editorial team. Carbon scores highest of any enterprise
                 system on accessibility and component completeness. Watch for slight drift in motion
                 tokens when paired with the IBM AI patterns kit.
               </p>
