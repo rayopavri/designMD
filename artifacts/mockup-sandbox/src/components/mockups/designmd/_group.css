@@ -1,0 +1,71 @@
+@import url('https://fonts.googleapis.com/css2?family=Geist+Mono:wght@100..900&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap');
+
+@theme inline {
+  --font-sans: "Inter", sans-serif;
+  --font-serif: "Playfair Display", serif;
+  --font-mono: "Geist Mono", monospace;
+
+  /* Custom Palette for designmd */
+  --color-dmd-bg: #FDFCF8;
+  --color-dmd-fg: #111110;
+  --color-dmd-muted: #6B6A66;
+  --color-dmd-border: #E8E6DF;
+  --color-dmd-surface: #FFFFFF;
+  --color-dmd-surface-hover: #F4F3EE;
+  
+  --color-dmd-accent: #2563EB; /* A sharp, confident blue */
+  --color-dmd-accent-fg: #FFFFFF;
+}
+
+.designmd-root {
+  background-color: var(--color-dmd-bg);
+  color: var(--color-dmd-fg);
+  font-family: var(--font-sans);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.designmd-serif {
+  font-family: var(--font-serif);
+}
+
+.designmd-mono {
+  font-family: var(--font-mono);
+}
+
+/* Base resets for the scope */
+.designmd-root * {
+  border-color: var(--color-dmd-border);
+}
+
+.designmd-root a {
+  text-decoration: none;
+  color: inherit;
+}
+
+/* Palette Strip Component */
+.palette-strip {
+  display: flex;
+  height: 6px;
+  width: 100%;
+}
+.palette-strip > div {
+  flex: 1;
+}
+
+/* Custom Scrollbar for code blocks */
+.designmd-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.designmd-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.designmd-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--color-dmd-border);
+  border-radius: 3px;
+}
+.designmd-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--color-dmd-muted);
+}
