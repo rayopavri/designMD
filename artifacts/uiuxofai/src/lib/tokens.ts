@@ -10,6 +10,7 @@ export const BORDER_SOFT = "#17171A";
 export const VIOLET = "#8B7BFF";
 export const LIME = "#C5E96A";
 export const PEACH = "#E0B868";
+export const CYAN = "#6CC9E4";
 export const INK_ON_LIGHT = "#0A0A0B";
 
 export const SANS = `"Inter", system-ui, -apple-system, sans-serif`;

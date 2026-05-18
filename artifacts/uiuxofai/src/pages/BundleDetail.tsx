@@ -1,10 +1,12 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Link, useRoute } from "wouter";
 import { ArrowUpRight, Check, ChevronRight, Copy, Download, GitFork, Star } from "lucide-react";
 import { SectionLabel } from "../components/Shell";
 import { CodePanel } from "../components/CodePanel";
+import { AttributionRow } from "../components/AttributionRow";
+import { WorksWellWith } from "../components/WorksWellWith";
+import { AgentInstall, McpInstall, SkillInstall } from "../components/InstallSteps";
 import {
-  BG,
   BORDER,
   BORDER_SOFT,
   INK,
@@ -17,26 +19,27 @@ import {
   SURFACE_2,
   VIOLET,
 } from "../lib/tokens";
-import { BUNDLES, getBundle } from "../lib/bundles";
+import {
+  getItem,
+  TYPE_META,
+  type BundleItem,
+  type Item,
+  type AgentItem,
+  type McpItem,
+  type SkillItem,
+} from "../lib/items";
 
 type Tab = "design.md" | "companion" | "preview";
 
 export function BundleDetail() {
   const [, params] = useRoute<{ id: string }>("/library/:id");
-  const bundle = params ? getBundle(params.id) : undefined;
-  const [tab, setTab] = useState<Tab>("design.md");
-  const [copied, setCopied] = useState(false);
+  const item = params ? getItem(params.id) : undefined;
 
-  const related = useMemo(() => {
-    if (!bundle) return [];
-    return BUNDLES.filter((b) => b.id !== bundle.id && b.category === bundle.category).slice(0, 3);
-  }, [bundle]);
-
-  if (!bundle) {
+  if (!item) {
     return (
       <div className="mx-auto max-w-3xl px-6 lg:px-8 py-32 text-center">
         <SectionLabel n="404" t="Not found" />
-        <h1 className="mt-4 text-[28px] font-medium">No bundle with that id.</h1>
+        <h1 className="mt-4 text-[28px] font-medium">No item with that id.</h1>
         <Link
           href="/library"
           className="mt-6 inline-flex items-center gap-1.5 text-[13px]"
@@ -48,6 +51,22 @@ export function BundleDetail() {
       </div>
     );
   }
+
+  return item.type === "bundle" ? (
+    <BundleView item={item} />
+  ) : (
+    <NonBundleView item={item} />
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// BUNDLE
+// ─────────────────────────────────────────────────────────────
+
+function BundleView({ item }: { item: BundleItem }) {
+  const bundle = item.bundle;
+  const [tab, setTab] = useState<Tab>("design.md");
+  const [copied, setCopied] = useState(false);
 
   const onCopyBundle = async () => {
     const payload = `${bundle.designMd}\n\n---\n\n# Companion prompt\n\n${bundle.companionPrompt}`;
@@ -62,28 +81,15 @@ export function BundleDetail() {
 
   return (
     <>
-      {/* Breadcrumb */}
-      <div className="mx-auto max-w-6xl px-6 lg:px-8 pt-6 pb-2">
-        <div
-          className="flex items-center gap-2 text-[12px]"
-          style={{ fontFamily: MONO, color: MUTED }}
-        >
-          <Link href="/library" style={{ color: SUB }}>
-            library
-          </Link>
-          <ChevronRight className="h-3 w-3" />
-          <span style={{ color: SUB }}>{bundle.category.toLowerCase()}</span>
-          <ChevronRight className="h-3 w-3" />
-          <span style={{ color: INK }}>
-            {bundle.name.toLowerCase()} · № {bundle.num}
-          </span>
-        </div>
-      </div>
+      <Breadcrumb item={item} />
 
       {/* Hero */}
       <section className="border-b" style={{ borderColor: BORDER_SOFT }}>
-        <div className="mx-auto max-w-6xl px-6 lg:px-8 pt-8 pb-12 grid grid-cols-12 gap-8">
+        <div className="mx-auto max-w-6xl px-6 lg:px-8 pt-6 pb-12 grid grid-cols-12 gap-8">
           <div className="col-span-12 lg:col-span-7">
+            <div className="mb-5">
+              <AttributionRow attr={item.attribution} />
+            </div>
             <div
               className="text-[10.5px] uppercase tracking-[0.22em] mb-3 inline-flex items-center gap-2"
               style={{ fontFamily: MONO, color: MUTED }}
@@ -92,12 +98,11 @@ export function BundleDetail() {
               <span style={{ color: BORDER }}>·</span>
               <span>maintained by {bundle.maintainer}</span>
               <span style={{ color: BORDER }}>·</span>
-              <span>{bundle.license}</span>
-              <span style={{ color: BORDER }}>·</span>
               <span>v{bundle.version}</span>
             </div>
             <h1 className="text-[52px] sm:text-[64px] leading-[0.98] font-medium tracking-[-0.022em]">
-              {bundle.name}<span style={{ color: SUB }}>.</span>
+              {bundle.name}
+              <span style={{ color: SUB }}>.</span>
             </h1>
             <p className="mt-6 text-[15px] leading-[1.65] max-w-[36rem]" style={{ color: SUB }}>
               {bundle.description}
@@ -147,16 +152,6 @@ export function BundleDetail() {
                 <Download className="h-3.5 w-3.5" />
                 Apply to project
               </Link>
-              <a
-                href={`https://${bundle.url}`}
-                target="_blank"
-                rel="noreferrer"
-                className="text-[12.5px] inline-flex items-center gap-1.5"
-                style={{ color: SUB }}
-              >
-                {bundle.url}
-                <ArrowUpRight className="h-3 w-3" />
-              </a>
             </div>
           </div>
 
@@ -166,7 +161,7 @@ export function BundleDetail() {
                 <Stat label="coverage" value={`${bundle.coverage}%`} accent={LIME} />
                 <Stat label="tokens" value={bundle.tokens.toLocaleString()} />
                 <Stat label="components" value={String(bundle.components)} />
-                <Stat label="last verified" value="4d ago" />
+                <Stat label="last verified" value={item.updatedAgo} />
               </div>
               <div className="h-1.5 my-5 flex">
                 {bundle.palette.map((c, i) => (
@@ -192,7 +187,6 @@ export function BundleDetail() {
                 </span>
               </div>
             </div>
-
           </aside>
         </div>
       </section>
@@ -272,41 +266,199 @@ export function BundleDetail() {
         </div>
       </section>
 
-      {/* Related */}
-      {related.length > 0 ? (
-        <section>
-          <div className="mx-auto max-w-6xl px-6 lg:px-8 py-16">
-            <SectionLabel n="03" t={`More ${bundle.category.toLowerCase()} bundles`} />
-            <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-px rounded-lg overflow-hidden" style={{ background: BORDER }}>
-              {related.map((b) => (
-                <Link
-                  key={b.id}
-                  href={`/library/${b.id}`}
-                  className="p-5 group block hover:bg-[#101013] transition-colors"
-                  style={{ background: BG }}
+      <WorksWellWith itemId={item.id} sectionNum="03" />
+    </>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// NON-BUNDLE (skill / agent / mcp)
+// ─────────────────────────────────────────────────────────────
+
+function NonBundleView({ item }: { item: SkillItem | AgentItem | McpItem }) {
+  const meta = TYPE_META[item.type];
+
+  const surfaceLabel =
+    item.type === "skill"
+      ? item.surface
+      : item.type === "agent"
+      ? item.framework
+      : `MCP · ${item.transport}`;
+
+  return (
+    <>
+      <Breadcrumb item={item} />
+
+      {/* Hero */}
+      <section className="border-b" style={{ borderColor: BORDER_SOFT }}>
+        <div className="mx-auto max-w-6xl px-6 lg:px-8 pt-6 pb-12 grid grid-cols-12 gap-8">
+          <div className="col-span-12 lg:col-span-7">
+            <div className="mb-5">
+              <AttributionRow attr={item.attribution} />
+            </div>
+            <div
+              className="text-[10.5px] uppercase tracking-[0.22em] mb-3 inline-flex items-center gap-2"
+              style={{ fontFamily: MONO, color: MUTED }}
+            >
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full" style={{ background: meta.accent }} />
+                {meta.label}
+              </span>
+              <span style={{ color: BORDER }}>·</span>
+              <span>plate {item.num}</span>
+              <span style={{ color: BORDER }}>·</span>
+              <span>{surfaceLabel}</span>
+            </div>
+            <h1 className="text-[52px] sm:text-[64px] leading-[0.98] font-medium tracking-[-0.022em]">
+              {item.name}
+              <span style={{ color: SUB }}>.</span>
+            </h1>
+            <p className="mt-6 text-[15px] leading-[1.65] max-w-[36rem]" style={{ color: SUB }}>
+              {item.description}
+            </p>
+            <div className="mt-6 flex items-center gap-2 flex-wrap">
+              {item.tags.map((t) => (
+                <span
+                  key={t}
+                  className="inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full"
+                  style={{
+                    background: SURFACE_2,
+                    border: `1px solid ${BORDER}`,
+                    color: SUB,
+                    fontFamily: MONO,
+                  }}
                 >
-                  <div className="flex h-1.5 mb-4">
-                    {b.palette.map((c, i) => (
-                      <span
-                        key={i}
-                        className="flex-1 first:rounded-l-sm last:rounded-r-sm"
-                        style={{ background: c }}
-                      />
-                    ))}
-                  </div>
-                  <div className="text-[15px] font-medium" style={{ color: INK }}>
-                    {b.name}
-                  </div>
-                  <div className="text-[12px]" style={{ color: SUB }}>
-                    {b.tagline}
-                  </div>
-                </Link>
+                  <span className="h-1.5 w-1.5 rounded-full" style={{ background: meta.accent }} />
+                  {t}
+                </span>
               ))}
             </div>
+            <div className="mt-8 flex items-center gap-3 flex-wrap">
+              <a
+                href={item.attribution.sourceUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="h-10 rounded-full px-5 text-[12.5px] font-medium inline-flex items-center gap-2"
+                style={{
+                  background: INK,
+                  color: INK_ON_LIGHT,
+                  boxShadow: `0 0 0 1px ${meta.accent}55, 0 10px 36px -10px ${meta.accent}88`,
+                }}
+              >
+                View source
+                <ArrowUpRight className="h-3.5 w-3.5" />
+              </a>
+              <Link
+                href="/library"
+                className="h-10 rounded-full border px-5 text-[12.5px] font-medium inline-flex items-center gap-2"
+                style={{ borderColor: BORDER, color: INK, background: SURFACE }}
+              >
+                Back to library
+              </Link>
+            </div>
           </div>
-        </section>
-      ) : null}
+
+          <aside className="col-span-12 lg:col-span-5">
+            <div className="rounded-xl border p-6" style={{ borderColor: BORDER, background: SURFACE }}>
+              <div className="grid grid-cols-2 gap-6">
+                <Stat label="surface" value={surfaceLabel} accent={meta.accent} />
+                <Stat label="last verified" value={item.updatedAgo} />
+                <Stat label="license" value={item.attribution.license} />
+                <Stat
+                  label="discovery"
+                  value={
+                    item.attribution.discoveryMethod === "Community"
+                      ? "Community"
+                      : item.attribution.discoveryMethod === "Auto-discovered"
+                      ? "Auto"
+                      : "Editorial"
+                  }
+                />
+              </div>
+              <div className="h-1.5 my-5 rounded-sm" style={{ background: meta.accent }} />
+              <div
+                className="flex items-center justify-between pt-5 border-t text-[12px]"
+                style={{ borderColor: BORDER, fontFamily: MONO, color: MUTED }}
+              >
+                <span>tools</span>
+                <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                  {item.tools.map((t) => (
+                    <span
+                      key={t}
+                      className="text-[10.5px] px-1.5 py-0.5 rounded"
+                      style={{
+                        background: SURFACE_2,
+                        color: SUB,
+                        border: `1px solid ${BORDER}`,
+                      }}
+                    >
+                      {t}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      {/* Install */}
+      <section className="border-b" style={{ borderColor: BORDER_SOFT }}>
+        <div className="mx-auto max-w-6xl px-6 lg:px-8 py-16">
+          <div className="grid grid-cols-12 gap-8">
+            <div className="col-span-12 lg:col-span-3">
+              <SectionLabel n="02" t="Install" />
+              <h2 className="mt-3 text-[28px] leading-[1.08] font-medium tracking-[-0.018em]">
+                Drop it in,{" "}
+                <span style={{ color: SUB }}>reload, invoke.</span>
+              </h2>
+              <p className="mt-5 text-[13.5px] leading-[1.6]" style={{ color: SUB }}>
+                Per-tool install steps and the file you'll paste. No SDK, no runtime.
+              </p>
+            </div>
+            <div className="col-span-12 lg:col-span-9">
+              {item.type === "skill" ? (
+                <SkillInstall skill={item} />
+              ) : item.type === "agent" ? (
+                <AgentInstall agent={item} />
+              ) : (
+                <McpInstall mcp={item} />
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <WorksWellWith itemId={item.id} sectionNum="03" />
     </>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Shared
+// ─────────────────────────────────────────────────────────────
+
+function Breadcrumb({ item }: { item: Item }) {
+  const meta = TYPE_META[item.type];
+  return (
+    <div className="mx-auto max-w-6xl px-6 lg:px-8 pt-6 pb-2">
+      <div
+        className="flex items-center gap-2 text-[12px]"
+        style={{ fontFamily: MONO, color: MUTED }}
+      >
+        <Link href="/library" style={{ color: SUB }}>
+          library
+        </Link>
+        <ChevronRight className="h-3 w-3" />
+        <Link href={`/library?type=${item.type}`} style={{ color: SUB }}>
+          {meta.plural.toLowerCase()}
+        </Link>
+        <ChevronRight className="h-3 w-3" />
+        <span style={{ color: INK }}>
+          {item.name.toLowerCase()} · № {item.num}
+        </span>
+      </div>
+    </div>
   );
 }
 
@@ -319,7 +471,7 @@ function Stat({ label, value, accent }: { label: string; value: string; accent?:
       >
         {label}
       </div>
-      <div className="text-[28px] font-medium tracking-[-0.018em] flex items-baseline gap-2">
+      <div className="text-[22px] font-medium tracking-[-0.018em] flex items-baseline gap-2">
         <span style={{ color: INK }}>{value}</span>
         {accent ? (
           <span className="h-1.5 w-1.5 rounded-full" style={{ background: accent }} />
@@ -329,8 +481,7 @@ function Stat({ label, value, accent }: { label: string; value: string; accent?:
   );
 }
 
-function PreviewPane({ bundle }: { bundle: ReturnType<typeof getBundle> }) {
-  if (!bundle) return null;
+function PreviewPane({ bundle }: { bundle: BundleItem["bundle"] }) {
   return (
     <div
       className="rounded-xl border p-8"
