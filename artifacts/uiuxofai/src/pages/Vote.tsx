@@ -17,7 +17,7 @@ import {
   SURFACE_2,
   VIOLET,
 } from "../lib/tokens";
-import { getBundle } from "../lib/bundles";
+import { getItem } from "../lib/items";
 
 type Vote = "yes" | "no" | null;
 
@@ -40,7 +40,9 @@ const FEEDBACK = [
 
 export function Vote() {
   const [, params] = useRoute<{ id: string }>("/vote/:id");
-  const bundle = params ? getBundle(params.id) : undefined;
+  const item = params ? getItem(params.id) : undefined;
+  // Voting today is bundle-only; non-bundle items show a graceful message.
+  const bundle = item && item.type === "bundle" ? item.bundle : undefined;
 
   const [vote, setVote] = useState<Vote>(null);
   const [drift, setDrift] = useState<string[]>([]);
@@ -56,12 +58,26 @@ export function Vote() {
   }
 
   if (!bundle) {
+    const isNonBundle = !!item && item.type !== "bundle";
     return (
       <div className="mx-auto max-w-3xl px-6 lg:px-8 py-32 text-center">
-        <SectionLabel n="404" t="Bundle not found" />
-        <h1 className="mt-4 text-[28px] font-medium">No bundle with that id.</h1>
-        <Link href="/vote" className="mt-6 inline-flex items-center gap-1.5 text-[13px]" style={{ color: VIOLET }}>
-          Browse bundles to vote on
+        <SectionLabel n={isNonBundle ? "—" : "404"} t={isNonBundle ? "Voting is bundle-only for now" : "Bundle not found"} />
+        <h1 className="mt-4 text-[28px] font-medium">
+          {isNonBundle
+            ? `${item!.name} doesn't take votes yet.`
+            : "No bundle with that id."}
+        </h1>
+        {isNonBundle ? (
+          <p className="mt-4 text-[14px]" style={{ color: SUB }}>
+            Skills, agents, and MCPs collect attribution & verification signals instead of community votes.
+          </p>
+        ) : null}
+        <Link
+          href={isNonBundle ? `/library/${item!.id}` : "/vote"}
+          className="mt-6 inline-flex items-center gap-1.5 text-[13px]"
+          style={{ color: VIOLET }}
+        >
+          {isNonBundle ? `Back to ${item!.name}` : "Browse bundles to vote on"}
           <ArrowUpRight className="h-3.5 w-3.5" />
         </Link>
       </div>

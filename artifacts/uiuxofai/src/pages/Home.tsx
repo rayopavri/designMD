@@ -16,7 +16,7 @@ import {
   SURFACE_2,
   VIOLET,
 } from "../lib/tokens";
-import { BUNDLES, getBundle } from "../lib/bundles";
+import { BUNDLES, getBundle } from "../lib/items";
 
 export function Home() {
   const linear = getBundle("linear")!;

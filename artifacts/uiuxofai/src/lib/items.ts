@@ -1,4 +1,9 @@
-import { BUNDLES, type Bundle } from "./bundles";
+import { BUNDLES, getBundle as _getBundle, type Bundle } from "./bundles";
+
+// Re-export legacy bundle accessor so callers can migrate to the
+// unified items module without touching bundles.ts directly.
+export const getBundle = _getBundle;
+export { BUNDLES };
 
 export type ItemType = "bundle" | "skill" | "agent" | "mcp";
 
@@ -18,6 +23,7 @@ export type Attribution = {
   license: string;
   discoveryMethod: DiscoveryMethod;
   communityHandle?: string;
+  discoveredAt: string;
   verifiedAt: string;
 };
 
@@ -166,6 +172,7 @@ function bundleToItem(b: Bundle): BundleItem {
       license: b.license,
       discoveryMethod: meta.discoveryMethod,
       communityHandle: COMMUNITY_HANDLES[b.id],
+      discoveredAt: b.updatedAgo,
       verifiedAt: b.updatedAgo,
     },
     bundle: b,
@@ -281,6 +288,7 @@ const SKILLS: SkillItem[] = [
       author: "skills.sh",
       license: "MIT",
       discoveryMethod: "Editorial",
+      discoveredAt: "2d ago",
       verifiedAt: "2d ago",
     },
   },
@@ -306,6 +314,7 @@ const SKILLS: SkillItem[] = [
       author: "aitmpl",
       license: "MIT",
       discoveryMethod: "Editorial",
+      discoveredAt: "6d ago",
       verifiedAt: "6d ago",
     },
   },
@@ -331,6 +340,7 @@ const SKILLS: SkillItem[] = [
       author: "aitmpl",
       license: "MIT",
       discoveryMethod: "Auto-discovered",
+      discoveredAt: "1w ago",
       verifiedAt: "1w ago",
     },
   },
@@ -356,6 +366,7 @@ const SKILLS: SkillItem[] = [
       author: "skills.sh",
       license: "MIT",
       discoveryMethod: "Editorial",
+      discoveredAt: "4d ago",
       verifiedAt: "4d ago",
     },
   },
@@ -454,6 +465,7 @@ const AGENTS: AgentItem[] = [
       author: "wshobson",
       license: "MIT",
       discoveryMethod: "Editorial",
+      discoveredAt: "3d ago",
       verifiedAt: "3d ago",
     },
   },
@@ -480,6 +492,7 @@ const AGENTS: AgentItem[] = [
       license: "MIT",
       discoveryMethod: "Community",
       communityHandle: "@davila7",
+      discoveredAt: "8d ago",
       verifiedAt: "8d ago",
     },
   },
@@ -505,6 +518,7 @@ const AGENTS: AgentItem[] = [
       author: "wshobson",
       license: "MIT",
       discoveryMethod: "Editorial",
+      discoveredAt: "2w ago",
       verifiedAt: "2w ago",
     },
   },
@@ -580,6 +594,7 @@ const MCPS: McpItem[] = [
       author: "Figma",
       license: "Proprietary",
       discoveryMethod: "Editorial",
+      discoveredAt: "5h ago",
       verifiedAt: "5h ago",
     },
   },
@@ -606,6 +621,7 @@ const MCPS: McpItem[] = [
       author: "Mobbin",
       license: "Proprietary",
       discoveryMethod: "Editorial",
+      discoveredAt: "3d ago",
       verifiedAt: "3d ago",
     },
   },
@@ -631,6 +647,7 @@ const MCPS: McpItem[] = [
       author: "Refero",
       license: "Proprietary",
       discoveryMethod: "Auto-discovered",
+      discoveredAt: "1w ago",
       verifiedAt: "1w ago",
     },
   },
@@ -656,6 +673,7 @@ const MCPS: McpItem[] = [
       author: "skills.sh",
       license: "MIT",
       discoveryMethod: "Editorial",
+      discoveredAt: "2w ago",
       verifiedAt: "2w ago",
     },
   },

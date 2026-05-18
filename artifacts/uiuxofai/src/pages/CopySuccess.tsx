@@ -15,7 +15,7 @@ import {
   SURFACE_2,
   VIOLET,
 } from "../lib/tokens";
-import { getBundle } from "../lib/bundles";
+import { getItem } from "../lib/items";
 
 type Target = "claude" | "cursor" | "lovable" | "figma";
 
@@ -48,17 +48,32 @@ const STEPS: Record<Target, { n: string; t: string; cmd?: string }[]> = {
 
 export function CopySuccess() {
   const [, params] = useRoute<{ id: string }>("/copy/:id");
-  const bundle = params ? getBundle(params.id) : undefined;
+  const item = params ? getItem(params.id) : undefined;
+  // The two-file copy flow (design.md + companion prompt) is bundle-specific.
+  // Non-bundle items have their own install flow on the detail page.
+  const bundle = item && item.type === "bundle" ? item.bundle : undefined;
   const [target, setTarget] = useState<Target>("claude");
   const [copiedSpec, setCopiedSpec] = useState(false);
   const [copiedPrompt, setCopiedPrompt] = useState(false);
 
   if (!bundle) {
+    const isNonBundle = !!item && item.type !== "bundle";
     return (
       <div className="mx-auto max-w-3xl px-6 lg:px-8 py-32 text-center">
-        <h1 className="text-[28px] font-medium">Bundle not found.</h1>
-        <Link href="/library" className="mt-4 inline-flex items-center gap-1.5 text-[13px]" style={{ color: VIOLET }}>
-          Back to library
+        <h1 className="text-[28px] font-medium">
+          {isNonBundle ? `${item!.name} installs differently.` : "Bundle not found."}
+        </h1>
+        {isNonBundle ? (
+          <p className="mt-4 text-[14px]" style={{ color: SUB }}>
+            This is a {item!.type}. Use the per-tool install steps on its detail page instead of the bundle copy flow.
+          </p>
+        ) : null}
+        <Link
+          href={isNonBundle ? `/library/${item!.id}` : "/library"}
+          className="mt-4 inline-flex items-center gap-1.5 text-[13px]"
+          style={{ color: VIOLET }}
+        >
+          {isNonBundle ? `View ${item!.name}` : "Back to library"}
           <ArrowUpRight className="h-3.5 w-3.5" />
         </Link>
       </div>
