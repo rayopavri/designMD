@@ -1,0 +1,40 @@
+# designmd — Platform Brief for AI Context
+
+**designmd** is a curated library and generator platform at **uiuxskills.com** built for professional UI/UX designers who use AI tools (Claude, Cursor, Lovable, Figma Make) to generate UI components.
+
+## The problem it solves
+
+When a designer pastes a prompt into Claude or Lovable, the AI ignores their design system — it invents colors, uses the wrong typeface, guesses at spacing. This happens because AI tools have no context about the design system unless it's explicitly provided. Designers don't know how to provide that context correctly, and there's no resource built for them to do it fast.
+
+## The core product: the bundle
+
+Every item in the library is a **bundle** — two files packaged together:
+
+1. **design.md** — a structured markdown file (Google's open spec) covering 7 sections: Colors, Typography, Layout/Spacing, Elevation, Shapes, Components, and Dos & Don'ts. Each section gets a coverage score (0–100%) from the Google CLI linter.
+2. **Companion Claude prompt** — a calibrated instruction set (≤350 tokens) that tells Claude exactly how to apply the design.md. It puts absolute constraints first, writes specific token values for well-covered sections, and adds compensating defaults for thin sections.
+
+The user copies both as one text block and pastes it into Claude Projects as project instructions. Every conversation in that project then follows the design system.
+
+## How bundles are created
+
+**Generated:** User pastes a brand URL → Firecrawl scrapes it → Gemini Flash extracts design tokens → Claude Sonnet writes the companion prompt → Google linter scores coverage. Cost: ~$0.003/bundle.
+
+**Curated:** 30 hand-picked entries at launch (IBM Carbon, Material 3, etc.), editorially reviewed, with refined companion prompts updated based on community vote feedback.
+
+## Quality signals
+
+Every bundle shows a **vote rate** — the percentage of designers who reported it produced correct output. Negative votes include reason tags (Colors were off / Typography ignored / Spacing wrong / Too generic / Components missing) that map directly to specific sections for editorial fixes. Bundles below 60% positive votes are auto-flagged for review.
+
+## The 7 screens
+
+1. **Homepage** — two-column hero, extraction of the week, category grid
+2. **Guided discovery** — 3 chip-selector questions (project type, style, AI tool) with live result count
+3. **Library results** — card grid with palette-strip headers, vote rates, freshness indicators
+4. **Bundle detail** — coverage breakdown by section, companion prompt preview, three get-methods (copy / download / CLI)
+5. **Copy success** — tool-specific install steps (Claude / Cursor / Lovable / Figma Make)
+6. **URL generator** — URL input + 5-step pipeline progress tracker
+7. **Voting** — binary yes/no + reason tag chips feeding the editorial queue
+
+## Stack
+
+Next.js 15 on Cloud Run, Cloud SQL (Postgres), Gemini 2.5 Flash, Claude Sonnet 4.6, Firecrawl, Firebase Auth (GitHub OAuth), Orama search. ~$25–30/month at launch.
