@@ -33,8 +33,8 @@ export function GuidedDiscovery() {
         className="h-9 rounded-full px-4 text-[13px] transition-colors"
         style={
           active
-            ? { background: INK, color: "white", border: `1px solid ${INK}` }
-            : { background: "white", color: INK, border: `1px solid ${BORDER}` }
+            ? { background: INK, color: "#0A0A0B", border: `1px solid ${INK}` }
+            : { background: "#101012", color: INK, border: `1px solid ${BORDER}` }
         }
       >
         {children}
@@ -49,9 +49,9 @@ export function GuidedDiscovery() {
       <main className="flex-1 mx-auto max-w-4xl px-10 py-20 w-full" style={{ background: BG }}>
         <div className="text-center mb-16">
           <SectionLabel n="Index 01" t="Find your starting point" />
-          <h1 className="mt-5 text-[64px] leading-[1.02] font-normal" style={{ fontFamily: SERIF, color: INK }}>
+          <h1 className="mt-5 text-[64px] leading-[1.02] font-medium" style={{ fontFamily: SERIF, color: INK }}>
             What are you<br />
-            <em className="font-normal" style={{ fontStyle: "italic" }}>setting in type?</em>
+            <span style={{ color: "#8E8E94" }}>setting in type?</span>
           </h1>
           <p className="mt-6 mx-auto max-w-[36rem] text-[15.5px] leading-[1.6]" style={{ color: SUB }}>
             Three questions, then we'll point you at the plate that's most likely to land the
@@ -83,9 +83,9 @@ export function GuidedDiscovery() {
           <div className="flex items-end justify-between mb-10">
             <div>
               <SectionLabel n="Index 05" t="Plates for you" />
-              <h2 className="mt-4 text-[40px] leading-[1.05] font-normal" style={{ fontFamily: SERIF, color: INK }}>
+              <h2 className="mt-4 text-[40px] leading-[1.05] font-medium" style={{ fontFamily: SERIF, color: INK }}>
                 <span>{matchCount}</span> plates,{" "}
-                <em className="font-normal" style={{ fontStyle: "italic" }}>hand-picked.</em>
+                <span style={{ color: "#8E8E94" }}>hand-picked.</span>
               </h2>
             </div>
             <a href="#" className="text-[13px] inline-flex items-center gap-1" style={{ color: INK }}>
@@ -99,7 +99,7 @@ export function GuidedDiscovery() {
               { name: "Linear", num: "042", desc: "Dark mode native · precise · violet accents", colors: ["#5E6AD2", "#1A1A1A", "#2C2C2C", "#8A8F98", "#F4F4F5"], cov: 98 },
               { name: "Stripe", num: "041", desc: "Vibrant · angled · modern finance", colors: ["#635BFF", "#0A2540", "#00D4FF", "#FFB320", "#FFFFFF"], cov: 96 },
             ].map((b) => (
-              <a key={b.name} href="#" className="block rounded-xl border bg-white overflow-hidden hover:bg-[#FDFAF6] transition-colors" style={{ borderColor: BORDER }}>
+              <a key={b.name} href="#" className="block rounded-xl border bg-[#101012] overflow-hidden hover:bg-[#15151A] transition-colors" style={{ borderColor: BORDER }}>
                 <PaletteStrip colors={b.colors} />
                 <div className="p-6">
                   <div className="flex items-center justify-between mb-3">

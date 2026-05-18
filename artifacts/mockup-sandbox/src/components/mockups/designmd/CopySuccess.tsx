@@ -58,9 +58,9 @@ export function CopySuccess() {
           <span>Plate 041 · Stripe</span>
         </div>
 
-        <h1 className="text-[64px] leading-[1.02] font-normal" style={{ fontFamily: SERIF, color: INK }}>
+        <h1 className="text-[64px] leading-[1.02] font-medium" style={{ fontFamily: SERIF, color: INK }}>
           The bundle is on<br />
-          <em className="font-normal" style={{ fontStyle: "italic" }}>your clipboard.</em>
+          <span style={{ color: "#8E8E94" }}>your clipboard.</span>
         </h1>
         <p className="mt-5 text-[15.5px] leading-[1.6] max-w-[28rem]" style={{ color: SUB }}>
           1,847 tokens — companion prompt and{" "}
@@ -68,7 +68,7 @@ export function CopySuccess() {
           should land.
         </p>
 
-        <div className="w-full mt-12 text-left rounded-2xl border bg-white overflow-hidden" style={{ borderColor: BORDER, boxShadow: "0 20px 50px -30px rgba(40, 25, 15, 0.14)" }}>
+        <div className="w-full mt-12 text-left rounded-2xl border bg-[#101012] overflow-hidden" style={{ borderColor: BORDER, boxShadow: "0 20px 50px -30px rgba(40, 25, 15, 0.14)" }}>
           <div className="flex border-b" style={{ borderColor: BORDER, background: BG }}>
             {tools.map((tool) => (
               <button
@@ -93,7 +93,7 @@ export function CopySuccess() {
             <ol className="mt-8 space-y-7">
               {active.steps.map((step, i) => (
                 <li key={i} className="flex gap-5">
-                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[12px]" style={{ background: INK, color: "white", fontFamily: MONO }}>
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[12px]" style={{ background: INK, color: "#0A0A0B", fontFamily: MONO }}>
                     {i + 1}
                   </div>
                   <div className="flex-1">
@@ -115,11 +115,11 @@ export function CopySuccess() {
             Paste this in {activeTool}.
           </h3>
           <div className="mt-4 relative group">
-            <div className="rounded-md bg-white border p-4 text-[14px] leading-[1.5]" style={{ borderColor: BORDER, color: INK, fontFamily: SERIF, fontStyle: "italic" }}>
+            <div className="rounded-md bg-[#101012] border p-4 text-[14px] leading-[1.5]" style={{ borderColor: BORDER, color: INK, fontFamily: SERIF, fontStyle: "italic" }}>
               "Build a pricing card component following our design system. Include a primary
               CTA and 3 feature bullet points."
             </div>
-            <button className="absolute right-3 top-3 h-7 px-2 rounded-md text-[11px] inline-flex items-center gap-1" style={{ border: `1px solid ${BORDER}`, background: "white", color: SUB, fontFamily: MONO }}>
+            <button className="absolute right-3 top-3 h-7 px-2 rounded-md text-[11px] inline-flex items-center gap-1" style={{ border: `1px solid ${BORDER}`, background: "#101012", color: SUB, fontFamily: MONO }}>
               <Copy className="h-3 w-3" />
               copy
             </button>

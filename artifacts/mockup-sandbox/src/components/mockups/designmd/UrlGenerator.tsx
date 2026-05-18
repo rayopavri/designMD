@@ -10,9 +10,9 @@ export function UrlGenerator() {
       <main className="flex-1 mx-auto max-w-5xl px-10 py-20 w-full" style={{ background: BG }}>
         <div className="text-center mb-12">
           <SectionLabel n="Index 01" t="From any URL" />
-          <h1 className="mt-5 text-[64px] leading-[1.02] font-normal" style={{ fontFamily: SERIF, color: INK }}>
+          <h1 className="mt-5 text-[64px] leading-[1.02] font-medium" style={{ fontFamily: SERIF, color: INK }}>
             Extract any brand's<br />
-            <em className="font-normal" style={{ fontStyle: "italic" }}>system in 12 seconds.</em>
+            <span style={{ color: "#8E8E94" }}>system in 12 seconds.</span>
           </h1>
           <p className="mt-6 mx-auto max-w-[38rem] text-[15.5px] leading-[1.6]" style={{ color: SUB }}>
             Paste a URL. We'll scrape it, lift the tokens, write a calibrated companion
@@ -27,10 +27,10 @@ export function UrlGenerator() {
               type="url"
               value="https://nytimes.com"
               readOnly
-              className="w-full h-16 rounded-full bg-white pl-7 pr-40 text-[15px] outline-none"
+              className="w-full h-16 rounded-full bg-[#101012] pl-7 pr-40 text-[15px] outline-none"
               style={{ border: `1px solid ${INK}`, color: INK, fontFamily: MONO, boxShadow: "0 10px 28px -16px rgba(40, 25, 15, 0.12)" }}
             />
-            <button className="absolute right-2 top-2 bottom-2 rounded-full px-5 text-[13px] font-medium text-white inline-flex items-center gap-2" style={{ background: INK }}>
+            <button className="absolute right-2 top-2 bottom-2 rounded-full px-5 text-[13px] font-medium text-[#0A0A0B] inline-flex items-center gap-2" style={{ background: INK }}>
               <Loader2 className="h-4 w-4 animate-spin" />
               Extracting
             </button>
@@ -42,7 +42,7 @@ export function UrlGenerator() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Pipeline */}
-          <div className="rounded-2xl border bg-white p-8" style={{ borderColor: BORDER }}>
+          <div className="rounded-2xl border bg-[#101012] p-8" style={{ borderColor: BORDER }}>
             <SectionLabel n="Index 02" t="Extraction pipeline" />
 
             <ol className="mt-8 relative space-y-7 before:absolute before:left-3 before:top-1 before:bottom-1 before:w-px" style={{ }}>
@@ -65,7 +65,7 @@ export function UrlGenerator() {
                     border: s.state === "active" ? `1px solid ${INK}` : `1px solid ${BORDER}`,
                   }}>
                     {s.state === "done" ? (
-                      <Check className="h-3 w-3 text-white" />
+                      <Check className="h-3 w-3 text-[#0A0A0B]" />
                     ) : s.state === "active" ? (
                       <Loader2 className="h-3 w-3 animate-spin" style={{ color: INK }} />
                     ) : (
@@ -82,7 +82,7 @@ export function UrlGenerator() {
           </div>
 
           {/* Early preview */}
-          <div className="rounded-2xl border bg-white overflow-hidden" style={{ borderColor: BORDER }}>
+          <div className="rounded-2xl border bg-[#101012] overflow-hidden" style={{ borderColor: BORDER }}>
             <div className="px-6 py-4 flex items-center justify-between border-b" style={{ borderColor: BORDER, background: BG_SOFT }}>
               <SectionLabel n="Index 03" t="Early preview" />
               <span className="text-[11px]" style={{ fontFamily: MONO, color: SUB }}>nytimes.com</span>

@@ -48,8 +48,8 @@ version: 1.0.0
             <div className="text-[10.5px] uppercase tracking-[0.22em]" style={{ fontFamily: MONO, color: SUB }}>
               Plate 041 · Finance
             </div>
-            <h1 className="mt-4 text-[56px] leading-[1.02] font-normal" style={{ fontFamily: SERIF, color: INK }}>
-              <em className="font-normal" style={{ fontStyle: "italic" }}>Stripe.</em>
+            <h1 className="mt-4 text-[56px] leading-[1.02] font-medium" style={{ fontFamily: SERIF, color: INK }}>
+              <span style={{ color: "#8E8E94" }}>Stripe.</span>
             </h1>
             <p className="mt-5 text-[15px] leading-[1.6]" style={{ color: SUB }}>
               Vibrant, angled, modern finance UI. Excellent for SaaS dashboards and
@@ -62,7 +62,7 @@ version: 1.0.0
               <ChipLavender>gradient-first</ChipLavender>
             </div>
 
-            <div className="mt-6 rounded-xl border bg-white overflow-hidden" style={{ borderColor: BORDER }}>
+            <div className="mt-6 rounded-xl border bg-[#101012] overflow-hidden" style={{ borderColor: BORDER }}>
               <PaletteStrip colors={["#635BFF", "#0A2540", "#00D4FF", "#FFB320", "#FFFFFF"]} />
               <div className="p-5 text-[11.5px]" style={{ fontFamily: MONO, color: SUB }}>
                 <div className="flex justify-between">
@@ -75,7 +75,7 @@ version: 1.0.0
 
           <div>
             <SectionLabel n="Index 01" t="Coverage breakdown" />
-            <div className="mt-5 space-y-4 rounded-xl border bg-white p-6" style={{ borderColor: BORDER }}>
+            <div className="mt-5 space-y-4 rounded-xl border bg-[#101012] p-6" style={{ borderColor: BORDER }}>
               {[
                 ["Colors", 98],
                 ["Typography", 92],
@@ -95,7 +95,7 @@ version: 1.0.0
         <div className="lg:w-2/3 space-y-8">
           <div>
             <SectionLabel n="Index 02" t="The bundle" />
-            <div className="mt-5 rounded-xl border bg-white overflow-hidden h-[500px] flex flex-col" style={{ borderColor: BORDER }}>
+            <div className="mt-5 rounded-xl border bg-[#101012] overflow-hidden h-[500px] flex flex-col" style={{ borderColor: BORDER }}>
               <div className="flex border-b" style={{ borderColor: BORDER, background: BG_SOFT }}>
                 <button className="px-5 py-3 text-[12.5px]" style={{ color: INK, borderBottom: `2px solid ${INK}`, fontFamily: MONO }}>
                   companion prompt
@@ -116,17 +116,17 @@ version: 1.0.0
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <button className="flex flex-col items-start gap-2 rounded-xl p-5 text-left text-white" style={{ background: INK }}>
+            <button className="flex flex-col items-start gap-2 rounded-xl p-5 text-left text-[#0A0A0B]" style={{ background: INK }}>
               <Copy className="h-4 w-4" />
               <span className="text-[14px] font-medium">Copy bundle</span>
               <span className="text-[11.5px] opacity-70" style={{ fontFamily: MONO }}>prompt + md · 1,847 tokens</span>
             </button>
-            <button className="flex flex-col items-start gap-2 rounded-xl bg-white p-5 text-left" style={{ border: `1px solid ${BORDER}`, color: INK }}>
+            <button className="flex flex-col items-start gap-2 rounded-xl bg-[#101012] p-5 text-left" style={{ border: `1px solid ${BORDER}`, color: INK }}>
               <Download className="h-4 w-4" />
               <span className="text-[14px] font-medium">Download</span>
               <span className="text-[11.5px]" style={{ fontFamily: MONO, color: SUB }}>.zip archive</span>
             </button>
-            <button className="flex flex-col items-start gap-2 rounded-xl bg-white p-5 text-left" style={{ border: `1px solid ${BORDER}`, color: INK }}>
+            <button className="flex flex-col items-start gap-2 rounded-xl bg-[#101012] p-5 text-left" style={{ border: `1px solid ${BORDER}`, color: INK }}>
               <Terminal className="h-4 w-4" />
               <span className="text-[14px] font-medium">CLI install</span>
               <span className="text-[11.5px]" style={{ fontFamily: MONO, color: SUB }}>npx uiuxofai add stripe</span>

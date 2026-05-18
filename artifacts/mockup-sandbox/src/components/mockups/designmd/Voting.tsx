@@ -10,7 +10,7 @@ export function Voting() {
       <main className="flex-1 mx-auto max-w-5xl px-10 py-14 w-full flex gap-12" style={{ background: BG }}>
         <div className="flex-1 max-w-xl">
           {/* Bundle context card */}
-          <div className="rounded-xl border bg-white overflow-hidden mb-8" style={{ borderColor: BORDER }}>
+          <div className="rounded-xl border bg-[#101012] overflow-hidden mb-8" style={{ borderColor: BORDER }}>
             <PaletteStrip colors={["#FF4F00", "#1A1A1A", "#F4F4F4"]} />
             <div className="px-5 py-3 flex items-center justify-between" style={{ background: BG_SOFT }}>
               <div className="flex items-baseline gap-3">
@@ -25,9 +25,9 @@ export function Voting() {
 
           <div className="text-center mb-10">
             <SectionLabel n="Index 01" t="Did this plate hold?" />
-            <h1 className="mt-4 text-[44px] leading-[1.05] font-normal" style={{ fontFamily: SERIF, color: INK }}>
+            <h1 className="mt-4 text-[44px] leading-[1.05] font-medium" style={{ fontFamily: SERIF, color: INK }}>
               Did the bundle<br />
-              <em className="font-normal" style={{ fontStyle: "italic" }}>land on-brand?</em>
+              <span style={{ color: "#8E8E94" }}>land on-brand?</span>
             </h1>
             <p className="mt-4 text-[14.5px] leading-[1.6]" style={{ color: SUB }}>
               Your vote calibrates the companion prompt for everyone.
@@ -36,14 +36,14 @@ export function Voting() {
 
           {/* Vote buttons */}
           <div className="grid grid-cols-2 gap-3 mb-8">
-            <button className="rounded-xl bg-white p-7 text-center transition-colors hover:bg-[#FDFAF6]" style={{ border: `1px solid ${BORDER}` }}>
+            <button className="rounded-xl bg-[#101012] p-7 text-center transition-colors hover:bg-[#15151A]" style={{ border: `1px solid ${BORDER}` }}>
               <div className="mx-auto mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full" style={{ background: "#C5E96A" }}>
                 <Check className="h-5 w-5" style={{ color: INK }} />
               </div>
               <div className="text-[15px]" style={{ fontFamily: SERIF, color: INK }}>Yes, it landed</div>
             </button>
-            <button className="rounded-xl bg-white p-7 text-center" style={{ border: `2px solid ${INK}` }}>
-              <div className="mx-auto mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full" style={{ background: "#FFC8AF" }}>
+            <button className="rounded-xl bg-[#101012] p-7 text-center" style={{ border: `2px solid ${INK}` }}>
+              <div className="mx-auto mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full" style={{ background: "#15151A" }}>
                 <X className="h-5 w-5" style={{ color: INK }} />
               </div>
               <div className="text-[15px]" style={{ fontFamily: SERIF, color: INK }}>Something was off</div>
@@ -51,7 +51,7 @@ export function Voting() {
           </div>
 
           {/* Expanded feedback */}
-          <div className="rounded-2xl border bg-white p-8" style={{ borderColor: BORDER }}>
+          <div className="rounded-2xl border bg-[#101012] p-8" style={{ borderColor: BORDER }}>
             <SectionLabel n="Index 02" t="What drifted?" />
             <div className="mt-5 flex flex-wrap gap-2">
               {["Colours were off", "Typography ignored", "Spacing wrong", "Too generic", "Components missing", "Other"].map((tag, i) => (
@@ -60,8 +60,8 @@ export function Voting() {
                   className="h-8 rounded-full px-3.5 text-[12.5px]"
                   style={
                     i === 0
-                      ? { background: "#FFC8AF", color: INK, border: `1px solid #E7B19B`, fontFamily: MONO }
-                      : { background: "white", color: SUB, border: `1px solid ${BORDER}` }
+                      ? { background: "#15151A", color: INK, border: `1px solid #2A2A2E`, fontFamily: MONO }
+                      : { background: "#101012", color: SUB, border: `1px solid ${BORDER}` }
                   }
                 >
                   {tag}
@@ -72,7 +72,7 @@ export function Voting() {
             <div className="mt-7">
               <label className="block text-[12.5px] mb-2" style={{ color: INK }}>Context (optional)</label>
               <textarea
-                className="w-full rounded-md p-3 text-[13.5px] outline-none resize-none h-24 bg-white"
+                className="w-full rounded-md p-3 text-[13.5px] outline-none resize-none h-24 bg-[#101012]"
                 style={{ border: `1px solid ${BORDER}`, color: INK }}
                 defaultValue="It used #FF0000 instead of the official #FF4F00 for the primary button."
               />
@@ -80,7 +80,7 @@ export function Voting() {
 
             <div className="mt-5">
               <label className="block text-[12.5px] mb-2" style={{ color: INK }}>Which model did you use?</label>
-              <select className="w-full h-10 rounded-md px-3 text-[13.5px] bg-white outline-none" style={{ border: `1px solid ${BORDER}`, color: INK }}>
+              <select className="w-full h-10 rounded-md px-3 text-[13.5px] bg-[#101012] outline-none" style={{ border: `1px solid ${BORDER}`, color: INK }}>
                 <option>Claude Projects</option>
                 <option>Cursor</option>
                 <option>Lovable</option>
@@ -88,7 +88,7 @@ export function Voting() {
               </select>
             </div>
 
-            <button className="mt-7 w-full h-11 rounded-full text-[13.5px] font-medium text-white" style={{ background: INK }}>
+            <button className="mt-7 w-full h-11 rounded-full text-[13.5px] font-medium text-[#0A0A0B]" style={{ background: INK }}>
               Submit feedback
             </button>
           </div>
@@ -104,7 +104,7 @@ export function Voting() {
             </p>
           </div>
 
-          <div className="rounded-xl border bg-white p-6" style={{ borderColor: BORDER }}>
+          <div className="rounded-xl border bg-[#101012] p-6" style={{ borderColor: BORDER }}>
             <SectionLabel n="Index 04" t="Recent feedback" />
             <div className="mt-4 space-y-5">
               <div>

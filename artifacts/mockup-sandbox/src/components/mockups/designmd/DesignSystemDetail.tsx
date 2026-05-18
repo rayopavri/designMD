@@ -56,8 +56,8 @@ export function DesignSystemDetail() {
                 <div className="text-[10.5px] uppercase tracking-[0.22em]" style={{ fontFamily: MONO, color: SUB }}>
                   Plate 039 · Maintained by IBM · MIT · v11.42.0
                 </div>
-                <h1 className="mt-5 text-[88px] leading-[0.96] font-normal" style={{ fontFamily: SERIF, color: INK }}>
-                  <em className="font-normal" style={{ fontStyle: "italic" }}>IBM Carbon.</em>
+                <h1 className="mt-5 text-[88px] leading-[0.96] font-medium" style={{ fontFamily: SERIF, color: INK }}>
+                  <span style={{ color: "#8E8E94" }}>IBM Carbon.</span>
                 </h1>
                 <p className="mt-6 max-w-2xl text-[16px] leading-[1.6]" style={{ color: SUB }}>
                   Carbon is IBM's open-source design system for products and digital
@@ -75,11 +75,11 @@ export function DesignSystemDetail() {
                 </div>
 
                 <div className="mt-8 flex flex-wrap items-center gap-3">
-                  <button className="inline-flex h-11 items-center gap-2 rounded-full px-5 text-[13px] font-medium text-white" style={{ background: INK }}>
+                  <button className="inline-flex h-11 items-center gap-2 rounded-full px-5 text-[13px] font-medium text-[#0A0A0B]" style={{ background: INK }}>
                     <Copy className="h-3.5 w-3.5" />
                     Copy design.md
                   </button>
-                  <button className="inline-flex h-11 items-center gap-2 rounded-full bg-white px-5 text-[13px] font-medium" style={{ border: `1px solid ${BORDER}`, color: INK }}>
+                  <button className="inline-flex h-11 items-center gap-2 rounded-full bg-[#101012] px-5 text-[13px] font-medium" style={{ border: `1px solid ${BORDER}`, color: INK }}>
                     <Download className="h-3.5 w-3.5" />
                     Download bundle
                   </button>
@@ -89,7 +89,7 @@ export function DesignSystemDetail() {
                 </div>
               </div>
 
-              <aside className="rounded-2xl border bg-white p-7" style={{ borderColor: BORDER }}>
+              <aside className="rounded-2xl border bg-[#101012] p-7" style={{ borderColor: BORDER }}>
                 <div className="grid grid-cols-2 gap-6">
                   {[
                     ["Coverage", "96%"],
@@ -125,9 +125,9 @@ export function DesignSystemDetail() {
             {/* Coverage */}
             <div>
               <SectionLabel n="Index 01" t="Coverage breakdown" />
-              <h2 className="mt-4 mb-3 text-[36px] leading-[1.05] font-normal" style={{ fontFamily: SERIF, color: INK }}>
+              <h2 className="mt-4 mb-3 text-[36px] leading-[1.05] font-medium" style={{ fontFamily: SERIF, color: INK }}>
                 What it ships,<br />
-                <em className="font-normal" style={{ fontStyle: "italic" }}>and what it doesn't.</em>
+                <span style={{ color: "#8E8E94" }}>and what it doesn't.</span>
               </h2>
               <p className="mb-8 text-[14px] leading-[1.6]" style={{ color: SUB }}>
                 Scored against the UIUXofAi extraction rubric — what each surface area provides
@@ -148,13 +148,13 @@ export function DesignSystemDetail() {
             {/* Palette */}
             <div>
               <SectionLabel n="Index 02" t="Core palette" />
-              <h2 className="mt-4 mb-3 text-[36px] leading-[1.05] font-normal" style={{ fontFamily: SERIF, color: INK }}>
+              <h2 className="mt-4 mb-3 text-[36px] leading-[1.05] font-medium" style={{ fontFamily: SERIF, color: INK }}>
                 Eight foundation tokens.
               </h2>
               <p className="mb-6 text-[14px] leading-[1.6]" style={{ color: SUB }}>
                 The full ramp ships with 110 steps across functional roles.
               </p>
-              <div className="rounded-2xl border bg-white overflow-hidden" style={{ borderColor: BORDER }}>
+              <div className="rounded-2xl border bg-[#101012] overflow-hidden" style={{ borderColor: BORDER }}>
                 <PaletteStrip colors={carbonPalette} />
                 <div className="grid grid-cols-4 md:grid-cols-8 divide-x" style={{ borderTop: `1px solid ${BORDER}` }}>
                   {carbonPalette.map((c) => (
@@ -174,7 +174,7 @@ export function DesignSystemDetail() {
               <div className="flex items-end justify-between mb-6">
                 <div>
                   <SectionLabel n="Index 03" t="Components" />
-                  <h2 className="mt-4 text-[36px] leading-[1.05] font-normal" style={{ fontFamily: SERIF, color: INK }}>
+                  <h2 className="mt-4 text-[36px] leading-[1.05] font-medium" style={{ fontFamily: SERIF, color: INK }}>
                     62 total — showing twelve.
                   </h2>
                 </div>
@@ -184,7 +184,7 @@ export function DesignSystemDetail() {
               </div>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-px" style={{ background: BORDER }}>
                 {components.map((c) => (
-                  <div key={c.name} className="p-4 flex items-center justify-between" style={{ background: "white" }}>
+                  <div key={c.name} className="p-4 flex items-center justify-between" style={{ background: "#101012" }}>
                     <div>
                       <div className="text-[14px]" style={{ color: INK }}>{c.name}</div>
                       <div className="text-[10.5px] uppercase tracking-[0.18em] mt-0.5" style={{ fontFamily: MONO, color: SUB }}>
@@ -200,12 +200,12 @@ export function DesignSystemDetail() {
             {/* Bundles */}
             <div>
               <SectionLabel n="Index 04" t="Curated bundles" />
-              <h2 className="mt-4 mb-6 text-[36px] leading-[1.05] font-normal" style={{ fontFamily: SERIF, color: INK }}>
-                <em className="font-normal" style={{ fontStyle: "italic" }}>Pre-packaged slices.</em>
+              <h2 className="mt-4 mb-6 text-[36px] leading-[1.05] font-medium" style={{ fontFamily: SERIF, color: INK }}>
+                <span style={{ color: "#8E8E94" }}>Pre-packaged slices.</span>
               </h2>
               <div className="space-y-3">
                 {bundles.map((b) => (
-                  <div key={b.name} className="rounded-xl border bg-white p-5 flex items-center justify-between" style={{ borderColor: BORDER }}>
+                  <div key={b.name} className="rounded-xl border bg-[#101012] p-5 flex items-center justify-between" style={{ borderColor: BORDER }}>
                     <div>
                       <div className="text-[17px]" style={{ fontFamily: SERIF, color: INK }}>{b.name}</div>
                       <div className="text-[13px] mt-0.5" style={{ color: SUB }}>{b.desc}</div>
@@ -218,7 +218,7 @@ export function DesignSystemDetail() {
                         <div className="text-[14px]" style={{ fontFamily: MONO, color: INK }}>{b.tokens.toLocaleString()}</div>
                       </div>
                       <ChipLime>{b.coverage}%</ChipLime>
-                      <button className="inline-flex h-9 items-center gap-2 rounded-full px-3 text-[12px] font-medium text-white" style={{ background: INK }}>
+                      <button className="inline-flex h-9 items-center gap-2 rounded-full px-3 text-[12px] font-medium text-[#0A0A0B]" style={{ background: INK }}>
                         <Copy className="h-3 w-3" />
                         Copy
                       </button>
@@ -236,7 +236,7 @@ export function DesignSystemDetail() {
               <p className="mt-3 text-[13px] leading-[1.6]" style={{ color: SUB }}>
                 Pairs with the design.md to keep Claude on-brand across long sessions.
               </p>
-              <pre className="mt-4 rounded-md bg-white p-3 text-[11.5px] leading-[1.6] overflow-hidden whitespace-pre-wrap" style={{ border: `1px solid ${BORDER}`, fontFamily: MONO, color: INK }}>
+              <pre className="mt-4 rounded-md bg-[#101012] p-3 text-[11.5px] leading-[1.6] overflow-hidden whitespace-pre-wrap" style={{ border: `1px solid ${BORDER}`, fontFamily: MONO, color: INK }}>
 {`You are designing inside the IBM Carbon
 system. Use the 8pt grid, Plex Sans for UI,
 Plex Mono for code, and IBM blue (#0F62FE)
@@ -244,13 +244,13 @@ as the only accent. Prefer density over
 whitespace. Never invent components — reuse
 what design.md declares.`}
               </pre>
-              <button className="mt-4 w-full inline-flex items-center justify-center gap-2 rounded-full bg-white py-2.5 text-[12px]" style={{ border: `1px solid ${BORDER}`, color: INK, fontFamily: MONO }}>
+              <button className="mt-4 w-full inline-flex items-center justify-center gap-2 rounded-full bg-[#101012] py-2.5 text-[12px]" style={{ border: `1px solid ${BORDER}`, color: INK, fontFamily: MONO }}>
                 <Copy className="h-3 w-3" />
                 copy prompt
               </button>
             </div>
 
-            <div className="rounded-2xl border bg-white p-6" style={{ borderColor: BORDER }}>
+            <div className="rounded-2xl border bg-[#101012] p-6" style={{ borderColor: BORDER }}>
               <SectionLabel n="Index 06" t="Changelog" />
               <ol className="mt-4 space-y-5">
                 {changelog.map((c) => (
@@ -267,7 +267,7 @@ what design.md declares.`}
               </ol>
             </div>
 
-            <div className="rounded-2xl border p-6" style={{ borderColor: BORDER, background: "white" }}>
+            <div className="rounded-2xl border p-6" style={{ borderColor: BORDER, background: "#101012" }}>
               <Quote className="h-3.5 w-3.5 mb-3" style={{ color: FAINT }} />
               <blockquote className="text-[15px] leading-[1.5]" style={{ fontFamily: SERIF, color: INK }}>
                 Verified May 14 by the UIUXofAi editorial team. Carbon scores highest of any

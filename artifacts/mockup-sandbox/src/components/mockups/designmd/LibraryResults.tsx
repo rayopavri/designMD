@@ -29,7 +29,7 @@ export function LibraryResults() {
             </div>
             <div className="flex flex-wrap gap-2">
               {["Dashboard", "Claude"].map((t) => (
-                <span key={t} className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px]" style={{ border: `1px solid ${BORDER}`, background: "white", color: INK }}>
+                <span key={t} className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px]" style={{ border: `1px solid ${BORDER}`, background: "#101012", color: INK }}>
                   {t}
                   <X className="h-3 w-3 cursor-pointer" style={{ color: SUB }} />
                 </span>
@@ -62,13 +62,13 @@ export function LibraryResults() {
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-10">
             <div>
               <SectionLabel n="Index 02" t="Spring 2026" />
-              <h1 className="mt-3 text-[44px] leading-[1.05] font-normal" style={{ fontFamily: SERIF, color: INK }}>
+              <h1 className="mt-3 text-[44px] leading-[1.05] font-medium" style={{ fontFamily: SERIF, color: INK }}>
                 <span>142</span>{" "}
-                <em className="font-normal" style={{ fontStyle: "italic" }}>plates in stock.</em>
+                <span style={{ color: "#8E8E94" }}>plates in stock.</span>
               </h1>
             </div>
             <div className="relative">
-              <select className="h-9 appearance-none rounded-full bg-white pl-4 pr-9 text-[13px] outline-none" style={{ border: `1px solid ${BORDER}`, color: INK }}>
+              <select className="h-9 appearance-none rounded-full bg-[#101012] pl-4 pr-9 text-[13px] outline-none" style={{ border: `1px solid ${BORDER}`, color: INK }}>
                 <option>Most popular</option>
                 <option>Highest rated</option>
                 <option>Recently updated</option>
@@ -79,7 +79,7 @@ export function LibraryResults() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {bundles.map((b) => (
-              <a key={b.name} href="#" className="group block rounded-xl border bg-white overflow-hidden hover:bg-[#FDFAF6] transition-colors" style={{ borderColor: BORDER }}>
+              <a key={b.name} href="#" className="group block rounded-xl border bg-[#101012] overflow-hidden hover:bg-[#15151A] transition-colors" style={{ borderColor: BORDER }}>
                 <PaletteStrip colors={b.colors} />
                 <div className="p-5">
                   <div className="flex items-center justify-between mb-3">
@@ -94,7 +94,7 @@ export function LibraryResults() {
                   <div className="mt-5 pt-4 border-t flex items-center justify-between text-[11.5px]" style={{ borderColor: BORDER, fontFamily: MONO, color: SUB }}>
                     <div className="flex gap-1">
                       {b.tools.map((t) => (
-                        <span key={t} className="px-1.5 py-0.5 rounded" style={{ background: "#F4EFE6", color: INK }}>
+                        <span key={t} className="px-1.5 py-0.5 rounded" style={{ background: "#15151A", color: INK }}>
                           {t.toLowerCase()}
                         </span>
                       ))}
