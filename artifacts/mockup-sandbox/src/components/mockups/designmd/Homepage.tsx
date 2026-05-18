@@ -35,8 +35,16 @@ export function Homepage() {
                 </div>
               </div>
               
-              {/* Hero Widget / Preview */}
+              {/* Extraction of the Week */}
               <div className="relative mx-auto w-full max-w-[500px] lg:max-w-none">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="designmd-mono text-[11px] uppercase tracking-[0.14em] text-[#6B6A66]">
+                    Extraction of the Week
+                  </span>
+                  <a href="#" className="designmd-mono text-[11px] uppercase tracking-[0.14em] text-[#111110] hover:underline">
+                    View archive
+                  </a>
+                </div>
                 <div className="rounded-xl border border-[#E8E6DF] bg-white shadow-xl shadow-black/5 overflow-hidden">
                   <div className="flex items-center gap-2 border-b border-[#E8E6DF] bg-[#FDFCF8] px-4 py-3">
                     <div className="flex gap-1.5">
