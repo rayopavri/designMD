@@ -59,7 +59,7 @@ export function ItemCard({ item }: { item: Item }) {
             style={{ fontFamily: MONO, color: SUB }}
           >
             <span className="h-1.5 w-1.5 rounded-full" style={{ background: LIME }} />
-            {item.bundle.voteRate}% working
+            {item.bundle.coverage}% coverage
           </span>
         ) : (
           <span

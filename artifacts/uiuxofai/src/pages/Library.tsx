@@ -99,8 +99,8 @@ export function Library() {
     list = [...list];
     if (sort === "popular") {
       list.sort((a, b) => {
-        const av = a.type === "bundle" ? a.bundle.voteCount : 0;
-        const bv = b.type === "bundle" ? b.bundle.voteCount : 0;
+        const av = a.type === "bundle" ? a.bundle.forks : 0;
+        const bv = b.type === "bundle" ? b.bundle.forks : 0;
         return bv - av;
       });
     }

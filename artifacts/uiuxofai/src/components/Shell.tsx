@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Command, GitCommit } from "lucide-react";
 import { BG_SOFT_HEADER } from "../lib/constants";
+import { getItem, type ItemType } from "../lib/items";
 import {
   BG,
   BORDER,
@@ -60,10 +61,28 @@ export function StatusBar() {
 
 type NavItem = { label: string; href: string; matches: (path: string) => boolean };
 
+function detailType(path: string): ItemType | null {
+  const m = path.match(/^\/library\/([^/]+)$/);
+  if (!m) return null;
+  const slug = m[1];
+  if (slug === "skills" || slug === "agents" || slug === "mcps" || slug === "bundles") return null;
+  return getItem(slug)?.type ?? null;
+}
+
+function shelfMatcher(landingPath: string, type: ItemType) {
+  return (p: string) => {
+    if (p === landingPath) return true;
+    if (p === "/library") return true;
+    return detailType(p) === type;
+  };
+}
+
 const NAV: NavItem[] = [
-  { label: "Library", href: "/library", matches: (p) => p === "/library" || p.startsWith("/library/") },
+  { label: "Skills", href: "/library/skills", matches: shelfMatcher("/library/skills", "skill") },
+  { label: "Agents", href: "/library/agents", matches: shelfMatcher("/library/agents", "agent") },
+  { label: "MCPs", href: "/library/mcps", matches: shelfMatcher("/library/mcps", "mcp") },
+  { label: "Bundles", href: "/library/bundles", matches: shelfMatcher("/library/bundles", "bundle") },
   { label: "Generate", href: "/generate", matches: (p) => p.startsWith("/generate") },
-  { label: "Vote", href: "/vote", matches: (p) => p.startsWith("/vote") },
 ];
 
 export function Header() {
@@ -140,7 +159,6 @@ export function Footer() {
         <div className="flex items-center gap-5 flex-wrap">
           <Link href="/library">library</Link>
           <Link href="/generate">generate</Link>
-          <Link href="/vote">vote</Link>
         </div>
       </div>
     </footer>

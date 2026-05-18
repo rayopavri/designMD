@@ -1,14 +1,20 @@
-import { Route, Router as WouterRouter, Switch } from "wouter";
+import { Redirect, Route, Router as WouterRouter, Switch, useRoute } from "wouter";
 import { Shell } from "./components/Shell";
 import { Home } from "./pages/Home";
 import { Library } from "./pages/Library";
 import { LibraryType } from "./pages/LibraryType";
 import { BundleDetail } from "./pages/BundleDetail";
 import { Generate } from "./pages/Generate";
-import { Vote } from "./pages/Vote";
-import { VoteIndex } from "./pages/VoteIndex";
 import { CopySuccess } from "./pages/CopySuccess";
 import NotFound from "./pages/not-found";
+import { getItem } from "./lib/items";
+
+function VoteItemRedirect() {
+  const [, params] = useRoute<{ id: string }>("/vote/:id");
+  const id = params?.id;
+  const item = id ? getItem(id) : undefined;
+  return <Redirect to={item ? `/library/${item.id}` : "/library/bundles"} replace />;
+}
 
 function Router() {
   return (
@@ -22,8 +28,8 @@ function Router() {
       <Route path="/library/:id" component={BundleDetail} />
       <Route path="/copy/:id" component={CopySuccess} />
       <Route path="/generate" component={Generate} />
-      <Route path="/vote" component={VoteIndex} />
-      <Route path="/vote/:id" component={Vote} />
+      <Route path="/vote" component={() => <Redirect to="/library/bundles" replace />} />
+      <Route path="/vote/:id" component={VoteItemRedirect} />
       <Route component={NotFound} />
     </Switch>
   );

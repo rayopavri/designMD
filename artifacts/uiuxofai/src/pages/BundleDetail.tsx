@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useRoute, useSearch } from "wouter";
-import { ArrowUpRight, Check, ChevronRight, Copy, GitFork, Star } from "lucide-react";
+import { ArrowUpRight, Check, ChevronRight, Copy, GitFork } from "lucide-react";
 import { SectionLabel } from "../components/Shell";
 import { CodePanel } from "../components/CodePanel";
 import { AttributionRow } from "../components/AttributionRow";
@@ -270,14 +270,9 @@ function BundleView({ item }: { item: BundleItem }) {
                 ))}
               </div>
               <div
-                className="flex items-center justify-between pt-5 border-t text-[12px]"
+                className="flex items-center justify-end pt-5 border-t text-[12px]"
                 style={{ borderColor: BORDER, fontFamily: MONO, color: MUTED }}
               >
-                <span className="inline-flex items-center gap-1.5">
-                  <Star className="h-3 w-3" style={{ color: VIOLET }} />
-                  <span style={{ color: INK }}>{bundle.voteRate}%</span>
-                  <span>community vote</span>
-                </span>
                 <span className="inline-flex items-center gap-1.5">
                   <GitFork className="h-3 w-3" />
                   {bundle.forks} forks
