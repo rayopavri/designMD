@@ -394,12 +394,12 @@ function BundleView({ item }: { item: BundleItem }) {
         </section>
       ) : null}
 
-      {/* The bundle */}
+      {/* The design system */}
       <section className="border-b" style={{ borderColor: BORDER_SOFT }}>
         <div className="mx-auto max-w-6xl px-6 lg:px-8 py-16">
           <div className="grid grid-cols-12 gap-8">
             <div className="col-span-12 lg:col-span-3">
-              <SectionLabel n={showInstall ? "03" : "02"} t="The bundle" />
+              <SectionLabel n={showInstall ? "03" : "02"} t="The design system" />
               <h2 className="mt-3 text-[28px] leading-[1.08] font-medium tracking-[-0.018em]">
                 Two files,{" "}
                 <span style={{ color: SUB }}>versioned together.</span>
@@ -900,7 +900,13 @@ function NonBundleView({ item }: { item: SkillItem | AgentItem | McpItem }) {
 // ─────────────────────────────────────────────────────────────
 
 function Breadcrumb({ item }: { item: Item }) {
-  const meta = TYPE_META[item.type];
+  // Bundles surface as design-system skills — route their breadcrumb to /library/skills.
+  const shelf =
+    item.type === "bundle"
+      ? { href: "/library/skills?ds=1", label: "design systems" }
+      : item.type === "mcp"
+      ? { href: "/library/mcps", label: "mcps" }
+      : { href: `/library/${item.type}s`, label: TYPE_META[item.type].plural.toLowerCase() };
   return (
     <div className="mx-auto max-w-6xl px-6 lg:px-8 pt-6 pb-2">
       <div
@@ -911,8 +917,8 @@ function Breadcrumb({ item }: { item: Item }) {
           library
         </Link>
         <ChevronRight className="h-3 w-3" />
-        <Link href={`/library/${item.type === "mcp" ? "mcps" : item.type + "s"}`} style={{ color: SUB }}>
-          {meta.plural.toLowerCase()}
+        <Link href={shelf.href} style={{ color: SUB }}>
+          {shelf.label}
         </Link>
         <ChevronRight className="h-3 w-3" />
         <span style={{ color: INK }}>

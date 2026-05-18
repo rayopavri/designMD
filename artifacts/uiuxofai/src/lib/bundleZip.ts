@@ -15,7 +15,7 @@ export async function downloadBundleZip(args: {
   const steps = INSTALL_STEPS[tool];
 
   const readme = [
-    `# ${name} — UIUXofAi bundle (v${version})`,
+    `# ${name} — UIUXofAi design system (v${version})`,
     ``,
     `## What's in this folder`,
     ``,
@@ -42,7 +42,7 @@ export async function downloadBundleZip(args: {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `${slug}-bundle.zip`;
+  a.download = `${slug}-design-system.zip`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

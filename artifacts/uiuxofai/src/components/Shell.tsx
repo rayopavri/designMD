@@ -2,13 +2,11 @@ import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Command, GitCommit } from "lucide-react";
 import { BG_SOFT_HEADER } from "../lib/constants";
-import { getItem, type ItemType } from "../lib/items";
 import {
   BG,
   BORDER,
   BORDER_SOFT,
   INK,
-  INK_ON_LIGHT,
   LIME,
   MONO,
   MUTED,
@@ -61,27 +59,8 @@ export function StatusBar() {
 
 type NavItem = { label: string; href: string; matches: (path: string) => boolean };
 
-function detailType(path: string): ItemType | null {
-  const m = path.match(/^\/library\/([^/]+)$/);
-  if (!m) return null;
-  const slug = m[1];
-  if (slug === "skills" || slug === "agents" || slug === "mcps" || slug === "bundles") return null;
-  return getItem(slug)?.type ?? null;
-}
-
-function shelfMatcher(landingPath: string, type: ItemType) {
-  return (p: string) => {
-    if (p === landingPath) return true;
-    if (p === "/library") return true;
-    return detailType(p) === type;
-  };
-}
-
 const NAV: NavItem[] = [
-  { label: "Skills", href: "/library/skills", matches: shelfMatcher("/library/skills", "skill") },
-  { label: "Agents", href: "/library/agents", matches: shelfMatcher("/library/agents", "agent") },
-  { label: "MCPs", href: "/library/mcps", matches: shelfMatcher("/library/mcps", "mcp") },
-  { label: "Bundles", href: "/library/bundles", matches: shelfMatcher("/library/bundles", "bundle") },
+  { label: "Library", href: "/library", matches: (p) => p === "/library" || p.startsWith("/library/") },
   { label: "Generate", href: "/generate", matches: (p) => p.startsWith("/generate") },
 ];
 
@@ -127,13 +106,6 @@ export function Header() {
           </Link>
           <Link href="/generate" className="text-[12.5px] hidden sm:inline" style={{ color: SUB }}>
             Submit
-          </Link>
-          <Link
-            href="/library"
-            className="h-7 rounded-full px-3 text-[12px] font-medium inline-flex items-center"
-            style={{ background: INK, color: INK_ON_LIGHT }}
-          >
-            Open library
           </Link>
         </div>
       </div>

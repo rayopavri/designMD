@@ -82,13 +82,27 @@ export const TYPE_META: Record<
   ItemType,
   { label: string; plural: string; accent: string; icon: string }
 > = {
-  bundle: { label: "Bundle", plural: "Bundles", accent: VIOLET, icon: "▢" },
+  bundle: { label: "Design system", plural: "Design systems", accent: VIOLET, icon: "▢" },
   skill: { label: "Skill", plural: "Skills", accent: LIME, icon: "◇" },
   agent: { label: "Agent", plural: "Agents", accent: PEACH, icon: "◆" },
   mcp: { label: "MCP", plural: "MCPs", accent: CYAN, icon: "◐" },
 };
 
-export const TYPE_FILTERS: ("All" | ItemType)[] = ["All", "bundle", "skill", "agent", "mcp"];
+// Categories the user actually sees in nav / shelves.
+// Bundles (design systems) are exposed as a sub-kind of Skill — they live
+// on the Skill shelf and are filterable via isDesignSystem().
+export type DisplayType = "skill" | "agent" | "mcp";
+export const DISPLAY_TYPES: DisplayType[] = ["skill", "agent", "mcp"];
+
+export function displayTypeOf(it: Item): DisplayType {
+  return it.type === "bundle" ? "skill" : it.type;
+}
+
+export function isDesignSystem(it: Item): boolean {
+  return it.type === "bundle";
+}
+
+export const TYPE_FILTERS: ("All" | DisplayType)[] = ["All", "skill", "agent", "mcp"];
 
 // ─────────────────────────────────────────────────────────────
 // Attribution sidecar for the existing 8 bundles
@@ -262,7 +276,7 @@ You translate Figma frames into typed React components that consume design.md to
 5. Return a coverage report: declared / inferred / unmapped.
 
 # DEPENDENCIES
-- Pairs naturally with the Figma Dev Mode MCP and any UIUXofAi bundle.
+- Pairs naturally with the Figma Dev Mode MCP and any UIUXofAi design system.
 `;
 
 const SKILLS: SkillItem[] = [
@@ -273,7 +287,7 @@ const SKILLS: SkillItem[] = [
     name: "Design System Architect",
     tagline: "Turns brand references into a design.md spec",
     description:
-      "A Claude Skill that takes URLs, screenshots, or Figma frames and produces a strict, tokenized design.md ready to drop into any UIUXofAi bundle.",
+      "A Claude Skill that takes URLs, screenshots, or Figma frames and produces a strict, tokenized design.md ready to drop into any UIUXofAi design system.",
     tags: ["Claude Skill", "Tokens", "Architecture"],
     tools: ["Claude"],
     relatedIds: ["linear", "vercel", "mcp-figma-dev-mode", "skill-figma-to-react"],
@@ -325,7 +339,7 @@ const SKILLS: SkillItem[] = [
     name: "Design System (Cursor)",
     tagline: "Strict token enforcement in Cursor",
     description:
-      "Cursor rule that locks generations to declared design.md tokens. No inline hex, no ad-hoc spacing, no extra font families. Pairs with any bundle.",
+      "Cursor rule that locks generations to declared design.md tokens. No inline hex, no ad-hoc spacing, no extra font families. Pairs with any design system.",
     tags: ["Cursor Rule", "Tokens", "Strict"],
     tools: ["Cursor"],
     relatedIds: ["vercel", "ramp", "mcp-figma-dev-mode"],

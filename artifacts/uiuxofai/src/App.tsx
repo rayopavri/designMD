@@ -13,7 +13,7 @@ function VoteItemRedirect() {
   const [, params] = useRoute<{ id: string }>("/vote/:id");
   const id = params?.id;
   const item = id ? getItem(id) : undefined;
-  return <Redirect to={item ? `/library/${item.id}` : "/library/bundles"} replace />;
+  return <Redirect to={item ? `/library/${item.id}` : "/library/skills"} replace />;
 }
 
 function Router() {
@@ -24,11 +24,11 @@ function Router() {
       <Route path="/library/skills" component={() => <LibraryType type="skill" />} />
       <Route path="/library/agents" component={() => <LibraryType type="agent" />} />
       <Route path="/library/mcps" component={() => <LibraryType type="mcp" />} />
-      <Route path="/library/bundles" component={() => <LibraryType type="bundle" />} />
+      <Route path="/library/bundles" component={() => <Redirect to="/library/skills?ds=1" replace />} />
       <Route path="/library/:id" component={BundleDetail} />
       <Route path="/copy/:id" component={CopySuccess} />
       <Route path="/generate" component={Generate} />
-      <Route path="/vote" component={() => <Redirect to="/library/bundles" replace />} />
+      <Route path="/vote" component={() => <Redirect to="/library/skills" replace />} />
       <Route path="/vote/:id" component={VoteItemRedirect} />
       <Route component={NotFound} />
     </Switch>

@@ -16,12 +16,20 @@ import {
   SURFACE_2,
   VIOLET,
 } from "../lib/tokens";
-import { ITEMS, TYPE_META, type ItemType, type Tool } from "../lib/items";
+import {
+  DISPLAY_TYPES,
+  ITEMS,
+  TYPE_META,
+  displayTypeOf,
+  isDesignSystem,
+  type DisplayType,
+  type Tool,
+} from "../lib/items";
 
 const TOOLS_ROW: Tool[] = ["Claude", "Cursor", "Lovable", "Figma Make", "ChatGPT"];
 
 const COPY: Record<
-  ItemType,
+  DisplayType,
   {
     intro: string;
     detail: string;
@@ -30,24 +38,11 @@ const COPY: Record<
     findSub: string;
   }
 > = {
-  bundle: {
-    intro:
-      "A Bundle is a curated brand system — colors, type, spacing, components — packaged so your AI tool can produce on-brand UI without guessing.",
-    detail:
-      "Pick a brand you like, drop the bundle into Claude, Cursor, Lovable, or Figma Make, and your generations stop looking generic. Two files, free, no install.",
-    steps: [
-      { t: "Pick a brand", d: "Browse the shelf and open a bundle that matches the vibe you're going for." },
-      { t: "Install it in your tool", d: "One CTA copies the spec and the companion prompt into Claude, Cursor, Lovable, or Figma Make." },
-      { t: "Generate on-brand", d: "Ask for UI as normal — your tool now treats the brand as the source of truth." },
-    ],
-    findHeading: "Bundles in the shelf",
-    findSub: "Every bundle ships with a tokenized spec, a companion prompt, and a coverage score.",
-  },
   skill: {
     intro:
-      "A Skill is a short instruction file you drop into Claude or Cursor that gives it a specific design talent — like building tokenized specs or writing strict UI rules.",
+      "A Skill is a short instruction file you drop into Claude or Cursor that gives it a specific design talent — like building tokenized specs, following a real brand design system, or writing strict UI rules.",
     detail:
-      "Think of it like hiring a focused specialist for one job. You save the file once, then trigger it by name whenever you need that skill.",
+      "Think of it like hiring a focused specialist for one job. Design systems live here too — drop a Linear, Stripe, or Notion spec into your tool and your generations stop looking generic.",
     steps: [
       { t: "Pick the skill you need", d: "Each skill names the job it's good at — token wrangling, Figma-to-React, strict design system rules." },
       { t: "Save it in your tool", d: "Drop the file into Claude's skills folder or your Cursor rules folder. Copy/paste, one file." },
@@ -84,22 +79,27 @@ const COPY: Record<
   },
 };
 
-const TYPE_PATH: Record<ItemType, string> = {
-  bundle: "/library/bundles",
+const TYPE_PATH: Record<DisplayType, string> = {
   skill: "/library/skills",
   agent: "/library/agents",
   mcp: "/library/mcps",
 };
 
-export function LibraryType({ type }: { type: ItemType }) {
+export function LibraryType({ type }: { type: DisplayType }) {
   const meta = TYPE_META[type];
   const copy = COPY[type];
   const [query, setQuery] = useState("");
   const [tool, setTool] = useState<Tool | null>(null);
+  const [designSystemOnly, setDesignSystemOnly] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return new URLSearchParams(window.location.search).get("ds") === "1";
+  });
 
-  const all = useMemo(() => ITEMS.filter((i) => i.type === type), [type]);
+  const all = useMemo(() => ITEMS.filter((i) => displayTypeOf(i) === type), [type]);
+  const dsCount = useMemo(() => all.filter(isDesignSystem).length, [all]);
   const filtered = useMemo(() => {
     return all.filter((it) => {
+      if (designSystemOnly && !isDesignSystem(it)) return false;
       if (tool && !(it.tools as string[]).includes(tool)) return false;
       if (query.trim()) {
         const q = query.toLowerCase();
@@ -110,7 +110,7 @@ export function LibraryType({ type }: { type: ItemType }) {
       }
       return true;
     });
-  }, [all, query, tool]);
+  }, [all, query, tool, designSystemOnly]);
 
   return (
     <>
@@ -276,6 +276,21 @@ export function LibraryType({ type }: { type: ItemType }) {
                   style={{ borderColor: BORDER, background: SURFACE, color: INK }}
                 />
               </div>
+              {type === "skill" && dsCount > 0 ? (
+                <button
+                  onClick={() => setDesignSystemOnly((v) => !v)}
+                  className="h-8 px-3 rounded-full border text-[11.5px] inline-flex items-center gap-1.5"
+                  style={{
+                    borderColor: designSystemOnly ? VIOLET : BORDER,
+                    background: designSystemOnly ? `${VIOLET}1A` : SURFACE,
+                    color: designSystemOnly ? INK : SUB,
+                  }}
+                >
+                  <span className="h-1.5 w-1.5 rounded-full" style={{ background: VIOLET }} />
+                  Design systems
+                  <span style={{ fontFamily: MONO, color: MUTED }}>{dsCount}</span>
+                </button>
+              ) : null}
               <div className="inline-flex items-center gap-1">
                 {(["All", ...TOOLS_ROW] as (Tool | "All")[]).map((t) => {
                   const active = t === "All" ? tool === null : tool === t;
@@ -347,14 +362,14 @@ export function LibraryType({ type }: { type: ItemType }) {
             Other shelves
           </div>
           <div
-            className="grid grid-cols-2 md:grid-cols-3 gap-px rounded-lg overflow-hidden"
+            className="grid grid-cols-2 gap-px rounded-lg overflow-hidden"
             style={{ background: BORDER }}
           >
-            {(Object.keys(TYPE_META) as ItemType[])
+            {DISPLAY_TYPES
               .filter((t) => t !== type)
               .map((t) => {
                 const m = TYPE_META[t];
-                const count = ITEMS.filter((i) => i.type === t).length;
+                const count = ITEMS.filter((i) => displayTypeOf(i) === t).length;
                 return (
                   <Link
                     key={t}

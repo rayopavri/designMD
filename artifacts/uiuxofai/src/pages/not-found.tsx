@@ -13,7 +13,7 @@ export default function NotFound() {
         <span style={{ color: SUB }}>in the catalog.</span>
       </h1>
       <p className="mt-5 text-[14px]" style={{ color: SUB, fontFamily: MONO }}>
-        The bundle, page, or fragment you were looking for is not registered in this index.
+        The page or item you were looking for is not registered in this index.
       </p>
       <Link
         href="/library"

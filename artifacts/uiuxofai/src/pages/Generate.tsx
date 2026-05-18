@@ -47,7 +47,7 @@ const BUNDLE_STEPS: PipelineStep[] = [
   { id: "palette", label: "Palette extraction", tool: "Gemini Flash", detail: "OKLCH clustering · 8 colors", durationMs: 1100 },
   { id: "tokens", label: "Token & type inference", tool: "Claude Sonnet", detail: "7 sizes · 3 weights · spacing scale", durationMs: 1200 },
   { id: "companion", label: "Companion prompt", tool: "Claude Sonnet", detail: "Calibrated for Claude / Cursor / Lovable", durationMs: 1100 },
-  { id: "score", label: "Coverage scoring", tool: "Google linter", detail: "94% — drafting bundle preview", durationMs: 900 },
+  { id: "score", label: "Coverage scoring", tool: "Google linter", detail: "94% — drafting design system preview", durationMs: 900 },
 ];
 
 const SKILL_STEPS: PipelineStep[] = [
@@ -118,7 +118,7 @@ function detectType(raw: string): { type: ItemType; reason: string } | null {
     return { type: "skill", reason: `${host} skill source` };
   }
 
-  // Brand / product host → Bundle (single label TLDs like example.com, app, design, io, co, sh)
+  // Brand / product host → Design system skill (single-label TLDs)
   const parts = host.split(".");
   const tld = parts[parts.length - 1];
   const KNOWN_TLDS = new Set([
@@ -126,7 +126,7 @@ function detectType(raw: string): { type: ItemType; reason: string } | null {
     "org", "net", "xyz", "sh", "so", "to", "cloud", "page", "site", "tech",
   ]);
   if (parts.length >= 2 && KNOWN_TLDS.has(tld)) {
-    return { type: "bundle", reason: "Brand site → bundle" };
+    return { type: "bundle", reason: "Brand site → design system" };
   }
   // Unknown / unusual pattern — let the user override explicitly.
   return null;

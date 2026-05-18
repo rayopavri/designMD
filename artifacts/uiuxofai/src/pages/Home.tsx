@@ -23,14 +23,9 @@ const SHELVES: {
   blurb: string;
 }[] = [
   {
-    type: "bundle",
-    href: "/library/bundles",
-    blurb: "Real brand systems packaged so your AI tool produces on-brand UI.",
-  },
-  {
     type: "skill",
     href: "/library/skills",
-    blurb: "Single-purpose instruction files for Claude and Cursor.",
+    blurb: "Instruction files for Claude and Cursor — including real brand design systems.",
   },
   {
     type: "agent",
@@ -45,7 +40,8 @@ const SHELVES: {
 ];
 
 export function Home() {
-  const count = (t: ItemType) => ITEMS.filter((i) => i.type === t).length;
+  const count = (t: ItemType) =>
+    ITEMS.filter((i) => (t === "skill" ? i.type === "skill" || i.type === "bundle" : i.type === t)).length;
 
   // Representative items for the outcomes section
   const outcome1 = ITEMS.find((i) => i.id === "linear");
@@ -54,9 +50,9 @@ export function Home() {
   const outcomes = [
     {
       title: "Ship on-brand UI in Cursor in minutes",
-      body: "Drop a bundle into Cursor and your generations stop looking generic. Brand colors, type, density — all from one spec file.",
+      body: "Drop a design system into Cursor and your generations stop looking generic. Brand colors, type, density — all from one spec file.",
       item: outcome1,
-      eyebrow: "with a Bundle",
+      eyebrow: "with a Design system",
     },
     {
       title: "Get a real critique from a UI agent",
@@ -101,9 +97,9 @@ export function Home() {
             className="mx-auto mt-7 max-w-[36rem] text-[15.5px] leading-[1.65]"
             style={{ color: SUB }}
           >
-            UIUXofAi is a curated catalog of brand specs, skills, agents, and MCPs you can drop
-            into Claude, Cursor, Lovable, or Figma Make. Pick what you need, paste it in, and your
-            tool starts shipping UI that actually looks designed.
+            UIUXofAi is a curated catalog of skills, agents, and MCPs — including real brand
+            design systems — you can drop into Claude, Cursor, Lovable, or Figma Make. Pick what
+            you need, paste it in, and your tool starts shipping UI that actually looks designed.
           </p>
           <p
             className="mx-auto mt-4 max-w-[34rem] text-[13.5px] leading-[1.6]"
@@ -176,7 +172,7 @@ export function Home() {
                 The library
               </div>
               <h2 className="text-[36px] leading-[1.06] font-medium tracking-[-0.018em]">
-                Four shelves,{" "}
+                Three shelves,{" "}
                 <span style={{ color: SUB }}>one place.</span>
               </h2>
               <p className="mt-4 max-w-[34rem] text-[14px] leading-[1.6]" style={{ color: SUB }}>
@@ -194,7 +190,7 @@ export function Home() {
             </Link>
           </div>
           <div
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-px rounded-lg overflow-hidden"
+            className="grid grid-cols-1 sm:grid-cols-3 gap-px rounded-lg overflow-hidden"
             style={{ background: BORDER }}
           >
             {SHELVES.map((s) => {
@@ -316,7 +312,7 @@ export function Home() {
             <span style={{ color: SUB }}>model's defaults.</span>
           </h2>
           <p className="mt-6 text-[15.5px] leading-[1.65] max-w-[34rem] mx-auto" style={{ color: SUB }}>
-            Browse the four shelves, install one thing, see your AI tool start producing UI you'd
+            Browse the three shelves, install one thing, see your AI tool start producing UI you'd
             actually ship.
           </p>
           <div className="mt-9 flex items-center justify-center gap-3 flex-wrap">

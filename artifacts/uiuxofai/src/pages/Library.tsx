@@ -17,24 +17,25 @@ import { CATEGORIES, FEELS } from "../lib/bundles";
 
 const ALL_TOOLS: string[] = ["Claude", "Cursor", "Lovable", "Figma Make", "ChatGPT", "Universal"];
 import {
+  DISPLAY_TYPES,
   ITEMS,
   TYPE_FILTERS,
   TYPE_META,
+  displayTypeOf,
+  isDesignSystem,
+  type DisplayType,
   type Item,
-  type ItemType,
 } from "../lib/items";
 
 type Sort = "popular" | "coverage" | "recent" | "alpha";
 
-const SHELF_BLURBS: Record<ItemType, string> = {
-  bundle: "Real brand systems packaged so your AI tool produces on-brand UI.",
-  skill: "Single-purpose instruction files for Claude and Cursor.",
+const SHELF_BLURBS: Record<DisplayType, string> = {
+  skill: "Single-purpose instruction files — including real brand design systems you can drop into Claude or Cursor.",
   agent: "Personas with a charter — UI engineer, design critic, architect.",
   mcp: "Connections that let your tool see Figma, Mobbin, and more.",
 };
 
-const TYPE_PATH: Record<ItemType, string> = {
-  bundle: "/library/bundles",
+const TYPE_PATH: Record<DisplayType, string> = {
   skill: "/library/skills",
   agent: "/library/agents",
   mcp: "/library/mcps",
@@ -57,20 +58,28 @@ export function Library() {
   const initialFeel = useMemo(() => new URLSearchParams(search).get("feel") ?? "All", [search]);
   const initialType = useMemo(() => {
     const v = new URLSearchParams(search).get("type");
-    return (v && (TYPE_FILTERS as string[]).includes(v) ? v : "All") as "All" | ItemType;
+    // legacy: ?type=bundle → show skills shelf with design-system focus
+    if (v === "bundle") return "skill" as DisplayType;
+    return (v && (TYPE_FILTERS as string[]).includes(v) ? v : "All") as "All" | DisplayType;
   }, [search]);
+  const initialDesignSystemOnly = useMemo(
+    () => new URLSearchParams(search).get("ds") === "1",
+    [search],
+  );
 
   const [query, setQuery] = useState("");
-  const [typeFilter, setTypeFilter] = useState<"All" | ItemType>(initialType);
+  const [typeFilter, setTypeFilter] = useState<"All" | DisplayType>(initialType);
   const [category, setCategory] = useState<string>("All");
   const [feel, setFeel] = useState<string>(initialFeel);
   const [minCoverage, setMinCoverage] = useState<number>(0);
   const [model, setModel] = useState<string | null>(null);
+  const [designSystemOnly, setDesignSystemOnly] = useState<boolean>(initialDesignSystemOnly);
   const [sort, setSort] = useState<Sort>("popular");
 
   const filtered = useMemo(() => {
     let list: Item[] = ITEMS.filter((it) => {
-      if (typeFilter !== "All" && it.type !== typeFilter) return false;
+      if (typeFilter !== "All" && displayTypeOf(it) !== typeFilter) return false;
+      if (designSystemOnly && !isDesignSystem(it)) return false;
       if (it.type === "bundle") {
         const b = it.bundle;
         if (category !== "All" && b.category !== category) return false;
@@ -116,24 +125,28 @@ export function Library() {
       list.sort((a, b) => recentRank(a.updatedAgo) - recentRank(b.updatedAgo));
     }
     return list;
-  }, [query, typeFilter, category, feel, minCoverage, model, sort]);
+  }, [query, typeFilter, category, feel, minCoverage, model, sort, designSystemOnly]);
 
   const activeFilters: { label: string; clear: () => void }[] = [];
   if (typeFilter !== "All")
     activeFilters.push({ label: TYPE_META[typeFilter].plural, clear: () => setTypeFilter("All") });
+  if (designSystemOnly)
+    activeFilters.push({ label: "Design systems only", clear: () => setDesignSystemOnly(false) });
   if (category !== "All") activeFilters.push({ label: category, clear: () => setCategory("All") });
   if (feel !== "All") activeFilters.push({ label: feel, clear: () => setFeel("All") });
   if (minCoverage > 0)
     activeFilters.push({ label: `${minCoverage}%+ coverage`, clear: () => setMinCoverage(0) });
   if (model) activeFilters.push({ label: model, clear: () => setModel(null) });
 
-  const bundleFiltersDisabled = typeFilter !== "All" && typeFilter !== "bundle";
-  const bundleFiltersActive = category !== "All" || feel !== "All" || minCoverage > 0;
-  const showSuppressionHint = typeFilter === "All" && bundleFiltersActive;
+  // category / feel / coverage are design-system specific — disable when
+  // viewing a shelf that has no bundles in it.
+  const designSystemFiltersDisabled = typeFilter !== "All" && typeFilter !== "skill";
+  const designSystemFiltersActive = category !== "All" || feel !== "All" || minCoverage > 0;
+  const showSuppressionHint = typeFilter === "All" && designSystemFiltersActive;
 
   return (
     <>
-      {/* Hub intro + four shelves */}
+      {/* Hub intro + three shelves */}
       <section className="border-b" style={{ borderColor: BORDER_SOFT }}>
         <div className="mx-auto max-w-7xl px-6 lg:px-8 pt-12 pb-14">
           <div className="grid grid-cols-12 gap-8 items-end mb-10">
@@ -150,9 +163,9 @@ export function Library() {
                 <span style={{ color: SUB }}>Install what fits. Ship.</span>
               </h1>
               <p className="mt-5 max-w-[36rem] text-[14.5px] leading-[1.6]" style={{ color: SUB }}>
-                Four shelves: brand bundles, skills, agents, and MCPs. Each one slots into Claude,
-                Cursor, Lovable, or Figma Make. Open a shelf to see what's inside — or use the grid
-                below to search across everything.
+                Three shelves: Skills (including real brand design systems), Agents, and MCPs.
+                Each one slots into Claude, Cursor, Lovable, or Figma Make. Open a shelf to see
+                what's inside — or use the grid below to search across everything.
               </p>
             </div>
             <div className="col-span-12 lg:col-span-5">
@@ -168,8 +181,8 @@ export function Library() {
                 </div>
                 Each shelf has a short "how to use one" walkthrough at the top — three steps, no
                 jargon. Start with{" "}
-                <Link href="/library/bundles" style={{ color: VIOLET }}>
-                  Bundles
+                <Link href="/library/skills?ds=1" style={{ color: VIOLET }}>
+                  Design systems
                 </Link>{" "}
                 if you want fast on-brand UI.
               </div>
@@ -177,12 +190,13 @@ export function Library() {
           </div>
 
           <div
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-px rounded-lg overflow-hidden"
+            className="grid grid-cols-1 sm:grid-cols-3 gap-px rounded-lg overflow-hidden"
             style={{ background: BORDER }}
           >
-            {(["bundle", "skill", "agent", "mcp"] as ItemType[]).map((t) => {
+            {DISPLAY_TYPES.map((t) => {
               const m = TYPE_META[t];
-              const count = ITEMS.filter((i) => i.type === t).length;
+              const count = ITEMS.filter((i) => displayTypeOf(i) === t).length;
+              const dsCount = t === "skill" ? ITEMS.filter(isDesignSystem).length : 0;
               return (
                 <Link
                   key={t}
@@ -206,6 +220,14 @@ export function Library() {
                   </div>
                   <div className="text-[24px] leading-[1] font-medium tracking-[-0.018em] mb-3" style={{ color: INK }}>
                     {count}
+                    {dsCount > 0 ? (
+                      <span
+                        className="ml-2 text-[11px] align-middle"
+                        style={{ fontFamily: MONO, color: VIOLET }}
+                      >
+                        incl. {dsCount} design systems
+                      </span>
+                    ) : null}
                   </div>
                   <div className="text-[12.5px] leading-[1.55]" style={{ color: SUB }}>
                     {SHELF_BLURBS[t]}
@@ -231,13 +253,13 @@ export function Library() {
             const isActive = typeFilter === t;
             const count = isAll
               ? ITEMS.length
-              : ITEMS.filter((i) => i.type === t).length;
-            const label = isAll ? "All" : TYPE_META[t as ItemType].plural;
-            const accent = isAll ? VIOLET : TYPE_META[t as ItemType].accent;
+              : ITEMS.filter((i) => displayTypeOf(i) === t).length;
+            const label = isAll ? "All" : TYPE_META[t as DisplayType].plural;
+            const accent = isAll ? VIOLET : TYPE_META[t as DisplayType].accent;
             return (
               <button
                 key={t}
-                onClick={() => setTypeFilter(t as "All" | ItemType)}
+                onClick={() => setTypeFilter(t as "All" | DisplayType)}
                 className="inline-flex items-center gap-2 h-8 rounded-full border px-3 text-[12px]"
                 style={{
                   borderColor: isActive ? accent : BORDER,
@@ -251,6 +273,24 @@ export function Library() {
               </button>
             );
           })}
+          {(typeFilter === "All" || typeFilter === "skill") ? (
+            <button
+              onClick={() => setDesignSystemOnly((v) => !v)}
+              className="inline-flex items-center gap-2 h-8 rounded-full border px-3 text-[12px] ml-2"
+              style={{
+                borderColor: designSystemOnly ? VIOLET : BORDER,
+                background: designSystemOnly ? `${VIOLET}1A` : SURFACE,
+                color: designSystemOnly ? INK : SUB,
+              }}
+              title="Show only design-system skills (former bundles)"
+            >
+              <span className="h-1.5 w-1.5 rounded-full" style={{ background: VIOLET }} />
+              Design systems only
+              <span style={{ fontFamily: MONO, color: MUTED }}>
+                {ITEMS.filter(isDesignSystem).length}
+              </span>
+            </button>
+          ) : null}
         </div>
 
         <div className="grid grid-cols-12 gap-8">
@@ -278,38 +318,38 @@ export function Library() {
               </div>
             </div>
 
-            <FilterBlock label="Category" disabled={bundleFiltersDisabled}>
+            <FilterBlock label="Category" disabled={designSystemFiltersDisabled}>
               {CATEGORIES.map((c) => (
                 <RadioRow
                   key={c}
                   label={c}
                   checked={category === c}
                   onChange={() => setCategory(c)}
-                  disabled={bundleFiltersDisabled}
+                  disabled={designSystemFiltersDisabled}
                 />
               ))}
             </FilterBlock>
 
-            <FilterBlock label="Feel" disabled={bundleFiltersDisabled}>
+            <FilterBlock label="Feel" disabled={designSystemFiltersDisabled}>
               {FEELS.map((f) => (
                 <RadioRow
                   key={f}
                   label={f}
                   checked={feel === f}
                   onChange={() => setFeel(f)}
-                  disabled={bundleFiltersDisabled}
+                  disabled={designSystemFiltersDisabled}
                 />
               ))}
             </FilterBlock>
 
-            <FilterBlock label="Coverage score" disabled={bundleFiltersDisabled}>
+            <FilterBlock label="Coverage score" disabled={designSystemFiltersDisabled}>
               {[0, 80, 90, 95].map((v) => (
                 <RadioRow
                   key={v}
                   label={v === 0 ? "Any" : `${v}%+ coverage`}
                   checked={minCoverage === v}
                   onChange={() => setMinCoverage(v)}
-                  disabled={bundleFiltersDisabled}
+                  disabled={designSystemFiltersDisabled}
                 />
               ))}
             </FilterBlock>
@@ -339,8 +379,8 @@ export function Library() {
                   {filtered.length}{" "}
                   <span style={{ color: SUB }}>
                     {filtered.length === 1
-                      ? `${typeFilter === "All" ? "item" : TYPE_META[typeFilter as ItemType].label.toLowerCase()} in stock.`
-                      : `${typeFilter === "All" ? "items" : TYPE_META[typeFilter as ItemType].plural.toLowerCase()} in stock.`}
+                      ? `${typeFilter === "All" ? "item" : TYPE_META[typeFilter as DisplayType].label.toLowerCase()} in stock.`
+                      : `${typeFilter === "All" ? "items" : TYPE_META[typeFilter as DisplayType].plural.toLowerCase()} in stock.`}
                   </span>
                 </h2>
               </div>
@@ -370,8 +410,8 @@ export function Library() {
                 style={{ borderColor: BORDER, background: SURFACE, color: SUB, fontFamily: MONO }}
               >
                 <span className="h-1.5 w-1.5 rounded-full" style={{ background: VIOLET }} />
-                showing bundles only — category, feel & coverage are bundle-specific. clear them to
-                see skills, agents & MCPs.
+                showing design systems only — category, feel & coverage apply only to design
+                systems. clear them to see all skills, agents & MCPs.
               </div>
             ) : null}
 
@@ -402,15 +442,17 @@ export function Library() {
   );
 }
 
-function RequestCard({ typeFilter }: { typeFilter: "All" | ItemType }) {
+function RequestCard({ typeFilter }: { typeFilter: "All" | DisplayType }) {
   const isTyped = typeFilter !== "All";
-  const meta = isTyped ? TYPE_META[typeFilter as ItemType] : null;
+  const meta = isTyped ? TYPE_META[typeFilter as DisplayType] : null;
   const accent = meta?.accent ?? VIOLET;
-  const label = isTyped ? `Request a ${TYPE_META[typeFilter as ItemType].label}` : "Request a Bundle";
+  const label = isTyped
+    ? `Request a ${TYPE_META[typeFilter as DisplayType].label}`
+    : "Request a Design system";
   const href = isTyped ? `/generate?type=${typeFilter}` : "/generate?type=bundle";
   const body = isTyped
-    ? `Can't find the ${TYPE_META[typeFilter as ItemType].label.toLowerCase()} you need? Paste a source URL — we'll draft it and route to the curation desk.`
-    : "Don't see the brand you need? Paste a brand URL — we'll draft a bundle and route it to the curation desk.";
+    ? `Can't find the ${TYPE_META[typeFilter as DisplayType].label.toLowerCase()} you need? Paste a source URL — we'll draft it and route to the curation desk.`
+    : "Don't see the brand you need? Paste a brand URL — we'll draft a design system and route it to the curation desk.";
   return (
     <Link
       href={href}
@@ -460,7 +502,7 @@ function FilterBlock({
         style={{ fontFamily: MONO, color: MUTED }}
       >
         {label}
-        {disabled ? <span className="ml-2" style={{ color: SUB }}>· bundles only</span> : null}
+        {disabled ? <span className="ml-2" style={{ color: SUB }}>· design systems only</span> : null}
       </div>
       <div className="space-y-1.5">{children}</div>
     </div>
