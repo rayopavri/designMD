@@ -221,10 +221,6 @@ function BundleView({ item }: { item: BundleItem }) {
                 </button>
               </div>
             </div>
-            <div className="mt-3 text-[11.5px]" style={{ fontFamily: MONO, color: MUTED }}>
-              free forever · no install · paste into any AI tool
-            </div>
-
             {/* What you'll get */}
             <div
               className="mt-8 rounded-xl border p-5"
@@ -250,6 +246,9 @@ function BundleView({ item }: { item: BundleItem }) {
                   accent={VIOLET}
                 />
               </div>
+            </div>
+            <div className="mt-4 text-[11.5px]" style={{ fontFamily: MONO, color: MUTED }}>
+              free forever · no install · paste into any AI tool
             </div>
           </div>
 
