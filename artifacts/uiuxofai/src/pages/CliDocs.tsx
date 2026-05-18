@@ -16,8 +16,7 @@ import { TOOLS } from "../lib/toolPref";
 import { INSTALL_STEPS } from "../lib/installSteps";
 
 const COMMANDS: { cmd: string; what: string }[] = [
-  { cmd: "npx uiuxofai add <bundle>", what: "Drop a design system into your project (design.md + companion.md)." },
-  { cmd: "npx uiuxofai add <skill>", what: "Install a skill file at the right path for your tool." },
+  { cmd: "npx uiuxofai add <id>", what: "Drop a bundle, skill, agent, or MCP into your project at the right per-tool path." },
   { cmd: "npx uiuxofai list", what: "Print the catalogue of bundles, skills, agents, and MCPs." },
   { cmd: "npx uiuxofai verify", what: "Check that an installed bundle's tokens are wired up." },
 ];
@@ -78,7 +77,7 @@ export function CliDocs() {
         <div className="mx-auto max-w-3xl px-6 lg:px-8 py-14">
           <SectionLabel t="Commands" />
           <h2 className="mt-3 text-[28px] leading-[1.08] font-medium tracking-[-0.018em]">
-            Four commands,{" "}
+            Three commands,{" "}
             <span style={{ color: SUB }}>that's the whole surface.</span>
           </h2>
           <ul className="mt-6 space-y-3">

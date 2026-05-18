@@ -2,9 +2,9 @@ export type SectionCoverage = {
   colors: number;
   typography: number;
   spacing: number;
-  radius: number;
+  elevation: number;
+  shapes: number;
   components: number;
-  motion: number;
   dosDonts: number;
 };
 
@@ -556,7 +556,7 @@ export const BUNDLES: Bundle[] = [
     version: "1.0.0",
     worksWith: ["Claude", "Cursor", "Lovable", "Figma Make"],
     tags: ["Dashboard", "Devtools", "Dark", "Dense", "Inter"],
-    sectionCoverage: { colors: 98, typography: 96, spacing: 95, radius: 92, components: 97, motion: 92, dosDonts: 90 },
+    sectionCoverage: { colors: 98, typography: 96, spacing: 95, elevation: 88, shapes: 92, components: 97, dosDonts: 90 },
     designMd: linear,
     companionPrompt: makeCompanion("Linear", "calm precise dark direction"),
     scores: [
@@ -589,7 +589,7 @@ export const BUNDLES: Bundle[] = [
     version: "1.0.0",
     worksWith: ["Claude", "Cursor", "Lovable"],
     tags: ["Marketing", "Finance", "Gradient", "Bold"],
-    sectionCoverage: { colors: 98, typography: 92, spacing: 90, radius: 88, components: 93, motion: 60, dosDonts: 86 },
+    sectionCoverage: { colors: 98, typography: 92, spacing: 90, elevation: 72, shapes: 88, components: 93, dosDonts: 86 },
     designMd: stripe,
     companionPrompt: makeCompanion("Stripe", "gradient-first marketing direction"),
     scores: [
@@ -622,7 +622,7 @@ export const BUNDLES: Bundle[] = [
     version: "1.0.0",
     worksWith: ["Claude", "Cursor", "Lovable", "Figma Make"],
     tags: ["Editorial", "Docs", "Serif", "Calm"],
-    sectionCoverage: { colors: 92, typography: 98, spacing: 96, radius: 86, components: 88, motion: 55, dosDonts: 93 },
+    sectionCoverage: { colors: 92, typography: 98, spacing: 96, elevation: 0, shapes: 86, components: 88, dosDonts: 93 },
     designMd: notion,
     companionPrompt: makeCompanion("Notion", "quiet document direction"),
     scores: [
@@ -655,7 +655,7 @@ export const BUNDLES: Bundle[] = [
     version: "11.42.0",
     worksWith: ["Claude", "Cursor"],
     tags: ["Enterprise", "Dashboards", "WCAG AA", "High-density", "Open source"],
-    sectionCoverage: { colors: 96, typography: 98, spacing: 97, radius: 100, components: 99, motion: 94, dosDonts: 95 },
+    sectionCoverage: { colors: 96, typography: 98, spacing: 97, elevation: 94, shapes: 100, components: 99, dosDonts: 95 },
     designMd: carbon,
     companionPrompt: makeCompanion("IBM Carbon", "industrial enterprise direction"),
     scores: [
@@ -688,7 +688,7 @@ export const BUNDLES: Bundle[] = [
     version: "1.0.0",
     worksWith: ["Claude", "Cursor", "Lovable"],
     tags: ["Consumer", "Playful", "Warm", "Rounded"],
-    sectionCoverage: { colors: 90, typography: 78, spacing: 72, radius: 95, components: 80, motion: 88, dosDonts: 65 },
+    sectionCoverage: { colors: 90, typography: 78, spacing: 72, elevation: 60, shapes: 95, components: 80, dosDonts: 65 },
     designMd: arc,
     companionPrompt: makeCompanion("Arc Browser", "warm playful direction"),
     scores: [
@@ -721,7 +721,7 @@ export const BUNDLES: Bundle[] = [
     version: "1.0.0",
     worksWith: ["Claude", "Cursor", "Lovable", "Figma Make"],
     tags: ["Devtools", "Mono", "Minimal", "Geist"],
-    sectionCoverage: { colors: 92, typography: 96, spacing: 94, radius: 90, components: 95, motion: 0, dosDonts: 88 },
+    sectionCoverage: { colors: 92, typography: 96, spacing: 94, elevation: 0, shapes: 90, components: 95, dosDonts: 88 },
     designMd: vercel,
     companionPrompt: makeCompanion("Vercel", "monochrome devtools direction"),
     scores: [
@@ -754,7 +754,7 @@ export const BUNDLES: Bundle[] = [
     version: "1.0.0",
     worksWith: ["Claude", "Cursor"],
     tags: ["Finance", "Dark", "Tabular", "Warm"],
-    sectionCoverage: { colors: 94, typography: 90, spacing: 88, radius: 80, components: 93, motion: 0, dosDonts: 82 },
+    sectionCoverage: { colors: 94, typography: 90, spacing: 88, elevation: 78, shapes: 80, components: 93, dosDonts: 82 },
     designMd: ramp,
     companionPrompt: makeCompanion("Ramp", "warm fintech direction"),
     scores: [
@@ -787,7 +787,7 @@ export const BUNDLES: Bundle[] = [
     version: "1.0.0",
     worksWith: ["Claude", "Cursor", "Lovable"],
     tags: ["Enterprise", "Corporate", "Accessible"],
-    sectionCoverage: { colors: 90, typography: 86, spacing: 88, radius: 92, components: 92, motion: 0, dosDonts: 90 },
+    sectionCoverage: { colors: 90, typography: 86, spacing: 88, elevation: 86, shapes: 92, components: 92, dosDonts: 90 },
     designMd: atlassian,
     companionPrompt: makeCompanion("Atlassian", "enterprise blue direction"),
     scores: [

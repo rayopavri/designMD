@@ -291,14 +291,30 @@ export function Home() {
                     {o.body}
                   </p>
                   <div
-                    className="mt-6 pt-4 border-t flex items-center justify-between"
+                    className="mt-6 pt-4 border-t flex items-center justify-between gap-3"
                     style={{ borderColor: BORDER }}
                   >
-                    <span className="text-[12px]" style={{ color: INK }}>
-                      {o.shelfLabel}
-                    </span>
+                    <div className="min-w-0">
+                      {o.item ? (
+                        <>
+                          <div
+                            className="text-[10.5px] uppercase tracking-[0.22em]"
+                            style={{ fontFamily: MONO, color: MUTED }}
+                          >
+                            featured · {o.item.name}
+                          </div>
+                          <div className="text-[12px] mt-0.5 truncate" style={{ color: INK }}>
+                            {o.shelfLabel}
+                          </div>
+                        </>
+                      ) : (
+                        <span className="text-[12px]" style={{ color: INK }}>
+                          {o.shelfLabel}
+                        </span>
+                      )}
+                    </div>
                     <ArrowUpRight
-                      className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                      className="h-3.5 w-3.5 shrink-0 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
                       style={{ color: SUB }}
                     />
                   </div>

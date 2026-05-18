@@ -5,10 +5,10 @@ const SECTIONS: { key: keyof Coverage; label: string }[] = [
   { key: "colors", label: "Colors" },
   { key: "typography", label: "Typography" },
   { key: "spacing", label: "Spacing" },
-  { key: "radius", label: "Radius" },
+  { key: "elevation", label: "Elevation" },
+  { key: "shapes", label: "Shapes" },
   { key: "components", label: "Components" },
-  { key: "motion", label: "Motion" },
-  { key: "dosDonts", label: "Do's & Don'ts" },
+  { key: "dosDonts", label: "Dos & Don'ts" },
 ];
 
 function status(n: number): { label: string; color: string } {

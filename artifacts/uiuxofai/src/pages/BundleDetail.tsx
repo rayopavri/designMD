@@ -414,6 +414,7 @@ function BundleView({ item }: { item: BundleItem }) {
                       calibrated for {bundle.worksWith.join(" · ")}
                     </div>
                   </button>
+                  {/* TODO: wire to real CLI */}
                   <button
                     onClick={() => copyText(`npx uiuxofai add ${bundle.id}`, "cli")}
                     className="rounded-xl border p-5 text-left transition-colors"
@@ -439,7 +440,7 @@ function BundleView({ item }: { item: BundleItem }) {
                       {copiedCli ? "Copied ✓" : `npx uiuxofai add ${bundle.id}`}
                     </div>
                     <div className="text-[11.5px] mt-1" style={{ color: SUB }}>
-                      one command · same files, written for you
+                      writes the same files to your {toolLabel(tool)} project, one command
                     </div>
                   </button>
                 </div>
