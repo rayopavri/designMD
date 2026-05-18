@@ -193,28 +193,6 @@ export function BundleDetail() {
               </div>
             </div>
 
-            <div className="mt-4 rounded-xl border p-6" style={{ borderColor: BORDER, background: SURFACE }}>
-              <SectionLabel n="01" t="Coverage breakdown" />
-              <div className="mt-5 space-y-4">
-                {bundle.scores.map((s) => (
-                  <div key={s.label} className="space-y-2">
-                    <div className="flex justify-between items-baseline text-[12.5px]">
-                      <span style={{ color: SUB }}>{s.label}</span>
-                      <span style={{ fontFamily: MONO, color: INK }}>{s.score}%</span>
-                    </div>
-                    <div
-                      className="h-[3px] w-full overflow-hidden rounded-full"
-                      style={{ background: SURFACE_2 }}
-                    >
-                      <div
-                        className="h-full rounded-full"
-                        style={{ width: `${s.score}%`, background: VIOLET }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
           </aside>
         </div>
       </section>
