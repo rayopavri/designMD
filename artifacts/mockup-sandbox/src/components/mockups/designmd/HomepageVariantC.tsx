@@ -52,7 +52,7 @@ export function HomepageVariantC() {
       <section className="border-b" style={{ borderColor: BORDER_SOFT }}>
         <div className="mx-auto max-w-3xl px-8 pt-24 pb-20 text-center">
           <div className="inline-flex items-center gap-2 mb-7 text-[10.5px] uppercase tracking-[0.2em]" style={{ fontFamily: MONO, color: MUTED }}>
-            <span className="h-1.5 w-1.5 rounded-full" style={{ background: VIOLET, boxShadow: `0 0 12px ${VIOLET}` }} />
+            <span className="h-1.5 w-1.5 rounded-full" style={{ background: SUB }} />
             v0.42 · Public beta
           </div>
           <h1 className="text-[56px] leading-[1.04] font-medium tracking-[-0.02em]" style={{ color: INK }}>
@@ -85,7 +85,7 @@ export function HomepageVariantC() {
               </div>
               <div className="flex items-center gap-3 text-[11px]" style={{ fontFamily: MONO, color: MUTED }}>
                 <span>342 tokens</span>
-                <span style={{ color: VIOLET }}>98% coverage</span>
+                <span style={{ color: INK }}>98% coverage</span>
               </div>
             </div>
             <div className="grid grid-cols-12 gap-0" style={{ fontFamily: MONO }}>
@@ -96,17 +96,17 @@ export function HomepageVariantC() {
               </div>
               <pre className="col-span-11 py-5 px-5 text-[12.5px] leading-[1.7] overflow-hidden" style={{ color: INK }}>
 <span style={{ color: MUTED }}># Linear · v0.42</span>{"\n"}
-<span style={{ color: VIOLET }}>typography</span>:{"\n"}
+<span style={{ color: INK }}>typography</span>:{"\n"}
   family: Inter{"\n"}
   scale: [12, 13, 14, 17, 22, 32]{"\n"}
   weight: {"{ body: 400, heading: 510 }"}{"\n"}
-<span style={{ color: VIOLET }}>color</span>:{"\n"}
+<span style={{ color: INK }}>color</span>:{"\n"}
   surface: {"{ 0: \"#0D0E10\", 1: \"#141518\", 2: \"#1B1C1F\" }"}{"\n"}
   accent:  {"{ brand: \"#5E6AD2\", success: \"#4CB782\" }"}{"\n"}
-<span style={{ color: VIOLET }}>radius</span>: [4, 6, 8, 12]{"\n"}
-<span style={{ color: VIOLET }}>elevation</span>:{"\n"}
-  card: <span style={{ color: "#9CDFA0" }}>"0 1px 0 #1F2024 inset, 0 8px 24px -12px #000"</span>{"\n"}
-<span style={{ color: VIOLET }}>motion</span>:{"\n"}
+<span style={{ color: INK }}>radius</span>: [4, 6, 8, 12]{"\n"}
+<span style={{ color: INK }}>elevation</span>:{"\n"}
+  card: <span style={{ color: SUB }}>"0 1px 0 #1F2024 inset, 0 8px 24px -12px #000"</span>{"\n"}
+<span style={{ color: INK }}>motion</span>:{"\n"}
   base: 150ms cubic-bezier(.2,.7,.1,1){"\n"}
   emphasized: 220ms cubic-bezier(.2,.7,.1,1){"\n"}
               </pre>

@@ -59,7 +59,7 @@ export function HomepageVariantA() {
         <div className="grid grid-cols-12 gap-10 items-start">
           <div className="col-span-7">
             <div className="inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-[11.5px]" style={{ borderColor: BORDER, color: SUB }}>
-              <span className="h-1.5 w-1.5 rounded-full" style={{ background: ACCENT }} />
+              <span className="h-1.5 w-1.5 rounded-full" style={{ background: INK }} />
               v0.42 · Now supporting Claude Projects & Lovable
             </div>
             <h1 className="mt-6 text-[64px] leading-[1.04] font-semibold tracking-[-0.025em]">
@@ -115,7 +115,7 @@ export function HomepageVariantA() {
                     <div className="text-[15px] font-semibold">Linear</div>
                     <div className="text-[12px]" style={{ color: SUB }}>Extracted 2 hours ago · 342 tokens</div>
                   </div>
-                  <div className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium" style={{ color: ACCENT, border: `1px solid ${ACCENT}33` }}>
+                  <div className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium" style={{ color: INK, border: `1px solid ${BORDER}` }}>
                     <Check className="h-3 w-3" />
                     98% coverage
                   </div>
