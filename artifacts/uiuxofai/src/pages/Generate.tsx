@@ -1,13 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "wouter";
-import { Check, ChevronDown, Globe, Loader2, RefreshCw, Send, ShieldCheck } from "lucide-react";
+import { Link, useSearch } from "wouter";
+import { Check, ChevronDown, Copy, Globe, Loader2, RefreshCw, Send, ShieldCheck } from "lucide-react";
 import { SectionLabel } from "../components/Shell";
 import { CodePanel } from "../components/CodePanel";
 import {
   BG,
   BORDER,
   BORDER_SOFT,
-  CYAN,
   INK,
   INK_ON_LIGHT,
   LIME,
@@ -229,14 +228,20 @@ function presetMcpDraft(host: string): string {
 }
 
 export function Generate() {
+  const search = useSearch();
+  const prefillType = useMemo(() => {
+    const v = new URLSearchParams(search).get("type");
+    return v && (["bundle", "skill", "agent", "mcp"] as string[]).includes(v) ? (v as ItemType) : null;
+  }, [search]);
   const [url, setUrl] = useState("");
-  const [override, setOverride] = useState<ItemType | null>(null);
+  const [override, setOverride] = useState<ItemType | null>(prefillType);
   const [overrideOpen, setOverrideOpen] = useState(false);
   const [status, setStatus] = useState<Status>("idle");
   const [stepIdx, setStepIdx] = useState(-1);
   const [palette, setPalette] = useState<string[]>([]);
   const [submitState, setSubmitState] = useState<SubmitState>("idle");
   const [validation, setValidation] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const timersRef = useRef<number[]>([]);
 
   const detection = useMemo(() => detectType(url), [url]);
@@ -300,6 +305,18 @@ export function Generate() {
   function submitForReview() {
     setSubmitState("submitting");
     window.setTimeout(() => setSubmitState("submitted"), 700);
+  }
+
+  async function copyDraft() {
+    try {
+      await navigator.clipboard.writeText(draftSource);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2200);
+    } catch {
+      // clipboard may be restricted in iframe — surface a soft signal
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2200);
+    }
   }
 
   const elapsed = stepIdx >= 0 ? steps.slice(0, stepIdx).reduce((s, x) => s + x.durationMs, 0) : 0;
@@ -642,8 +659,9 @@ export function Generate() {
 
                 {/* Equal-weight CTAs */}
                 <div className="grid grid-cols-1 gap-2.5">
-                  <Link
-                    href={activeType === "bundle" ? "/copy/linear" : "/library"}
+                  <button
+                    type="button"
+                    onClick={copyDraft}
                     className="h-10 rounded-full px-4 text-[12.5px] font-medium inline-flex items-center justify-center gap-2"
                     style={{
                       background: INK,
@@ -651,9 +669,18 @@ export function Generate() {
                       boxShadow: `0 0 0 1px ${meta.accent}55, 0 10px 36px -10px ${meta.accent}88`,
                     }}
                   >
-                    Copy for personal use
-                    <span style={{ fontFamily: MONO, color: MUTED }}>⏎</span>
-                  </Link>
+                    {copied ? (
+                      <>
+                        <Check className="h-3.5 w-3.5" style={{ color: LIME }} />
+                        Copied to clipboard
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-3.5 w-3.5" />
+                        Copy for personal use
+                      </>
+                    )}
+                  </button>
                   {submitState === "submitted" ? (
                     <div
                       className="h-10 rounded-full px-4 text-[12.5px] font-medium inline-flex items-center justify-center gap-2"
@@ -705,8 +732,6 @@ export function Generate() {
         ) : null}
       </section>
 
-      {/* Silence unused-import warnings — CYAN reserved for MCP highlights inside steps */}
-      <span className="hidden" style={{ color: CYAN }} aria-hidden />
     </>
   );
 }

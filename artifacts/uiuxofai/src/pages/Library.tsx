@@ -304,44 +304,58 @@ export function Library() {
               {filtered.map((it) => (
                 <ItemCard key={it.id} item={it} />
               ))}
-              <Link
-                href="/generate"
-                className="p-5 group transition-colors hover:bg-[#101013] block"
-                style={{
-                  background: BG,
-                  border: `1px dashed ${BORDER}`,
-                  borderRadius: 0,
-                }}
-              >
-                <div className="flex h-1.5 mb-5 items-center gap-1.5">
-                  <span className="h-1.5 flex-1 rounded-sm" style={{ background: `${VIOLET}66` }} />
-                </div>
-                <div
-                  className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] mb-4"
-                  style={{ fontFamily: MONO, color: MUTED }}
-                >
-                  <span className="h-1.5 w-1.5 rounded-full" style={{ background: VIOLET }} />
-                  request · open slot
-                </div>
-                <div className="text-[16px] font-medium mb-1" style={{ color: INK }}>
-                  Don't see what you need?
-                </div>
-                <div className="text-[12.5px] mb-5" style={{ color: SUB }}>
-                  Paste a URL — we'll generate a draft and route it to the editorial desk.
-                </div>
-                <div
-                  className="inline-flex items-center gap-1.5 text-[11.5px]"
-                  style={{ color: VIOLET, fontFamily: MONO }}
-                >
-                  generate from URL
-                  <ArrowUpRight className="h-3 w-3" />
-                </div>
-              </Link>
+              <RequestCard typeFilter={typeFilter} />
             </div>
           )}
         </section>
       </div>
     </div>
+  );
+}
+
+function RequestCard({ typeFilter }: { typeFilter: "All" | ItemType }) {
+  const isTyped = typeFilter !== "All";
+  const meta = isTyped ? TYPE_META[typeFilter as ItemType] : null;
+  const accent = meta?.accent ?? VIOLET;
+  const label = isTyped ? `Request a ${TYPE_META[typeFilter as ItemType].label}` : "Request anything";
+  const href = isTyped ? `/generate?type=${typeFilter}` : "/generate";
+  const body = isTyped
+    ? `Can't find the ${TYPE_META[typeFilter as ItemType].label.toLowerCase()} you need? Paste a source URL — we'll draft it and route to the editorial desk.`
+    : "Don't see it here? Paste any URL — we'll detect the type, draft it, and route it to the editorial desk.";
+  return (
+    <Link
+      href={href}
+      className="p-5 group transition-colors hover:bg-[#101013] block"
+      style={{
+        background: BG,
+        border: `1px dashed ${accent}55`,
+        borderRadius: 0,
+      }}
+    >
+      <div className="flex h-1.5 mb-5 items-center gap-1.5">
+        <span className="h-1.5 flex-1 rounded-sm" style={{ background: `${accent}55` }} />
+      </div>
+      <div
+        className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] mb-4"
+        style={{ fontFamily: MONO, color: MUTED }}
+      >
+        <span className="h-1.5 w-1.5 rounded-full" style={{ background: accent }} />
+        request · open slot
+      </div>
+      <div className="text-[16px] font-medium mb-1" style={{ color: INK }}>
+        {label}
+      </div>
+      <div className="text-[12.5px] mb-5" style={{ color: SUB }}>
+        {body}
+      </div>
+      <div
+        className="inline-flex items-center gap-1.5 text-[11.5px]"
+        style={{ color: accent, fontFamily: MONO }}
+      >
+        {isTyped ? `generate ${typeFilter} from URL` : "generate from URL"}
+        <ArrowUpRight className="h-3 w-3" />
+      </div>
+    </Link>
   );
 }
 

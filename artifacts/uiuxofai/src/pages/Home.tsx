@@ -18,13 +18,31 @@ import {
 } from "../lib/tokens";
 import { BUNDLES, getBundle, ITEMS, TYPE_META, type ItemType } from "../lib/items";
 
-const TOOL_BADGES = ["Claude", "Cursor", "Lovable", "Figma Make", "ChatGPT", "Universal"];
+const TOOL_BADGES: { name: string; covered: boolean }[] = [
+  { name: "Claude", covered: true },
+  { name: "Cursor", covered: true },
+  { name: "Lovable", covered: true },
+  { name: "Figma Make", covered: true },
+  { name: "Universal", covered: true },
+];
 
 export function Home() {
   const linear = getBundle("linear")!;
-  const counts: { type: ItemType; n: number }[] = (["bundle", "skill", "agent", "mcp"] as ItemType[]).map(
-    (t) => ({ type: t, n: ITEMS.filter((i) => i.type === t).length }),
-  );
+  const bundleItems = ITEMS.filter((i) => i.type === "bundle");
+  const typesPresent = new Set(ITEMS.map((i) => i.type)).size;
+  const avgCoverage = bundleItems.length
+    ? Math.round(
+        bundleItems.reduce(
+          (acc, i) => acc + (i.type === "bundle" ? i.bundle.coverage : 0),
+          0,
+        ) / bundleItems.length,
+      )
+    : 0;
+  const TRUST: { value: string; label: string; accent: string; href: string }[] = [
+    { value: String(ITEMS.length), label: "items curated", accent: TYPE_META.bundle.accent, href: "/library" },
+    { value: String(typesPresent), label: "surfaces · bundles, skills, agents, mcps", accent: TYPE_META.skill.accent, href: "/library" },
+    { value: `${avgCoverage}%`, label: "avg coverage on bundles", accent: TYPE_META.agent.accent, href: "/library?type=bundle" },
+  ];
   return (
     <>
       {/* Hero */}
@@ -98,54 +116,61 @@ export function Home() {
             no install · paste into any model · free forever
           </div>
 
-          {/* Tool badges */}
+          {/* Tool compatibility badges */}
           <div className="mt-8 flex items-center justify-center gap-1.5 flex-wrap">
+            <span
+              className="text-[10px] uppercase tracking-[0.22em] mr-1.5"
+              style={{ fontFamily: MONO, color: MUTED }}
+            >
+              works in
+            </span>
             {TOOL_BADGES.map((t) => (
               <span
-                key={t}
-                className="inline-flex items-center gap-1.5 text-[10.5px] px-2.5 py-1 rounded-full border"
+                key={t.name}
+                className="inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full border"
                 style={{
                   fontFamily: MONO,
-                  color: SUB,
-                  borderColor: BORDER,
-                  background: SURFACE,
+                  color: t.covered ? INK : SUB,
+                  borderColor: t.covered ? `${LIME}55` : BORDER,
+                  background: t.covered ? `${LIME}10` : SURFACE,
                 }}
               >
-                <span className="h-1 w-1 rounded-full" style={{ background: VIOLET }} />
-                {t.toLowerCase()}
+                {t.covered ? (
+                  <Check className="h-2.5 w-2.5" style={{ color: LIME }} strokeWidth={3} />
+                ) : (
+                  <span className="h-1 w-1 rounded-full" style={{ background: MUTED }} />
+                )}
+                {t.name}
               </span>
             ))}
           </div>
 
-          {/* Stats row — 4 types */}
+          {/* Trust metrics — 3 catalogue-derived signals */}
           <div
-            className="mt-10 mx-auto max-w-2xl grid grid-cols-4 gap-px rounded-lg overflow-hidden border"
+            className="mt-10 mx-auto max-w-2xl grid grid-cols-3 gap-px rounded-lg overflow-hidden border"
             style={{ background: BORDER, borderColor: BORDER }}
           >
-            {counts.map(({ type, n }) => {
-              const m = TYPE_META[type];
-              return (
-                <Link
-                  key={type}
-                  href={`/library?type=${type}`}
-                  className="py-4 px-2 block text-center transition-colors hover:bg-[#101013]"
-                  style={{ background: BG }}
+            {TRUST.map((m) => (
+              <Link
+                key={m.label}
+                href={m.href}
+                className="py-5 px-3 block text-center transition-colors hover:bg-[#101013]"
+                style={{ background: BG }}
+              >
+                <div className="flex items-center justify-center gap-1.5">
+                  <span className="h-1.5 w-1.5 rounded-full" style={{ background: m.accent }} />
+                  <span className="text-[22px] font-medium" style={{ color: INK }}>
+                    {m.value}
+                  </span>
+                </div>
+                <div
+                  className="mt-1 text-[10px] uppercase tracking-[0.2em] leading-[1.5]"
+                  style={{ fontFamily: MONO, color: MUTED }}
                 >
-                  <div className="flex items-center justify-center gap-1.5">
-                    <span className="h-1.5 w-1.5 rounded-full" style={{ background: m.accent }} />
-                    <span className="text-[20px] font-medium" style={{ color: INK }}>
-                      {n}
-                    </span>
-                  </div>
-                  <div
-                    className="mt-1 text-[10px] uppercase tracking-[0.2em]"
-                    style={{ fontFamily: MONO, color: MUTED }}
-                  >
-                    {m.plural.toLowerCase()}
-                  </div>
-                </Link>
-              );
-            })}
+                  {m.label}
+                </div>
+              </Link>
+            ))}
           </div>
         </div>
 
