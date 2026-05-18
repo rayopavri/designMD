@@ -5,6 +5,8 @@ import { SectionLabel } from "../components/Shell";
 import { CodePanel } from "../components/CodePanel";
 import { AttributionRow } from "../components/AttributionRow";
 import { WorksWellWith } from "../components/WorksWellWith";
+import { SectionCoverage } from "../components/SectionCoverage";
+import { PulseRow } from "../components/PulseRow";
 import { compatibleTools, nonBundleSteps } from "../lib/nonBundleInstall";
 import {
   BORDER,
@@ -77,6 +79,7 @@ function BundleView({ item }: { item: BundleItem }) {
   });
   const [copiedSpec, setCopiedSpec] = useState(false);
   const [copiedPrompt, setCopiedPrompt] = useState(false);
+  const [copiedCli, setCopiedCli] = useState(false);
   const [zipping, setZipping] = useState(false);
 
   useEffect(() => {
@@ -91,15 +94,18 @@ function BundleView({ item }: { item: BundleItem }) {
   const promptLines = bundle.companionPrompt.split("\n").length;
   const promptTokensApprox = Math.max(1, Math.round(bundle.companionPrompt.length / 4));
 
-  async function copyText(text: string, kind: "spec" | "prompt") {
+  async function copyText(text: string, kind: "spec" | "prompt" | "cli") {
     try {
       await navigator.clipboard.writeText(text);
       if (kind === "spec") {
         setCopiedSpec(true);
         setTimeout(() => setCopiedSpec(false), 2000);
-      } else {
+      } else if (kind === "prompt") {
         setCopiedPrompt(true);
         setTimeout(() => setCopiedPrompt(false), 2000);
+      } else if (kind === "cli") {
+        setCopiedCli(true);
+        setTimeout(() => setCopiedCli(false), 2000);
       }
     } catch {
       // ignore
@@ -254,12 +260,30 @@ function BundleView({ item }: { item: BundleItem }) {
 
           <aside className="col-span-12 lg:col-span-5">
             <div className="rounded-xl border p-6" style={{ borderColor: BORDER, background: SURFACE }}>
-              <div className="grid grid-cols-2 gap-6">
-                <Stat label="coverage" value={`${bundle.coverage}%`} accent={LIME} />
-                <Stat label="tokens" value={bundle.tokens.toLocaleString()} />
-                <Stat label="components" value={String(bundle.components)} />
-                <Stat label="last verified" value={item.updatedAgo} />
+              <div className="flex items-baseline justify-between mb-5">
+                <div>
+                  <div
+                    className="text-[10.5px] uppercase tracking-[0.22em] mb-1.5"
+                    style={{ fontFamily: MONO, color: MUTED }}
+                  >
+                    overall coverage
+                  </div>
+                  <div className="text-[32px] leading-none font-medium" style={{ color: INK }}>
+                    {bundle.coverage}
+                    <span className="text-[18px]" style={{ color: SUB }}>%</span>
+                  </div>
+                </div>
+                <span
+                  className="text-[11px] inline-flex items-center gap-1.5"
+                  style={{ fontFamily: MONO, color: MUTED }}
+                >
+                  <span className="h-1.5 w-1.5 rounded-full" style={{ background: LIME }} />
+                  verified {item.updatedAgo}
+                </span>
               </div>
+              {bundle.sectionCoverage ? (
+                <SectionCoverage coverage={bundle.sectionCoverage} />
+              ) : null}
               <div className="h-1.5 my-5 flex">
                 {bundle.palette.map((c, i) => (
                   <span
@@ -270,9 +294,12 @@ function BundleView({ item }: { item: BundleItem }) {
                 ))}
               </div>
               <div
-                className="flex items-center justify-end pt-5 border-t text-[12px]"
+                className="flex items-center justify-between pt-4 border-t text-[11.5px]"
                 style={{ borderColor: BORDER, fontFamily: MONO, color: MUTED }}
               >
+                <span>
+                  {bundle.tokens.toLocaleString()} tokens · {bundle.components} components
+                </span>
                 <span className="inline-flex items-center gap-1.5">
                   <GitFork className="h-3 w-3" />
                   {bundle.forks} forks
@@ -336,7 +363,7 @@ function BundleView({ item }: { item: BundleItem }) {
                   ))}
                 </div>
 
-                <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
                   <button
                     onClick={() => copyText(bundle.designMd, "spec")}
                     className="rounded-xl border p-5 text-left transition-colors"
@@ -387,7 +414,36 @@ function BundleView({ item }: { item: BundleItem }) {
                       calibrated for {bundle.worksWith.join(" · ")}
                     </div>
                   </button>
+                  <button
+                    onClick={() => copyText(`npx uiuxofai add ${bundle.id}`, "cli")}
+                    className="rounded-xl border p-5 text-left transition-colors"
+                    style={{ borderColor: copiedCli ? `${LIME}88` : BORDER, background: SURFACE }}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span
+                        className="text-[10.5px] uppercase tracking-[0.22em]"
+                        style={{ fontFamily: MONO, color: MUTED }}
+                      >
+                        cli
+                      </span>
+                      {copiedCli ? (
+                        <Check className="h-4 w-4" style={{ color: LIME }} />
+                      ) : (
+                        <Copy className="h-4 w-4" style={{ color: SUB }} />
+                      )}
+                    </div>
+                    <div
+                      className="text-[13px] font-medium truncate"
+                      style={{ color: INK, fontFamily: MONO }}
+                    >
+                      {copiedCli ? "Copied ✓" : `npx uiuxofai add ${bundle.id}`}
+                    </div>
+                    <div className="text-[11.5px] mt-1" style={{ color: SUB }}>
+                      one command · same files, written for you
+                    </div>
+                  </button>
                 </div>
+                <PulseRow bundleId={bundle.id} />
               </div>
             </div>
           </div>

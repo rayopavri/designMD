@@ -66,6 +66,7 @@ function basePath(p: string): string {
 const NAV: NavItem[] = [
   { label: "Library", href: "/library", matches: (p) => basePath(p).startsWith("/library") },
   { label: "Generate", href: "/generate", matches: (p) => basePath(p).startsWith("/generate") },
+  { label: "CLI", href: "/docs/cli", matches: (p) => basePath(p).startsWith("/docs/cli") },
 ];
 
 export function Header() {
@@ -135,6 +136,7 @@ export function Footer() {
         <div className="flex items-center gap-5 flex-wrap">
           <Link href="/library">library</Link>
           <Link href="/generate">generate</Link>
+          <Link href="/docs/cli">cli</Link>
         </div>
       </div>
     </footer>

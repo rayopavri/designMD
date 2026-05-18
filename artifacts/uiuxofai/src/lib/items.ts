@@ -41,6 +41,14 @@ type BaseItem = {
   updatedAgo: string;
   accent: string;
   icon: string;
+  projectType?:
+    | "Mobile apps"
+    | "SaaS"
+    | "E-commerce"
+    | "Dashboards"
+    | "Marketing sites"
+    | "Design systems";
+  style?: "Minimal" | "Enterprise" | "Bold" | "Playful" | "Accessible" | "Dark mode";
 };
 
 export type BundleItem = BaseItem & {
@@ -110,6 +118,34 @@ export const TYPE_FILTERS: ("All" | DisplayType)[] = ["All", "skill", "agent", "
 //  attribution here so we don't churn that file.)
 // ─────────────────────────────────────────────────────────────
 
+type ProjectType = NonNullable<BaseItem["projectType"]>;
+type StyleTag = NonNullable<BaseItem["style"]>;
+
+const BUNDLE_FILTERS: Record<string, { projectType: ProjectType; style: StyleTag }> = {
+  linear: { projectType: "Dashboards", style: "Dark mode" },
+  stripe: { projectType: "Marketing sites", style: "Bold" },
+  notion: { projectType: "Marketing sites", style: "Minimal" },
+  carbon: { projectType: "Dashboards", style: "Enterprise" },
+  arc: { projectType: "Mobile apps", style: "Playful" },
+  vercel: { projectType: "Marketing sites", style: "Dark mode" },
+  ramp: { projectType: "SaaS", style: "Dark mode" },
+  atlassian: { projectType: "SaaS", style: "Enterprise" },
+};
+
+const NON_BUNDLE_FILTERS: Record<string, { projectType: ProjectType; style: StyleTag }> = {
+  "skill-design-system-architect": { projectType: "Design systems", style: "Minimal" },
+  "skill-ui-ux-cursor-rules": { projectType: "SaaS", style: "Minimal" },
+  "skill-design-system-cursor": { projectType: "Design systems", style: "Enterprise" },
+  "skill-figma-to-react": { projectType: "SaaS", style: "Minimal" },
+  "agent-ui-engineer": { projectType: "SaaS", style: "Minimal" },
+  "agent-design-critique": { projectType: "Marketing sites", style: "Accessible" },
+  "agent-component-architect": { projectType: "Design systems", style: "Enterprise" },
+  "mcp-figma-dev-mode": { projectType: "Design systems", style: "Minimal" },
+  "mcp-mobbin": { projectType: "Mobile apps", style: "Playful" },
+  "mcp-refero": { projectType: "Marketing sites", style: "Minimal" },
+  "mcp-stitch": { projectType: "Design systems", style: "Enterprise" },
+};
+
 const BUNDLE_ATTR: Record<
   string,
   { tools: Tool[]; relatedIds: string[]; discoveryMethod: DiscoveryMethod }
@@ -167,6 +203,7 @@ function bundleToItem(b: Bundle): BundleItem {
     relatedIds: [],
     discoveryMethod: "Editorial" as DiscoveryMethod,
   };
+  const filters = BUNDLE_FILTERS[b.id];
   return {
     id: b.id,
     type: "bundle",
@@ -180,6 +217,8 @@ function bundleToItem(b: Bundle): BundleItem {
     updatedAgo: b.updatedAgo,
     accent: TYPE_META.bundle.accent,
     icon: TYPE_META.bundle.icon,
+    projectType: filters?.projectType,
+    style: filters?.style,
     attribution: {
       sourceUrl: `https://${b.url}`,
       author: b.maintainer,
@@ -697,9 +736,20 @@ const MCPS: McpItem[] = [
 // Unified catalogue
 // ─────────────────────────────────────────────────────────────
 
+function applyFilters<T extends Item>(it: T): T {
+  const f = NON_BUNDLE_FILTERS[it.id];
+  if (!f) return it;
+  return { ...it, projectType: f.projectType, style: f.style };
+}
+
 export const BUNDLE_ITEMS: BundleItem[] = BUNDLES.map(bundleToItem);
 
-export const ITEMS: Item[] = [...BUNDLE_ITEMS, ...SKILLS, ...AGENTS, ...MCPS];
+export const ITEMS: Item[] = [
+  ...BUNDLE_ITEMS,
+  ...SKILLS.map(applyFilters),
+  ...AGENTS.map(applyFilters),
+  ...MCPS.map(applyFilters),
+];
 
 export function getItem(id: string): Item | undefined {
   return ITEMS.find((i) => i.id === id);

@@ -1,4 +1,6 @@
 import { useMemo, useState } from "react";
+import { LibraryFilterStrip } from "../components/LibraryFilterStrip";
+import { matchesFilters, useLibraryFilters } from "../lib/libraryFilters";
 import { Link, useSearch } from "wouter";
 import { ArrowUpRight, Search, X } from "lucide-react";
 import { ItemCard } from "../components/ItemCard";
@@ -76,10 +78,13 @@ export function Library() {
   const [designSystemOnly, setDesignSystemOnly] = useState<boolean>(initialDesignSystemOnly);
   const [sort, setSort] = useState<Sort>("popular");
 
+  const { filters: urlFilters } = useLibraryFilters();
+
   const filtered = useMemo(() => {
     let list: Item[] = ITEMS.filter((it) => {
       if (typeFilter !== "All" && displayTypeOf(it) !== typeFilter) return false;
       if (designSystemOnly && !isDesignSystem(it)) return false;
+      if (!matchesFilters(it, urlFilters)) return false;
       if (it.type === "bundle") {
         const b = it.bundle;
         if (category !== "All" && b.category !== category) return false;
@@ -125,7 +130,7 @@ export function Library() {
       list.sort((a, b) => recentRank(a.updatedAgo) - recentRank(b.updatedAgo));
     }
     return list;
-  }, [query, typeFilter, category, feel, minCoverage, model, sort, designSystemOnly]);
+  }, [query, typeFilter, category, feel, minCoverage, model, sort, designSystemOnly, urlFilters]);
 
   const activeFilters: { label: string; clear: () => void }[] = [];
   if (typeFilter !== "All")
@@ -241,6 +246,7 @@ export function Library() {
 
       {/* Unified grid + filters */}
       <div className="mx-auto max-w-7xl px-6 lg:px-8 py-12">
+        <LibraryFilterStrip count={filtered.length} />
         <div className="mb-8 flex items-center gap-2 flex-wrap">
           <span
             className="text-[10.5px] uppercase tracking-[0.22em] mr-2"

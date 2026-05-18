@@ -15,7 +15,12 @@ import {
 } from "../lib/tokens";
 import { ITEMS, TYPE_META, type ItemType } from "../lib/items";
 
-const TOOL_BADGES = ["Claude", "Cursor", "Lovable", "Figma Make", "ChatGPT"];
+const TOOL_BADGES: { id: string; label: string }[] = [
+  { id: "claude", label: "Claude" },
+  { id: "cursor", label: "Cursor" },
+  { id: "lovable", label: "Lovable" },
+  { id: "figma-make", label: "Figma Make" },
+];
 
 const SHELVES: {
   type: ItemType;
@@ -43,7 +48,8 @@ export function Home() {
   const count = (t: ItemType) =>
     ITEMS.filter((i) => (t === "skill" ? i.type === "skill" || i.type === "bundle" : i.type === t)).length;
 
-  // Representative items for the outcomes section
+  // Representative items for the outcomes section.
+  // Each outcome links to a filtered library shelf, not a single example item.
   const outcome1 = ITEMS.find((i) => i.id === "linear");
   const outcome2 = ITEMS.find((i) => i.id === "agent-design-critique");
   const outcome3 = ITEMS.find((i) => i.id === "mcp-figma-dev-mode");
@@ -52,18 +58,24 @@ export function Home() {
       title: "Ship on-brand UI in Cursor in minutes",
       body: "Drop a design system into Cursor and your generations stop looking generic. Brand colors, type, density — all from one spec file.",
       item: outcome1,
+      href: "/library/skills?ds=1&tool=cursor",
+      shelfLabel: "Browse design systems",
       eyebrow: "with a Design system",
     },
     {
       title: "Get a real critique from a UI agent",
       body: "Hand a screenshot to a design-critic agent and get a brand score, three specific edits, and the rationale behind each.",
       item: outcome2,
+      href: "/library/agents",
+      shelfLabel: "Browse agents",
       eyebrow: "with an Agent",
     },
     {
       title: "Pipe Figma frames straight into your model",
       body: "Add the Figma MCP to your tool and Claude or Cursor can read your live frames — variables, components, the lot.",
       item: outcome3,
+      href: "/library/mcps",
+      shelfLabel: "Browse MCPs",
       eyebrow: "with an MCP",
     },
   ];
@@ -139,12 +151,14 @@ export function Home() {
               className="text-[10px] uppercase tracking-[0.22em] mr-1.5"
               style={{ fontFamily: MONO, color: MUTED }}
             >
-              works in
+              Browse by tool
             </span>
             {TOOL_BADGES.map((t) => (
-              <span
-                key={t}
-                className="inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full border"
+              <Link
+                key={t.id}
+                href={`/library?tool=${t.id}`}
+                aria-label={`Browse items made for ${t.label}`}
+                className="inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full border transition-colors hover:bg-[#101013]"
                 style={{
                   fontFamily: MONO,
                   color: INK,
@@ -153,8 +167,8 @@ export function Home() {
                 }}
               >
                 <Check className="h-2.5 w-2.5" style={{ color: LIME }} strokeWidth={3} />
-                {t}
-              </span>
+                {t.label}
+              </Link>
             ))}
           </div>
         </div>
@@ -260,7 +274,7 @@ export function Home() {
               return (
                 <Link
                   key={i}
-                  href={o.item ? `/library/${o.item.id}` : "/library"}
+                  href={o.href}
                   className="p-7 block transition-colors hover:bg-[#101013] group"
                   style={{ background: BG }}
                 >
@@ -276,20 +290,18 @@ export function Home() {
                   <p className="text-[13.5px] leading-[1.6]" style={{ color: SUB }}>
                     {o.body}
                   </p>
-                  {o.item ? (
-                    <div
-                      className="mt-6 pt-4 border-t flex items-center justify-between"
-                      style={{ borderColor: BORDER }}
-                    >
-                      <span className="text-[12px]" style={{ color: INK }}>
-                        {o.item.name}
-                      </span>
-                      <ArrowUpRight
-                        className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
-                        style={{ color: SUB }}
-                      />
-                    </div>
-                  ) : null}
+                  <div
+                    className="mt-6 pt-4 border-t flex items-center justify-between"
+                    style={{ borderColor: BORDER }}
+                  >
+                    <span className="text-[12px]" style={{ color: INK }}>
+                      {o.shelfLabel}
+                    </span>
+                    <ArrowUpRight
+                      className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                      style={{ color: SUB }}
+                    />
+                  </div>
                 </Link>
               );
             })}

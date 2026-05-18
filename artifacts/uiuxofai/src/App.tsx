@@ -6,6 +6,7 @@ import { LibraryType } from "./pages/LibraryType";
 import { BundleDetail } from "./pages/BundleDetail";
 import { Generate } from "./pages/Generate";
 import { CopySuccess } from "./pages/CopySuccess";
+import { CliDocs } from "./pages/CliDocs";
 import NotFound from "./pages/not-found";
 import { getItem } from "./lib/items";
 
@@ -28,6 +29,7 @@ function Router() {
       <Route path="/library/:id" component={BundleDetail} />
       <Route path="/copy/:id" component={CopySuccess} />
       <Route path="/generate" component={Generate} />
+      <Route path="/docs/cli" component={CliDocs} />
       <Route path="/vote" component={() => <Redirect to="/library/skills" replace />} />
       <Route path="/vote/:id" component={VoteItemRedirect} />
       <Route component={NotFound} />

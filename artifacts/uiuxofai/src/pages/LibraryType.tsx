@@ -1,4 +1,6 @@
 import { useMemo, useState } from "react";
+import { LibraryFilterStrip } from "../components/LibraryFilterStrip";
+import { matchesFilters, useLibraryFilters } from "../lib/libraryFilters";
 import { Link } from "wouter";
 import { ArrowUpRight, Check, Search } from "lucide-react";
 import { ItemCard } from "../components/ItemCard";
@@ -95,11 +97,14 @@ export function LibraryType({ type }: { type: DisplayType }) {
     return new URLSearchParams(window.location.search).get("ds") === "1";
   });
 
+  const { filters: urlFilters } = useLibraryFilters();
+
   const all = useMemo(() => ITEMS.filter((i) => displayTypeOf(i) === type), [type]);
   const dsCount = useMemo(() => all.filter(isDesignSystem).length, [all]);
   const filtered = useMemo(() => {
     return all.filter((it) => {
       if (designSystemOnly && !isDesignSystem(it)) return false;
+      if (!matchesFilters(it, urlFilters)) return false;
       if (tool && !(it.tools as string[]).includes(tool)) return false;
       if (query.trim()) {
         const q = query.toLowerCase();
@@ -110,7 +115,7 @@ export function LibraryType({ type }: { type: DisplayType }) {
       }
       return true;
     });
-  }, [all, query, tool, designSystemOnly]);
+  }, [all, query, tool, designSystemOnly, urlFilters]);
 
   return (
     <>
@@ -246,6 +251,7 @@ export function LibraryType({ type }: { type: DisplayType }) {
       {/* The catalog */}
       <section>
         <div className="mx-auto max-w-6xl px-6 lg:px-8 py-14">
+          <LibraryFilterStrip count={filtered.length} />
           <div className="flex items-end justify-between flex-wrap gap-4 mb-8">
             <div>
               <div
