@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Check, Copy } from "lucide-react";
-import { Header } from "./_Shared";
+import { Header, SectionLabel, ChipLime, BG, BG_SOFT, INK, SUB, FAINT, BORDER, BORDER_SOFT, SERIF, MONO } from "./_Shared";
 import "./_group.css";
 
 type ToolKey = "Claude" | "Cursor" | "Lovable" | "Figma Make";
@@ -18,7 +18,7 @@ const toolSteps: Record<ToolKey, { title: string; steps: { label: string; hint: 
     title: "How to apply this in Cursor",
     steps: [
       { label: "Open your project root and create .cursor/rules/design-system.mdc", hint: "touch .cursor/rules/design-system.mdc" },
-      { label: "Paste the copied bundle into the file and save", hint: "Cmd + V, Cmd + S" },
+      { label: "Paste the copied bundle into the file and save", hint: "Cmd + V · Cmd + S" },
       { label: "Reload the Cursor workspace so the rule is picked up", hint: "Cmd + Shift + P → Reload Window" },
     ],
   },
@@ -46,68 +46,91 @@ export function CopySuccess() {
   const active = toolSteps[activeTool];
 
   return (
-    <div className="designmd-root bg-white">
-      <Header />
-      
-      <main className="flex-1 flex flex-col items-center justify-center max-w-3xl mx-auto px-6 py-20 w-full text-center">
-        <div className="mb-8 flex h-20 w-20 items-center justify-center rounded-full bg-green-50 border border-green-200">
-          <Check className="h-10 w-10 text-green-600" />
-        </div>
-        
-        <h1 className="designmd-serif text-4xl font-bold text-[#111110] mb-3">Stripe bundle copied</h1>
-        <p className="text-[#6B6A66] text-lg mb-12">1,847 tokens ready for your clipboard.</p>
+    <div className="designmd-root">
+      <Header active="Collection" />
 
-        <div className="w-full text-left rounded-xl border border-[#E8E6DF] bg-white shadow-sm overflow-hidden">
-          <div className="flex border-b border-[#E8E6DF] bg-[#FDFCF8]">
+      <main className="flex-1 flex flex-col items-center mx-auto max-w-3xl px-10 py-20 w-full text-center" style={{ background: BG }}>
+        <div className="mb-7 inline-flex items-center gap-2 text-[10.5px] uppercase tracking-[0.22em]" style={{ fontFamily: MONO, color: SUB }}>
+          <ChipLime>
+            <Check className="h-3 w-3 mr-1" />
+            copied
+          </ChipLime>
+          <span>Plate 041 · Stripe</span>
+        </div>
+
+        <h1 className="text-[64px] leading-[1.02] font-normal" style={{ fontFamily: SERIF, color: INK }}>
+          The bundle is on<br />
+          <em className="font-normal" style={{ fontStyle: "italic" }}>your clipboard.</em>
+        </h1>
+        <p className="mt-5 text-[15.5px] leading-[1.6] max-w-[28rem]" style={{ color: SUB }}>
+          1,847 tokens — companion prompt and{" "}
+          <span style={{ fontFamily: MONO, color: INK }}>design.md</span> together. Pick where it
+          should land.
+        </p>
+
+        <div className="w-full mt-12 text-left rounded-2xl border bg-white overflow-hidden" style={{ borderColor: BORDER, boxShadow: "0 20px 50px -30px rgba(40, 25, 15, 0.14)" }}>
+          <div className="flex border-b" style={{ borderColor: BORDER, background: BG }}>
             {tools.map((tool) => (
               <button
                 key={tool}
                 onClick={() => setActiveTool(tool)}
-                className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors ${
+                className="flex-1 py-3.5 text-[13px] transition-colors"
+                style={
                   activeTool === tool
-                    ? "border-[#111110] text-[#111110]"
-                    : "border-transparent text-[#6B6A66] hover:text-[#111110]"
-                }`}
+                    ? { color: INK, borderBottom: `2px solid ${INK}`, fontFamily: MONO }
+                    : { color: SUB, borderBottom: "2px solid transparent", fontFamily: MONO }
+                }
               >
                 {tool}
               </button>
             ))}
           </div>
-          
+
           <div className="p-8">
-            <h3 className="font-semibold text-[#111110] mb-6">{active.title}</h3>
-            
-            <div className="space-y-8">
+            <SectionLabel n="Index 01" t={active.title.replace("How to apply this in ", "")} />
+            <h3 className="mt-4 text-[24px]" style={{ fontFamily: SERIF, color: INK }}>{active.title}</h3>
+
+            <ol className="mt-8 space-y-7">
               {active.steps.map((step, i) => (
-                <div key={i} className="flex gap-4">
-                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#111110] text-xs text-white">
+                <li key={i} className="flex gap-5">
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[12px]" style={{ background: INK, color: "white", fontFamily: MONO }}>
                     {i + 1}
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-[#111110] mb-2">{step.label}</p>
-                    <div className="rounded-lg border border-[#E8E6DF] bg-[#FAFAFA] p-3 text-[#6B6A66] text-xs designmd-mono flex items-center gap-2">
+                    <p className="text-[14px]" style={{ color: INK }}>{step.label}</p>
+                    <div className="mt-2 rounded-md px-3 py-2 text-[12.5px] inline-flex items-center gap-2" style={{ background: BG_SOFT, border: `1px solid ${BORDER}`, fontFamily: MONO, color: SUB }}>
                       {i === 1 ? <Copy className="h-3 w-3" /> : null}
                       {step.hint}
                     </div>
                   </div>
-                </div>
+                </li>
               ))}
-            </div>
+            </ol>
           </div>
         </div>
 
-        <div className="mt-12 bg-[#FDFCF8] rounded-xl border border-[#E8E6DF] p-8 w-full">
-          <h3 className="font-semibold text-[#111110] mb-3">Try a test prompt</h3>
-          <p className="text-[#6B6A66] text-sm mb-4">Paste this into Claude to verify the system is working:</p>
-          <div className="relative group">
-            <div className="rounded-lg bg-white border border-[#E8E6DF] p-4 text-left font-mono text-sm text-[#111110]">
-              "Build a pricing card component following our design system. Include a primary CTA and 3 feature bullet points."
+        <div className="mt-10 w-full text-left rounded-2xl border p-7" style={{ borderColor: BORDER, background: BG_SOFT }}>
+          <SectionLabel n="Index 02" t="A test prompt" />
+          <h3 className="mt-3 text-[22px]" style={{ fontFamily: SERIF, color: INK }}>
+            Paste this in {activeTool}.
+          </h3>
+          <div className="mt-4 relative group">
+            <div className="rounded-md bg-white border p-4 text-[14px] leading-[1.5]" style={{ borderColor: BORDER, color: INK, fontFamily: SERIF, fontStyle: "italic" }}>
+              "Build a pricing card component following our design system. Include a primary
+              CTA and 3 feature bullet points."
             </div>
-            <button className="absolute right-3 top-3 rounded-md bg-[#F4F3EE] p-1.5 text-[#6B6A66] opacity-0 transition-opacity group-hover:opacity-100">
-              <Copy className="h-4 w-4" />
+            <button className="absolute right-3 top-3 h-7 px-2 rounded-md text-[11px] inline-flex items-center gap-1" style={{ border: `1px solid ${BORDER}`, background: "white", color: SUB, fontFamily: MONO }}>
+              <Copy className="h-3 w-3" />
+              copy
             </button>
           </div>
+          <div className="mt-3 text-[11.5px]" style={{ fontFamily: MONO, color: SUB }}>
+            If the card renders with #635BFF and Inter at -0.01em letter-spacing, the system
+            took.
+          </div>
         </div>
+
+        <div className="mt-10 h-px w-full" style={{ background: BORDER_SOFT }} />
       </main>
     </div>
   );

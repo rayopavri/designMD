@@ -1,5 +1,5 @@
-import { CheckCircle2, ChevronRight, Copy, Download, Terminal, ThumbsDown, ThumbsUp } from "lucide-react";
-import { Header, PaletteStrip, CoverageBar } from "./_Shared";
+import { ChevronRight, Copy, Download, Quote, Terminal, ThumbsDown, ThumbsUp } from "lucide-react";
+import { Header, SectionLabel, PaletteStrip, CoverageBar, ChipLime, ChipPeach, ChipLavender, BG, BG_SOFT, INK, SUB, FAINT, BORDER, BORDER_SOFT, SERIF, MONO } from "./_Shared";
 import "./_group.css";
 
 export function BundleDetail() {
@@ -16,129 +16,150 @@ version: 1.0.0
 # TOKEN VALUES
 ## Colors
 - background: #FFFFFF
-- surface: #F6F9FC
-- primary: #635BFF
-- text_main: #0A2540
+- surface:    #F6F9FC
+- primary:    #635BFF
+- text_main:  #0A2540
 - text_muted: #425466
 
 ## Spacing
-- base_unit: 4px
+- base_unit:         4px
 - container_padding: 24px
 `;
 
   return (
     <div className="designmd-root">
-      <Header />
-      
+      <Header active="Plates" />
+
       {/* Breadcrumb */}
-      <div className="border-b border-[#E8E6DF] bg-white">
-        <div className="mx-auto max-w-7xl px-6 py-3 flex items-center text-sm text-[#6B6A66]">
-          <a href="#" className="hover:text-[#111110]">Library</a>
-          <ChevronRight className="h-4 w-4 mx-2" />
-          <a href="#" className="hover:text-[#111110]">Finance</a>
-          <ChevronRight className="h-4 w-4 mx-2" />
-          <span className="text-[#111110] font-medium">Stripe</span>
+      <div style={{ background: BG, borderBottom: `1px solid ${BORDER_SOFT}` }}>
+        <div className="mx-auto max-w-7xl px-10 py-4 flex items-center text-[11.5px]" style={{ fontFamily: MONO, color: SUB }}>
+          <a href="#">Collection</a>
+          <ChevronRight className="h-3 w-3 mx-2" style={{ color: FAINT }} />
+          <a href="#">Finance</a>
+          <ChevronRight className="h-3 w-3 mx-2" style={{ color: FAINT }} />
+          <span style={{ color: INK }}>Stripe · № 041</span>
         </div>
       </div>
 
-      <main className="mx-auto max-w-7xl px-6 py-12 flex flex-col lg:flex-row gap-12 w-full">
-        {/* Left Col: Info & Coverage */}
+      <main className="mx-auto max-w-7xl px-10 py-14 flex flex-col lg:flex-row gap-14 w-full" style={{ background: BG }}>
+        {/* Left rail */}
         <div className="lg:w-1/3 space-y-10">
-          <div className="space-y-6">
-            <div className="overflow-hidden rounded-xl border border-[#E8E6DF] bg-white shadow-sm">
+          <div>
+            <div className="text-[10.5px] uppercase tracking-[0.22em]" style={{ fontFamily: MONO, color: SUB }}>
+              Plate 041 · Finance
+            </div>
+            <h1 className="mt-4 text-[56px] leading-[1.02] font-normal" style={{ fontFamily: SERIF, color: INK }}>
+              <em className="font-normal" style={{ fontStyle: "italic" }}>Stripe.</em>
+            </h1>
+            <p className="mt-5 text-[15px] leading-[1.6]" style={{ color: SUB }}>
+              Vibrant, angled, modern finance UI. Excellent for SaaS dashboards and
+              high-conversion payment flows.
+            </p>
+
+            <div className="mt-6 flex flex-wrap gap-1.5">
+              <ChipLime>98% coverage</ChipLime>
+              <ChipPeach>1,847 tokens</ChipPeach>
+              <ChipLavender>gradient-first</ChipLavender>
+            </div>
+
+            <div className="mt-6 rounded-xl border bg-white overflow-hidden" style={{ borderColor: BORDER }}>
               <PaletteStrip colors={["#635BFF", "#0A2540", "#00D4FF", "#FFB320", "#FFFFFF"]} />
-              <div className="p-6">
-                <div className="flex justify-between items-start mb-4">
-                  <h1 className="designmd-serif text-3xl font-bold text-[#111110]">Stripe</h1>
-                  <div className="flex items-center gap-1 rounded bg-green-50 px-2 py-1 text-sm font-medium text-green-700 border border-green-200">
-                    <CheckCircle2 className="h-4 w-4" />
-                    98%
-                  </div>
-                </div>
-                <p className="text-[#6B6A66] mb-6">Vibrant, angled, modern finance UI. Excellent for SaaS dashboards and high-conversion payment flows.</p>
-                <div className="flex flex-wrap gap-2 text-xs">
-                  <span className="rounded-md bg-[#111110] text-white px-2 py-1">Claude</span>
-                  <span className="rounded-md bg-[#F4F3EE] text-[#111110] border border-[#E8E6DF] px-2 py-1">Cursor</span>
-                  <span className="rounded-md bg-[#F4F3EE] text-[#111110] border border-[#E8E6DF] px-2 py-1">Lovable</span>
-                </div>
-                <div className="mt-6 text-xs text-[#6B6A66]">
-                  Updated 5 hours ago • 1,240 votes
+              <div className="p-5 text-[11.5px]" style={{ fontFamily: MONO, color: SUB }}>
+                <div className="flex justify-between">
+                  <span>updated</span>
+                  <span style={{ color: INK }}>5h ago · 1,240 votes</span>
                 </div>
               </div>
             </div>
+          </div>
 
-            <div>
-              <h3 className="font-semibold text-[#111110] mb-4">Coverage Breakdown</h3>
-              <div className="space-y-4 rounded-xl border border-[#E8E6DF] bg-white p-6">
-                <CoverageBar label="Colors" score={98} />
-                <CoverageBar label="Typography" score={92} />
-                <CoverageBar label="Layout/Spacing" score={87} />
-                <CoverageBar label="Elevation" score={64} />
-                <CoverageBar label="Shapes" score={71} />
-                <CoverageBar label="Components" score={89} />
-                <CoverageBar label="Dos & Don'ts" score={45} />
-              </div>
+          <div>
+            <SectionLabel n="Index 01" t="Coverage breakdown" />
+            <div className="mt-5 space-y-4 rounded-xl border bg-white p-6" style={{ borderColor: BORDER }}>
+              {[
+                ["Colors", 98],
+                ["Typography", 92],
+                ["Layout & spacing", 87],
+                ["Elevation", 64],
+                ["Shapes", 71],
+                ["Components", 89],
+                ["Dos & don'ts", 45],
+              ].map(([l, s]) => (
+                <CoverageBar key={l as string} label={l as string} score={s as number} />
+              ))}
             </div>
           </div>
         </div>
 
-        {/* Right Col: Preview & Actions */}
-        <div className="lg:w-2/3 space-y-6">
-          <div className="rounded-xl border border-[#E8E6DF] bg-white overflow-hidden shadow-sm flex flex-col h-[500px]">
-            <div className="flex border-b border-[#E8E6DF] bg-[#FDFCF8] px-4">
-              <button className="px-4 py-3 text-sm font-medium border-b-2 border-[#111110] text-[#111110]">
-                Companion prompt
-              </button>
-              <button className="px-4 py-3 text-sm font-medium text-[#6B6A66] hover:text-[#111110]">
-                design.md
-              </button>
-            </div>
-            <div className="p-6 bg-[#FAFAFA] flex-1 overflow-auto designmd-scrollbar">
-              <pre className="designmd-mono text-sm text-[#111110]">
-                {codeSnippet}
-              </pre>
+        {/* Right column */}
+        <div className="lg:w-2/3 space-y-8">
+          <div>
+            <SectionLabel n="Index 02" t="The bundle" />
+            <div className="mt-5 rounded-xl border bg-white overflow-hidden h-[500px] flex flex-col" style={{ borderColor: BORDER }}>
+              <div className="flex border-b" style={{ borderColor: BORDER, background: BG_SOFT }}>
+                <button className="px-5 py-3 text-[12.5px]" style={{ color: INK, borderBottom: `2px solid ${INK}`, fontFamily: MONO }}>
+                  companion prompt
+                </button>
+                <button className="px-5 py-3 text-[12.5px]" style={{ color: SUB, fontFamily: MONO }}>
+                  design.md
+                </button>
+                <div className="ml-auto flex items-center pr-5 text-[11px]" style={{ fontFamily: MONO, color: SUB }}>
+                  342 lines
+                </div>
+              </div>
+              <div className="p-6 flex-1 overflow-auto designmd-scrollbar" style={{ background: BG_SOFT }}>
+                <pre className="text-[12.5px] leading-[1.7]" style={{ fontFamily: MONO, color: INK }}>
+                  {codeSnippet}
+                </pre>
+              </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <button className="flex flex-col items-center justify-center gap-2 rounded-xl bg-[#111110] p-4 text-white shadow transition-hover hover:bg-[#111110]/90">
-              <Copy className="h-5 w-5" />
-              <span className="font-medium text-sm">Copy Bundle</span>
-              <span className="text-xs text-white/70">Prompt + MD (1,847 tokens)</span>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <button className="flex flex-col items-start gap-2 rounded-xl p-5 text-left text-white" style={{ background: INK }}>
+              <Copy className="h-4 w-4" />
+              <span className="text-[14px] font-medium">Copy bundle</span>
+              <span className="text-[11.5px] opacity-70" style={{ fontFamily: MONO }}>prompt + md · 1,847 tokens</span>
             </button>
-            <button className="flex flex-col items-center justify-center gap-2 rounded-xl border border-[#E8E6DF] bg-white p-4 text-[#111110] shadow-sm transition-hover hover:bg-[#F4F3EE]">
-              <Download className="h-5 w-5" />
-              <span className="font-medium text-sm">Download</span>
-              <span className="text-xs text-[#6B6A66]">.zip archive</span>
+            <button className="flex flex-col items-start gap-2 rounded-xl bg-white p-5 text-left" style={{ border: `1px solid ${BORDER}`, color: INK }}>
+              <Download className="h-4 w-4" />
+              <span className="text-[14px] font-medium">Download</span>
+              <span className="text-[11.5px]" style={{ fontFamily: MONO, color: SUB }}>.zip archive</span>
             </button>
-            <button className="flex flex-col items-center justify-center gap-2 rounded-xl border border-[#E8E6DF] bg-white p-4 text-[#111110] shadow-sm transition-hover hover:bg-[#F4F3EE]">
-              <Terminal className="h-5 w-5" />
-              <span className="font-medium text-sm">CLI Install</span>
-              <span className="text-xs text-[#6B6A66]">npx uiuxofai add stripe</span>
+            <button className="flex flex-col items-start gap-2 rounded-xl bg-white p-5 text-left" style={{ border: `1px solid ${BORDER}`, color: INK }}>
+              <Terminal className="h-4 w-4" />
+              <span className="text-[14px] font-medium">CLI install</span>
+              <span className="text-[11.5px]" style={{ fontFamily: MONO, color: SUB }}>npx uiuxofai add stripe</span>
             </button>
           </div>
 
-          {/* Feedback section */}
-          <div className="mt-12 rounded-xl border border-[#E8E6DF] bg-[#FDFCF8] p-6">
-            <h4 className="font-semibold text-[#111110] mb-4">Recent community feedback</h4>
-            <div className="space-y-4">
-              <div className="flex gap-4">
-                <ThumbsUp className="h-5 w-5 text-green-600 shrink-0" />
-                <div>
-                  <p className="text-sm text-[#111110]">"Nailed the container shadows and font weights. Claude produced perfect Stripe cards on first try."</p>
-                  <span className="text-xs text-[#6B6A66]">2 hours ago via Claude Project</span>
-                </div>
-              </div>
-              <div className="flex gap-4">
-                <ThumbsDown className="h-5 w-5 text-red-500 shrink-0" />
-                <div>
-                  <p className="text-sm text-[#111110]">"The primary button color was slightly off."</p>
-                  <div className="mt-1 flex gap-2">
-                    <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-medium text-red-700">Colors off</span>
-                  </div>
-                  <span className="text-xs text-[#6B6A66] mt-1 block">1 day ago via Lovable</span>
-                </div>
-              </div>
+          <div>
+            <SectionLabel n="Index 03" t="From the field" />
+            <div className="mt-5 rounded-xl border p-6 space-y-5" style={{ borderColor: BORDER, background: BG_SOFT }}>
+              <figure>
+                <Quote className="h-3.5 w-3.5 mb-3" style={{ color: FAINT }} />
+                <blockquote className="text-[16px] leading-[1.5]" style={{ fontFamily: SERIF, color: INK }}>
+                  Nailed the container shadows and font weights. Claude produced perfect
+                  Stripe cards on the first try.
+                </blockquote>
+                <figcaption className="mt-3 flex items-center gap-2 text-[11.5px]" style={{ fontFamily: MONO, color: SUB }}>
+                  <ThumbsUp className="h-3 w-3" style={{ color: INK }} />
+                  2 hours ago · Claude Project
+                </figcaption>
+              </figure>
+              <div className="h-px" style={{ background: BORDER }} />
+              <figure>
+                <Quote className="h-3.5 w-3.5 mb-3" style={{ color: FAINT }} />
+                <blockquote className="text-[16px] leading-[1.5]" style={{ fontFamily: SERIF, color: INK }}>
+                  The primary button colour came back slightly off — closer to #6F66FF than
+                  the spec's #635BFF.
+                </blockquote>
+                <figcaption className="mt-3 flex items-center gap-3 text-[11.5px]" style={{ fontFamily: MONO, color: SUB }}>
+                  <ThumbsDown className="h-3 w-3" style={{ color: INK }} />
+                  1 day ago · Lovable
+                  <ChipPeach>colour drift</ChipPeach>
+                </figcaption>
+              </figure>
             </div>
           </div>
         </div>

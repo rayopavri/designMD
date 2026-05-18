@@ -1,5 +1,5 @@
-import { ArrowUpRight, CheckCircle2, Copy, Download, ExternalLink, GitBranch, Sparkles, Star } from "lucide-react";
-import { Header, PaletteStrip, CoverageBar } from "./_Shared";
+import { ArrowUpRight, ChevronRight, Copy, Download, ExternalLink, GitBranch, Quote, Star } from "lucide-react";
+import { Header, SectionLabel, PaletteStrip, CoverageBar, ChipLime, ChipPeach, ChipLavender, BG, BG_SOFT, INK, SUB, FAINT, BORDER, BORDER_SOFT, SERIF, MONO } from "./_Shared";
 import "./_group.css";
 
 const carbonPalette = ["#0F62FE", "#161616", "#393939", "#525252", "#8D8D8D", "#C6C6C6", "#E0E0E0", "#F4F4F4"];
@@ -33,110 +33,84 @@ const changelog = [
 
 export function DesignSystemDetail() {
   return (
-    <div className="designmd-root bg-[#FDFCF8]">
-      <Header />
+    <div className="designmd-root">
+      <Header active="Plates" />
 
-      <main className="flex-1">
+      <main className="flex-1" style={{ background: BG }}>
         {/* Breadcrumb */}
-        <div className="mx-auto max-w-7xl px-6 pt-8">
-          <nav className="designmd-mono text-[11px] uppercase tracking-[0.14em] text-[#6B6A66]">
-            <a href="#" className="hover:text-[#111110]">Design systems</a>
-            <span className="mx-2">/</span>
-            <a href="#" className="hover:text-[#111110]">Enterprise</a>
-            <span className="mx-2">/</span>
-            <span className="text-[#111110]">IBM Carbon</span>
-          </nav>
+        <div style={{ borderBottom: `1px solid ${BORDER_SOFT}` }}>
+          <div className="mx-auto max-w-7xl px-10 py-4 flex items-center text-[11.5px]" style={{ fontFamily: MONO, color: SUB }}>
+            <a href="#">Design systems</a>
+            <ChevronRight className="h-3 w-3 mx-2" style={{ color: FAINT }} />
+            <a href="#">Enterprise</a>
+            <ChevronRight className="h-3 w-3 mx-2" style={{ color: FAINT }} />
+            <span style={{ color: INK }}>IBM Carbon · plate 039</span>
+          </div>
         </div>
 
         {/* Hero */}
-        <section className="border-b border-[#E8E6DF]">
-          <div className="mx-auto max-w-7xl px-6 py-12">
+        <section style={{ borderBottom: `1px solid ${BORDER}` }}>
+          <div className="mx-auto max-w-7xl px-10 py-14">
             <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-12 items-start">
               <div>
-                <div className="flex items-center gap-3 mb-5">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-md bg-[#0F62FE] text-white designmd-serif text-xl font-bold">
-                    C
-                  </div>
-                  <div className="designmd-mono text-[11px] uppercase tracking-[0.14em] text-[#6B6A66]">
-                    Maintained by IBM · MIT license · v11.42.0
-                  </div>
+                <div className="text-[10.5px] uppercase tracking-[0.22em]" style={{ fontFamily: MONO, color: SUB }}>
+                  Plate 039 · Maintained by IBM · MIT · v11.42.0
                 </div>
-
-                <h1 className="designmd-serif text-5xl font-bold text-[#111110] tracking-tight mb-4">
-                  IBM Carbon
+                <h1 className="mt-5 text-[88px] leading-[0.96] font-normal" style={{ fontFamily: SERIF, color: INK }}>
+                  <em className="font-normal" style={{ fontStyle: "italic" }}>IBM Carbon.</em>
                 </h1>
-                <p className="text-[#3F3E3A] text-lg leading-relaxed max-w-2xl mb-6">
-                  Carbon is IBM&rsquo;s open-source design system for products and digital experiences.
-                  It pairs a dense, accessibility-first grid with the IBM Plex type family and a precise
-                  industrial palette &mdash; the reference for enterprise software.
+                <p className="mt-6 max-w-2xl text-[16px] leading-[1.6]" style={{ color: SUB }}>
+                  Carbon is IBM's open-source design system for products and digital
+                  experiences. It pairs a dense, accessibility-first grid with the IBM Plex
+                  type family and a precise industrial palette — the reference for enterprise
+                  software.
                 </p>
 
-                <div className="flex flex-wrap gap-2 mb-8">
-                  {["Enterprise", "Dashboards", "Accessibility AA", "Dense", "Open source"].map((t) => (
-                    <span
-                      key={t}
-                      className="px-3 py-1 rounded-full border border-[#E8E6DF] bg-white text-xs font-medium text-[#3F3E3A]"
-                    >
-                      {t}
-                    </span>
-                  ))}
+                <div className="mt-7 flex flex-wrap gap-1.5">
+                  <ChipLavender>Enterprise</ChipLavender>
+                  <ChipLavender>Dashboards</ChipLavender>
+                  <ChipLime>WCAG AA</ChipLime>
+                  <ChipPeach>High-density</ChipPeach>
+                  <ChipLavender>Open source</ChipLavender>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-3">
-                  <button className="inline-flex h-11 items-center gap-2 rounded-md bg-[#111110] px-5 text-sm font-medium text-white hover:bg-[#111110]/90">
-                    <Copy className="h-4 w-4" />
+                <div className="mt-8 flex flex-wrap items-center gap-3">
+                  <button className="inline-flex h-11 items-center gap-2 rounded-full px-5 text-[13px] font-medium text-white" style={{ background: INK }}>
+                    <Copy className="h-3.5 w-3.5" />
                     Copy design.md
                   </button>
-                  <button className="inline-flex h-11 items-center gap-2 rounded-md border border-[#E8E6DF] bg-white px-5 text-sm font-medium text-[#111110] hover:bg-[#F4F3EE]">
-                    <Download className="h-4 w-4" />
+                  <button className="inline-flex h-11 items-center gap-2 rounded-full bg-white px-5 text-[13px] font-medium" style={{ border: `1px solid ${BORDER}`, color: INK }}>
+                    <Download className="h-3.5 w-3.5" />
                     Download bundle
                   </button>
-                  <a
-                    href="#"
-                    className="inline-flex h-11 items-center gap-2 px-2 text-sm font-medium text-[#111110] hover:underline"
-                  >
-                    carbondesignsystem.com
-                    <ExternalLink className="h-3.5 w-3.5" />
+                  <a href="#" className="inline-flex items-center gap-1 text-[13px]" style={{ color: INK }}>
+                    carbondesignsystem.com <ExternalLink className="h-3 w-3" />
                   </a>
                 </div>
               </div>
 
-              {/* Side stats */}
-              <aside className="rounded-xl border border-[#E8E6DF] bg-white p-6">
+              <aside className="rounded-2xl border bg-white p-7" style={{ borderColor: BORDER }}>
                 <div className="grid grid-cols-2 gap-6">
-                  <div>
-                    <div className="designmd-mono text-[11px] uppercase tracking-[0.14em] text-[#6B6A66] mb-1">
-                      Coverage
+                  {[
+                    ["Coverage", "96%"],
+                    ["Tokens", "1,842"],
+                    ["Components", "62"],
+                    ["Last verified", "4d"],
+                  ].map(([k, v]) => (
+                    <div key={k}>
+                      <div className="text-[10.5px] uppercase tracking-[0.22em] mb-2" style={{ fontFamily: MONO, color: SUB }}>{k}</div>
+                      <div className="text-[34px] leading-[1]" style={{ fontFamily: SERIF, color: INK }}>{v}</div>
                     </div>
-                    <div className="designmd-serif text-3xl font-bold text-[#111110]">96%</div>
-                  </div>
-                  <div>
-                    <div className="designmd-mono text-[11px] uppercase tracking-[0.14em] text-[#6B6A66] mb-1">
-                      Tokens
-                    </div>
-                    <div className="designmd-serif text-3xl font-bold text-[#111110]">1,842</div>
-                  </div>
-                  <div>
-                    <div className="designmd-mono text-[11px] uppercase tracking-[0.14em] text-[#6B6A66] mb-1">
-                      Components
-                    </div>
-                    <div className="designmd-serif text-3xl font-bold text-[#111110]">62</div>
-                  </div>
-                  <div>
-                    <div className="designmd-mono text-[11px] uppercase tracking-[0.14em] text-[#6B6A66] mb-1">
-                      Last verified
-                    </div>
-                    <div className="designmd-serif text-3xl font-bold text-[#111110]">4d</div>
-                  </div>
+                  ))}
                 </div>
-                <div className="mt-6 pt-6 border-t border-[#E8E6DF] flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-sm text-[#3F3E3A]">
-                    <Star className="h-4 w-4 text-amber-500" fill="currentColor" />
-                    <span className="font-medium text-[#111110]">94%</span>
-                    <span className="text-[#6B6A66]">community vote</span>
+                <div className="mt-7 pt-5 border-t flex items-center justify-between" style={{ borderColor: BORDER_SOFT }}>
+                  <div className="flex items-center gap-2 text-[13px]" style={{ color: INK }}>
+                    <Star className="h-3.5 w-3.5" fill={INK} stroke="none" />
+                    <span>94%</span>
+                    <span style={{ color: SUB }}>community vote</span>
                   </div>
-                  <div className="flex items-center gap-1 text-xs text-[#6B6A66]">
-                    <GitBranch className="h-3.5 w-3.5" />
+                  <div className="inline-flex items-center gap-1 text-[11.5px]" style={{ fontFamily: MONO, color: SUB }}>
+                    <GitBranch className="h-3 w-3" />
                     312 forks
                   </div>
                 </div>
@@ -146,13 +120,18 @@ export function DesignSystemDetail() {
         </section>
 
         {/* Body */}
-        <section className="mx-auto max-w-7xl px-6 py-16 grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-16">
+        <section className="mx-auto max-w-7xl px-10 py-16 grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-16">
           <div className="space-y-16">
-            {/* Coverage breakdown */}
+            {/* Coverage */}
             <div>
-              <h2 className="designmd-serif text-2xl font-medium text-[#111110] mb-2">Coverage breakdown</h2>
-              <p className="text-sm text-[#6B6A66] mb-8">
-                Scored against the UIUXofAi extraction rubric &mdash; what each surface area provides out of the box.
+              <SectionLabel n="Index 01" t="Coverage breakdown" />
+              <h2 className="mt-4 mb-3 text-[36px] leading-[1.05] font-normal" style={{ fontFamily: SERIF, color: INK }}>
+                What it ships,<br />
+                <em className="font-normal" style={{ fontStyle: "italic" }}>and what it doesn't.</em>
+              </h2>
+              <p className="mb-8 text-[14px] leading-[1.6]" style={{ color: SUB }}>
+                Scored against the UIUXofAi extraction rubric — what each surface area provides
+                out of the box.
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
                 <CoverageBar label="Color tokens" score={98} />
@@ -168,16 +147,20 @@ export function DesignSystemDetail() {
 
             {/* Palette */}
             <div>
-              <h2 className="designmd-serif text-2xl font-medium text-[#111110] mb-2">Core palette</h2>
-              <p className="text-sm text-[#6B6A66] mb-6">
-                Eight foundation tokens. Full ramp ships with 110 steps across functional roles.
+              <SectionLabel n="Index 02" t="Core palette" />
+              <h2 className="mt-4 mb-3 text-[36px] leading-[1.05] font-normal" style={{ fontFamily: SERIF, color: INK }}>
+                Eight foundation tokens.
+              </h2>
+              <p className="mb-6 text-[14px] leading-[1.6]" style={{ color: SUB }}>
+                The full ramp ships with 110 steps across functional roles.
               </p>
-              <div className="rounded-xl border border-[#E8E6DF] bg-white overflow-hidden">
+              <div className="rounded-2xl border bg-white overflow-hidden" style={{ borderColor: BORDER }}>
                 <PaletteStrip colors={carbonPalette} />
-                <div className="grid grid-cols-4 md:grid-cols-8 divide-x divide-[#E8E6DF] border-t border-[#E8E6DF]">
+                <div className="grid grid-cols-4 md:grid-cols-8 divide-x" style={{ borderTop: `1px solid ${BORDER}` }}>
                   {carbonPalette.map((c) => (
-                    <div key={c} className="p-3 text-center">
-                      <div className="designmd-mono text-[10px] uppercase tracking-[0.12em] text-[#6B6A66] mb-1">
+                    <div key={c} className="p-4 text-center" style={{ borderRightColor: BORDER }}>
+                      <div className="h-10 w-full rounded mb-2" style={{ background: c, border: `1px solid ${BORDER_SOFT}` }} />
+                      <div className="text-[10px] uppercase tracking-[0.18em]" style={{ fontFamily: MONO, color: SUB }}>
                         {c}
                       </div>
                     </div>
@@ -186,72 +169,57 @@ export function DesignSystemDetail() {
               </div>
             </div>
 
-            {/* Components grid */}
+            {/* Components */}
             <div>
               <div className="flex items-end justify-between mb-6">
                 <div>
-                  <h2 className="designmd-serif text-2xl font-medium text-[#111110] mb-2">Components</h2>
-                  <p className="text-sm text-[#6B6A66]">62 total &mdash; showing the 12 most-used in extracted bundles.</p>
+                  <SectionLabel n="Index 03" t="Components" />
+                  <h2 className="mt-4 text-[36px] leading-[1.05] font-normal" style={{ fontFamily: SERIF, color: INK }}>
+                    62 total — showing twelve.
+                  </h2>
                 </div>
-                <a href="#" className="text-sm font-medium text-[#111110] hover:underline flex items-center gap-1">
+                <a href="#" className="text-[13px] inline-flex items-center gap-1" style={{ color: INK }}>
                   View all <ArrowUpRight className="h-3.5 w-3.5" />
                 </a>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-px" style={{ background: BORDER }}>
                 {components.map((c) => (
-                  <div
-                    key={c.name}
-                    className="rounded-lg border border-[#E8E6DF] bg-white p-4 flex items-center justify-between hover:border-[#111110] transition-colors"
-                  >
+                  <div key={c.name} className="p-4 flex items-center justify-between" style={{ background: "white" }}>
                     <div>
-                      <div className="text-sm font-medium text-[#111110]">{c.name}</div>
-                      <div className="designmd-mono text-[10px] uppercase tracking-[0.12em] text-[#6B6A66] mt-0.5">
+                      <div className="text-[14px]" style={{ color: INK }}>{c.name}</div>
+                      <div className="text-[10.5px] uppercase tracking-[0.18em] mt-0.5" style={{ fontFamily: MONO, color: SUB }}>
                         {c.variants} variants
                       </div>
                     </div>
-                    <span
-                      className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${
-                        c.status === "Stable"
-                          ? "border-green-200 bg-green-50 text-green-700"
-                          : "border-amber-200 bg-amber-50 text-amber-700"
-                      }`}
-                    >
-                      {c.status}
-                    </span>
+                    {c.status === "Stable" ? <ChipLime>stable</ChipLime> : <ChipPeach>beta</ChipPeach>}
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Curated bundles */}
+            {/* Bundles */}
             <div>
-              <h2 className="designmd-serif text-2xl font-medium text-[#111110] mb-2">Curated bundles</h2>
-              <p className="text-sm text-[#6B6A66] mb-6">
-                Pre-packaged design.md slices tuned for specific surfaces. Copy one directly into Claude or Cursor.
-              </p>
+              <SectionLabel n="Index 04" t="Curated bundles" />
+              <h2 className="mt-4 mb-6 text-[36px] leading-[1.05] font-normal" style={{ fontFamily: SERIF, color: INK }}>
+                <em className="font-normal" style={{ fontStyle: "italic" }}>Pre-packaged slices.</em>
+              </h2>
               <div className="space-y-3">
                 {bundles.map((b) => (
-                  <div
-                    key={b.name}
-                    className="rounded-lg border border-[#E8E6DF] bg-white p-5 flex items-center justify-between hover:border-[#111110] transition-colors"
-                  >
+                  <div key={b.name} className="rounded-xl border bg-white p-5 flex items-center justify-between" style={{ borderColor: BORDER }}>
                     <div>
-                      <div className="font-semibold text-[#111110]">{b.name}</div>
-                      <div className="text-sm text-[#6B6A66] mt-0.5">{b.desc}</div>
+                      <div className="text-[17px]" style={{ fontFamily: SERIF, color: INK }}>{b.name}</div>
+                      <div className="text-[13px] mt-0.5" style={{ color: SUB }}>{b.desc}</div>
                     </div>
-                    <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-5">
                       <div className="text-right">
-                        <div className="designmd-mono text-[11px] uppercase tracking-[0.14em] text-[#6B6A66]">
+                        <div className="text-[10px] uppercase tracking-[0.18em]" style={{ fontFamily: MONO, color: SUB }}>
                           Tokens
                         </div>
-                        <div className="text-sm font-medium text-[#111110]">{b.tokens.toLocaleString()}</div>
+                        <div className="text-[14px]" style={{ fontFamily: MONO, color: INK }}>{b.tokens.toLocaleString()}</div>
                       </div>
-                      <div className="flex items-center gap-1 rounded bg-green-50 px-2 py-1 text-xs font-medium text-green-700 border border-green-200">
-                        <CheckCircle2 className="h-3.5 w-3.5" />
-                        {b.coverage}%
-                      </div>
-                      <button className="inline-flex h-9 items-center gap-2 rounded-md bg-[#111110] px-3 text-xs font-medium text-white hover:bg-[#111110]/90">
-                        <Copy className="h-3.5 w-3.5" />
+                      <ChipLime>{b.coverage}%</ChipLime>
+                      <button className="inline-flex h-9 items-center gap-2 rounded-full px-3 text-[12px] font-medium text-white" style={{ background: INK }}>
+                        <Copy className="h-3 w-3" />
                         Copy
                       </button>
                     </div>
@@ -263,52 +231,51 @@ export function DesignSystemDetail() {
 
           {/* Right rail */}
           <aside className="space-y-8">
-            <div className="rounded-xl border border-[#E8E6DF] bg-white p-5">
-              <div className="flex items-center gap-2 mb-3">
-                <Sparkles className="h-4 w-4 text-[#2563EB]" />
-                <h3 className="text-sm font-semibold text-[#111110]">Companion prompt</h3>
-              </div>
-              <p className="text-sm text-[#6B6A66] mb-4">
+            <div className="rounded-2xl border p-6" style={{ borderColor: BORDER, background: BG_SOFT }}>
+              <SectionLabel n="Index 05" t="Companion prompt" />
+              <p className="mt-3 text-[13px] leading-[1.6]" style={{ color: SUB }}>
                 Pairs with the design.md to keep Claude on-brand across long sessions.
               </p>
-              <pre className="rounded-md bg-[#FAFAFA] border border-[#E8E6DF] p-3 text-[11px] designmd-mono text-[#3F3E3A] overflow-hidden whitespace-pre-wrap">
+              <pre className="mt-4 rounded-md bg-white p-3 text-[11.5px] leading-[1.6] overflow-hidden whitespace-pre-wrap" style={{ border: `1px solid ${BORDER}`, fontFamily: MONO, color: INK }}>
 {`You are designing inside the IBM Carbon
 system. Use the 8pt grid, Plex Sans for UI,
-Plex Mono for code, and the IBM blue (#0F62FE)
+Plex Mono for code, and IBM blue (#0F62FE)
 as the only accent. Prefer density over
-whitespace. Never invent components &mdash; reuse
+whitespace. Never invent components — reuse
 what design.md declares.`}
               </pre>
-              <button className="mt-4 w-full inline-flex items-center justify-center gap-2 rounded-md border border-[#E8E6DF] bg-white py-2 text-xs font-medium text-[#111110] hover:bg-[#F4F3EE]">
-                <Copy className="h-3.5 w-3.5" />
-                Copy prompt
+              <button className="mt-4 w-full inline-flex items-center justify-center gap-2 rounded-full bg-white py-2.5 text-[12px]" style={{ border: `1px solid ${BORDER}`, color: INK, fontFamily: MONO }}>
+                <Copy className="h-3 w-3" />
+                copy prompt
               </button>
             </div>
 
-            <div className="rounded-xl border border-[#E8E6DF] bg-white p-5">
-              <h3 className="text-sm font-semibold text-[#111110] mb-4">Changelog</h3>
-              <ol className="space-y-4">
+            <div className="rounded-2xl border bg-white p-6" style={{ borderColor: BORDER }}>
+              <SectionLabel n="Index 06" t="Changelog" />
+              <ol className="mt-4 space-y-5">
                 {changelog.map((c) => (
-                  <li key={c.version} className="border-l-2 border-[#E8E6DF] pl-3">
+                  <li key={c.version} className="pl-3" style={{ borderLeft: `1px solid ${BORDER}` }}>
                     <div className="flex items-baseline justify-between">
-                      <span className="designmd-mono text-xs font-medium text-[#111110]">{c.version}</span>
-                      <span className="designmd-mono text-[10px] uppercase tracking-[0.12em] text-[#6B6A66]">
+                      <span className="text-[12px]" style={{ fontFamily: MONO, color: INK }}>{c.version}</span>
+                      <span className="text-[10px] uppercase tracking-[0.18em]" style={{ fontFamily: MONO, color: SUB }}>
                         {c.date}
                       </span>
                     </div>
-                    <p className="text-xs text-[#3F3E3A] mt-1 leading-relaxed">{c.note}</p>
+                    <p className="mt-1 text-[12.5px] leading-[1.55]" style={{ color: SUB }}>{c.note}</p>
                   </li>
                 ))}
               </ol>
             </div>
 
-            <div className="rounded-xl border border-[#E8E6DF] bg-[#FDFCF8] p-5">
-              <h3 className="text-sm font-semibold text-[#111110] mb-3">Editorial notes</h3>
-              <p className="text-xs text-[#3F3E3A] leading-relaxed">
-                Verified May 14 by the UIUXofAi editorial team. Carbon scores highest of any enterprise
-                system on accessibility and component completeness. Watch for slight drift in motion
-                tokens when paired with the IBM AI patterns kit.
-              </p>
+            <div className="rounded-2xl border p-6" style={{ borderColor: BORDER, background: "white" }}>
+              <Quote className="h-3.5 w-3.5 mb-3" style={{ color: FAINT }} />
+              <blockquote className="text-[15px] leading-[1.5]" style={{ fontFamily: SERIF, color: INK }}>
+                Verified May 14 by the UIUXofAi editorial team. Carbon scores highest of any
+                enterprise system on accessibility and component completeness.
+              </blockquote>
+              <div className="mt-4 text-[11.5px]" style={{ fontFamily: MONO, color: SUB }}>
+                — The editorial desk
+              </div>
             </div>
           </aside>
         </section>

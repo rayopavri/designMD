@@ -1,125 +1,127 @@
-import { CheckCircle2, Circle, Loader2, Sparkles } from "lucide-react";
-import { Header, CoverageBar } from "./_Shared";
+import { Check, Circle, Loader2 } from "lucide-react";
+import { Header, SectionLabel, CoverageBar, ChipLime, BG, BG_SOFT, INK, SUB, FAINT, BORDER, SERIF, MONO } from "./_Shared";
 import "./_group.css";
 
 export function UrlGenerator() {
   return (
-    <div className="designmd-root bg-[#FDFCF8]">
-      <Header />
-      
-      <main className="flex-1 flex flex-col items-center max-w-5xl mx-auto px-6 py-20 w-full">
-        <div className="w-full text-center mb-12">
-          <h1 className="designmd-serif text-4xl font-bold text-[#111110] mb-4">Extract any brand's design system</h1>
-          <p className="text-[#6B6A66] text-lg max-w-2xl mx-auto">Paste a URL. We'll scrape it, extract the tokens, generate a companion prompt, and score the coverage in about 12 seconds.</p>
+    <div className="designmd-root">
+      <Header active="Generate" />
+
+      <main className="flex-1 mx-auto max-w-5xl px-10 py-20 w-full" style={{ background: BG }}>
+        <div className="text-center mb-12">
+          <SectionLabel n="Index 01" t="From any URL" />
+          <h1 className="mt-5 text-[64px] leading-[1.02] font-normal" style={{ fontFamily: SERIF, color: INK }}>
+            Extract any brand's<br />
+            <em className="font-normal" style={{ fontStyle: "italic" }}>system in 12 seconds.</em>
+          </h1>
+          <p className="mt-6 mx-auto max-w-[38rem] text-[15.5px] leading-[1.6]" style={{ color: SUB }}>
+            Paste a URL. We'll scrape it, lift the tokens, write a calibrated companion
+            prompt, and score the coverage — ready to drop into Claude.
+          </p>
         </div>
 
-        {/* Input Area */}
-        <div className="w-full max-w-3xl relative mb-16">
-          <input
-            type="url"
-            value="https://nytimes.com"
-            readOnly
-            className="w-full h-16 rounded-xl border-2 border-[#111110] bg-white pl-6 pr-32 text-lg text-[#111110] shadow-sm outline-none font-mono"
-          />
-          <button className="absolute right-2 top-2 bottom-2 rounded-lg bg-[#2563EB] px-6 text-sm font-medium text-white transition-colors hover:bg-[#2563EB]/90 flex items-center gap-2 disabled:opacity-50">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Extracting
-          </button>
+        {/* URL input */}
+        <div className="mx-auto max-w-3xl mb-14">
+          <div className="relative">
+            <input
+              type="url"
+              value="https://nytimes.com"
+              readOnly
+              className="w-full h-16 rounded-full bg-white pl-7 pr-40 text-[15px] outline-none"
+              style={{ border: `1px solid ${INK}`, color: INK, fontFamily: MONO, boxShadow: "0 10px 28px -16px rgba(40, 25, 15, 0.12)" }}
+            />
+            <button className="absolute right-2 top-2 bottom-2 rounded-full px-5 text-[13px] font-medium text-white inline-flex items-center gap-2" style={{ background: INK }}>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Extracting
+            </button>
+          </div>
+          <div className="mt-3 text-center text-[11.5px]" style={{ fontFamily: MONO, color: SUB }}>
+            free during public beta · 4.8s elapsed of ~12s
+          </div>
         </div>
 
-        <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-12">
-          {/* Progress Tracker */}
-          <div className="space-y-8 bg-white rounded-xl border border-[#E8E6DF] p-8 shadow-sm">
-            <h3 className="font-semibold text-[#111110] mb-6">Extraction Pipeline</h3>
-            
-            <div className="relative space-y-6 before:absolute before:inset-0 before:ml-3 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-[#E8E6DF]">
-              <div className="relative flex items-center gap-4">
-                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-green-100 text-green-600 ring-4 ring-white z-10">
-                  <CheckCircle2 className="h-4 w-4" />
-                </div>
-                <div>
-                  <h4 className="text-sm font-medium text-[#111110]">Scraping via Firecrawl</h4>
-                  <p className="text-xs text-[#6B6A66]">Fetched 14 pages • 2.4s</p>
-                </div>
-              </div>
-              
-              <div className="relative flex items-center gap-4">
-                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-green-100 text-green-600 ring-4 ring-white z-10">
-                  <CheckCircle2 className="h-4 w-4" />
-                </div>
-                <div>
-                  <h4 className="text-sm font-medium text-[#111110]">Extracting tokens (Gemini Flash)</h4>
-                  <p className="text-xs text-[#6B6A66]">Found 12 colors, 3 fonts • 3.1s</p>
-                </div>
-              </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Pipeline */}
+          <div className="rounded-2xl border bg-white p-8" style={{ borderColor: BORDER }}>
+            <SectionLabel n="Index 02" t="Extraction pipeline" />
 
-              <div className="relative flex items-center gap-4">
-                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 text-blue-600 ring-4 ring-white z-10 animate-pulse">
-                  <Sparkles className="h-3 w-3" />
-                </div>
-                <div>
-                  <h4 className="text-sm font-medium text-[#111110]">Writing companion prompt (Claude Sonnet)</h4>
-                  <p className="text-xs text-[#2563EB]">Calibrating constraints... • 4.2s</p>
-                </div>
-              </div>
+            <ol className="mt-8 relative space-y-7 before:absolute before:left-3 before:top-1 before:bottom-1 before:w-px" style={{ }}>
+              <div className="absolute left-3 top-1 bottom-1 w-px" style={{ background: BORDER }} />
 
-              <div className="relative flex items-center gap-4 opacity-40">
-                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[#E8E6DF] ring-4 ring-white z-10">
-                  <Circle className="h-3 w-3 text-[#6B6A66]" />
-                </div>
-                <div>
-                  <h4 className="text-sm font-medium text-[#111110]">Scoring coverage</h4>
-                  <p className="text-xs text-[#6B6A66]">Pending</p>
-                </div>
-              </div>
-
-              <div className="relative flex items-center gap-4 opacity-40">
-                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[#E8E6DF] ring-4 ring-white z-10">
-                  <Circle className="h-3 w-3 text-[#6B6A66]" />
-                </div>
-                <div>
-                  <h4 className="text-sm font-medium text-[#111110]">Bundle ready</h4>
-                  <p className="text-xs text-[#6B6A66]">Pending</p>
-                </div>
-              </div>
-            </div>
+              {[
+                { state: "done", label: "Scraping via Firecrawl", hint: "14 pages · 2.4s" },
+                { state: "done", label: "Extracting tokens (Gemini Flash)", hint: "12 colors, 3 fonts · 3.1s" },
+                { state: "active", label: "Writing companion prompt (Claude Sonnet)", hint: "calibrating constraints… · 4.2s" },
+                { state: "pending", label: "Scoring coverage", hint: "pending" },
+                { state: "pending", label: "Bundle ready", hint: "pending" },
+              ].map((s, i) => (
+                <li key={i} className="relative flex items-start gap-4">
+                  <div className="relative z-10 flex h-6 w-6 items-center justify-center rounded-full" style={{
+                    background:
+                      s.state === "done" ? INK :
+                      s.state === "active" ? "white" :
+                      BG_SOFT,
+                    color: s.state === "active" ? INK : undefined,
+                    border: s.state === "active" ? `1px solid ${INK}` : `1px solid ${BORDER}`,
+                  }}>
+                    {s.state === "done" ? (
+                      <Check className="h-3 w-3 text-white" />
+                    ) : s.state === "active" ? (
+                      <Loader2 className="h-3 w-3 animate-spin" style={{ color: INK }} />
+                    ) : (
+                      <Circle className="h-2 w-2" style={{ color: SUB }} />
+                    )}
+                  </div>
+                  <div className="flex-1" style={{ opacity: s.state === "pending" ? 0.45 : 1 }}>
+                    <div className="text-[13.5px]" style={{ color: INK }}>{s.label}</div>
+                    <div className="text-[11.5px] mt-0.5" style={{ fontFamily: MONO, color: SUB }}>{s.hint}</div>
+                  </div>
+                </li>
+              ))}
+            </ol>
           </div>
 
-          {/* Early Preview */}
-          <div className="bg-white rounded-xl border border-[#E8E6DF] overflow-hidden shadow-sm flex flex-col">
-            <div className="bg-[#111110] text-white px-6 py-3 text-sm font-medium flex justify-between items-center">
-              <span>Early Preview</span>
-              <span className="text-xs text-white/50 designmd-mono">nytimes.com</span>
+          {/* Early preview */}
+          <div className="rounded-2xl border bg-white overflow-hidden" style={{ borderColor: BORDER }}>
+            <div className="px-6 py-4 flex items-center justify-between border-b" style={{ borderColor: BORDER, background: BG_SOFT }}>
+              <SectionLabel n="Index 03" t="Early preview" />
+              <span className="text-[11px]" style={{ fontFamily: MONO, color: SUB }}>nytimes.com</span>
             </div>
-            
-            <div className="p-6 flex-1 flex flex-col gap-6">
+
+            <div className="p-7 space-y-7">
               <div>
-                <h4 className="text-xs font-semibold text-[#6B6A66] uppercase tracking-wider mb-2">Detected Palette</h4>
-                <div className="h-12 w-full rounded overflow-hidden flex shadow-inner">
-                  <div className="flex-1 bg-[#000000]"></div>
-                  <div className="flex-1 bg-[#333333]"></div>
-                  <div className="flex-1 bg-[#E2E2E2]"></div>
-                  <div className="flex-1 bg-[#F4F4F4]"></div>
-                  <div className="flex-1 bg-[#FFFFFF]"></div>
+                <div className="text-[10.5px] uppercase tracking-[0.22em] mb-3" style={{ fontFamily: MONO, color: SUB }}>
+                  Detected palette
+                </div>
+                <div className="h-12 w-full rounded overflow-hidden flex" style={{ border: `1px solid ${BORDER}` }}>
+                  {["#000000", "#333333", "#E2E2E2", "#F4F4F4", "#FFFFFF"].map((c) => (
+                    <div key={c} className="flex-1" style={{ background: c }} />
+                  ))}
                 </div>
               </div>
-              
+
               <div>
-                <h4 className="text-xs font-semibold text-[#6B6A66] uppercase tracking-wider mb-2">Detected Typography</h4>
-                <div className="space-y-3">
-                  <div className="p-3 rounded bg-[#FDFCF8] border border-[#E8E6DF]">
-                    <span className="font-serif text-lg text-[#111110] block mb-1">Cheltenham</span>
-                    <span className="text-xs text-[#6B6A66] designmd-mono">Primary Serif / Headlines</span>
+                <div className="text-[10.5px] uppercase tracking-[0.22em] mb-3" style={{ fontFamily: MONO, color: SUB }}>
+                  Detected typography
+                </div>
+                <div className="space-y-2.5">
+                  <div className="p-4 rounded" style={{ background: BG_SOFT, border: `1px solid ${BORDER}` }}>
+                    <div className="text-[24px]" style={{ fontFamily: SERIF, color: INK }}>Cheltenham</div>
+                    <div className="text-[11px] mt-0.5" style={{ fontFamily: MONO, color: SUB }}>primary serif · headlines</div>
                   </div>
-                  <div className="p-3 rounded bg-[#FDFCF8] border border-[#E8E6DF]">
-                    <span className="font-sans text-lg text-[#111110] block mb-1">NYT Franklin</span>
-                    <span className="text-xs text-[#6B6A66] designmd-mono">Primary Sans / UI</span>
+                  <div className="p-4 rounded" style={{ background: BG_SOFT, border: `1px solid ${BORDER}` }}>
+                    <div className="text-[18px]" style={{ color: INK }}>NYT Franklin</div>
+                    <div className="text-[11px] mt-0.5" style={{ fontFamily: MONO, color: SUB }}>primary sans · UI</div>
                   </div>
                 </div>
               </div>
-              
-              <div className="mt-auto pt-4 border-t border-[#E8E6DF] opacity-30">
-                <CoverageBar label="Estimated Coverage" score={85} />
+
+              <div className="pt-4 border-t" style={{ borderColor: BORDER, opacity: 0.45 }}>
+                <CoverageBar label="Estimated coverage" score={85} />
+                <div className="mt-3 flex items-center justify-between text-[11.5px]" style={{ fontFamily: MONO, color: SUB }}>
+                  <span>final score pending</span>
+                  <ChipLime>preview</ChipLime>
+                </div>
               </div>
             </div>
           </div>

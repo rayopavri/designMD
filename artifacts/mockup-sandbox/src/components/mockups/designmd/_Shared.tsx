@@ -1,34 +1,53 @@
-import { Search } from "lucide-react";
+export const BG = "#FBF7F2";
+export const BG_SOFT = "#FDFAF6";
+export const INK = "#1A1714";
+export const SUB = "#7A6E63";
+export const FAINT = "#A89C8E";
+export const BORDER = "#E7DFD3";
+export const BORDER_SOFT = "#EFE9DE";
+export const LAVENDER = "#B7A6FF";
+export const LIME = "#C5E96A";
+export const PEACH = "#FFC8AF";
 
-export function Header() {
+export const SERIF = `"Fraunces", "PP Editorial New", "Spectral", Georgia, serif`;
+export const SANS = `"Inter", system-ui, sans-serif`;
+export const MONO = `"JetBrains Mono", ui-monospace, monospace`;
+
+export function Header({ active = "Collection" }: { active?: string }) {
+  const nav = ["Collection", "Plates", "Generate", "Journal", "Vote"];
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-[#E8E6DF] bg-[#FDFCF8]/80 backdrop-blur-md">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
-        <div className="flex items-center gap-8">
-          <a href="#" className="flex items-center gap-2">
-            <span className="designmd-serif text-2xl font-bold tracking-tight text-[#111110]">
-              UIUXofAi
-            </span>
+    <header className="w-full" style={{ background: BG, borderBottom: `1px solid ${BORDER}` }}>
+      <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-10">
+        <div className="flex items-baseline gap-3">
+          <a href="#" className="text-[22px] font-semibold tracking-tight" style={{ fontFamily: SERIF, color: INK }}>
+            UIUXofAi
           </a>
-          <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-[#6B6A66]">
-            <a href="#" className="text-[#111110] transition-colors hover:text-[#111110]">Library</a>
-            <a href="#" className="transition-colors hover:text-[#111110]">Design systems</a>
-            <a href="#" className="transition-colors hover:text-[#111110]">Generate</a>
-            <a href="#" className="transition-colors hover:text-[#111110]">Docs</a>
-            <a href="#" className="transition-colors hover:text-[#111110]">Vote queue</a>
-          </nav>
+          <span className="text-[10.5px] uppercase tracking-[0.22em]" style={{ fontFamily: MONO, color: SUB }}>
+            № 042
+          </span>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="relative hidden lg:block">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-[#6B6A66]" />
-            <input
-              type="text"
-              placeholder="Search bundles..."
-              className="h-9 w-64 rounded-md border border-[#E8E6DF] bg-white pl-9 pr-4 text-sm outline-none placeholder:text-[#6B6A66] focus:border-[#111110] focus:ring-1 focus:ring-[#111110]"
-            />
-          </div>
-          <button className="hidden h-9 items-center justify-center rounded-md bg-[#111110] px-4 text-sm font-medium text-white shadow transition-colors hover:bg-[#111110]/90 md:inline-flex">
-            Sign In
+        <nav className="hidden md:flex items-center gap-8 text-[13px]" style={{ fontFamily: SANS, color: INK }}>
+          {nav.map((n) => (
+            <a
+              key={n}
+              href="#"
+              className="relative pb-1"
+              style={
+                n === active
+                  ? { borderBottom: `1px solid ${INK}` }
+                  : { color: SUB }
+              }
+            >
+              {n}
+            </a>
+          ))}
+        </nav>
+        <div className="flex items-center gap-3" style={{ fontFamily: SANS }}>
+          <a href="#" className="text-[13px]" style={{ color: INK }}>
+            Sign in
+          </a>
+          <button className="h-9 rounded-full px-4 text-[13px] font-medium text-white" style={{ background: INK }}>
+            Open collection
           </button>
         </div>
       </div>
@@ -36,26 +55,64 @@ export function Header() {
   );
 }
 
+export function SectionLabel({ n, t }: { n: string; t: string }) {
+  return (
+    <div className="flex items-center gap-3 text-[10.5px] uppercase tracking-[0.22em]" style={{ fontFamily: MONO, color: SUB }}>
+      <span style={{ color: INK }}>{n}</span>
+      <span className="h-px w-6" style={{ background: BORDER }} />
+      <span>{t}</span>
+    </div>
+  );
+}
+
 export function PaletteStrip({ colors }: { colors: string[] }) {
   return (
     <div className="flex h-1.5 w-full">
       {colors.map((c, i) => (
-        <div key={i} className="flex-1" style={{ backgroundColor: c }}></div>
+        <div key={i} className="flex-1" style={{ backgroundColor: c }} />
       ))}
     </div>
   );
 }
 
-export function CoverageBar({ label, score, value }: { label: string, score: number, value?: string }) {
+export function CoverageBar({ label, score, value }: { label: string; score: number; value?: string }) {
   return (
     <div className="space-y-2">
-      <div className="flex justify-between text-xs font-medium text-[#6B6A66]">
+      <div className="flex justify-between items-baseline text-[12.5px]" style={{ color: SUB }}>
         <span>{label}</span>
-        {value ? <span className="designmd-mono text-[#111110]">{value}</span> : <span>{score}%</span>}
+        {value ? (
+          <span style={{ fontFamily: MONO, color: INK }}>{value}</span>
+        ) : (
+          <span style={{ fontFamily: MONO, color: INK }}>{score}%</span>
+        )}
       </div>
-      <div className="h-2 w-full rounded-full bg-[#E8E6DF] overflow-hidden">
-        <div className="h-full bg-[#111110]" style={{ width: `${score}%` }}></div>
+      <div className="h-[3px] w-full overflow-hidden" style={{ background: BORDER }}>
+        <div className="h-full" style={{ width: `${score}%`, background: INK }} />
       </div>
     </div>
+  );
+}
+
+export function ChipLime({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="inline-flex items-center text-[11px] px-2 py-0.5 rounded-full" style={{ background: LIME, color: INK, fontFamily: MONO }}>
+      {children}
+    </span>
+  );
+}
+
+export function ChipPeach({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="inline-flex items-center text-[11px] px-2 py-0.5 rounded-full" style={{ background: PEACH, color: INK, fontFamily: MONO }}>
+      {children}
+    </span>
+  );
+}
+
+export function ChipLavender({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="inline-flex items-center text-[11px] px-2 py-0.5 rounded-full" style={{ background: LAVENDER, color: INK, fontFamily: MONO }}>
+      {children}
+    </span>
   );
 }

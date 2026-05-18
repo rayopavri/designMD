@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { CheckCircle2 } from "lucide-react";
-import { Header, PaletteStrip } from "./_Shared";
+import { ArrowUpRight } from "lucide-react";
+import { Header, SectionLabel, PaletteStrip, ChipLime, BG, INK, SUB, BORDER, SERIF, MONO } from "./_Shared";
 import "./_group.css";
 
 export function GuidedDiscovery() {
   const [selectedType, setSelectedType] = useState<string>("Dashboard");
-  const [selectedFeel, setSelectedFeel] = useState<string>("Minimal");
+  const [selectedFeel, setSelectedFeel] = useState<string>("Editorial");
   const [selectedTool, setSelectedTool] = useState<string>("Claude");
 
   const types = ["Dashboard", "Landing page", "Mobile app", "Marketing site", "Internal tool", "Docs site"];
@@ -26,109 +26,92 @@ export function GuidedDiscovery() {
     Math.round((typeWeight[selectedType] ?? 80) * (feelWeight[selectedFeel] ?? 1) * (toolWeight[selectedTool] ?? 1)),
   );
 
+  function Pill({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+    return (
+      <button
+        onClick={onClick}
+        className="h-9 rounded-full px-4 text-[13px] transition-colors"
+        style={
+          active
+            ? { background: INK, color: "white", border: `1px solid ${INK}` }
+            : { background: "white", color: INK, border: `1px solid ${BORDER}` }
+        }
+      >
+        {children}
+      </button>
+    );
+  }
+
   return (
     <div className="designmd-root">
-      <Header />
-      
-      <main className="flex-1 mx-auto max-w-4xl px-6 py-16 w-full">
+      <Header active="Generate" />
+
+      <main className="flex-1 mx-auto max-w-4xl px-10 py-20 w-full" style={{ background: BG }}>
         <div className="text-center mb-16">
-          <h1 className="designmd-serif text-4xl font-medium text-[#111110] mb-4">Find your starting point</h1>
-          <p className="text-[#6B6A66] text-lg">Tell us what you're building, and we'll find the right design system.</p>
+          <SectionLabel n="Index 01" t="Find your starting point" />
+          <h1 className="mt-5 text-[64px] leading-[1.02] font-normal" style={{ fontFamily: SERIF, color: INK }}>
+            What are you<br />
+            <em className="font-normal" style={{ fontStyle: "italic" }}>setting in type?</em>
+          </h1>
+          <p className="mt-6 mx-auto max-w-[36rem] text-[15.5px] leading-[1.6]" style={{ color: SUB }}>
+            Three questions, then we'll point you at the plate that's most likely to land the
+            piece on first paste.
+          </p>
         </div>
 
         <div className="space-y-12">
-          {/* Question 1 */}
-          <div className="space-y-4">
-            <h2 className="text-sm font-semibold text-[#111110] uppercase tracking-wider">What are you designing?</h2>
-            <div className="flex flex-wrap gap-3">
-              {types.map(type => (
-                <button
-                  key={type}
-                  onClick={() => setSelectedType(type)}
-                  className={`px-5 py-2.5 rounded-full text-sm font-medium border transition-colors ${
-                    selectedType === type
-                      ? "bg-[#111110] text-white border-[#111110]"
-                      : "bg-white text-[#6B6A66] border-[#E8E6DF] hover:border-[#111110] hover:text-[#111110]"
-                  }`}
-                >
-                  {type}
-                </button>
-              ))}
+          {[
+            { num: "Index 02", question: "What are you designing?", options: types, sel: selectedType, set: setSelectedType },
+            { num: "Index 03", question: "What feel are you after?", options: feels, sel: selectedFeel, set: setSelectedFeel },
+            { num: "Index 04", question: "Which model are you using?", options: tools, sel: selectedTool, set: setSelectedTool },
+          ].map((q) => (
+            <div key={q.num} className="space-y-5">
+              <SectionLabel n={q.num} t={q.question} />
+              <div className="flex flex-wrap gap-2.5">
+                {q.options.map((opt) => (
+                  <Pill key={opt} active={q.sel === opt} onClick={() => q.set(opt)}>
+                    {opt}
+                  </Pill>
+                ))}
+              </div>
             </div>
-          </div>
-
-          {/* Question 2 */}
-          <div className="space-y-4">
-            <h2 className="text-sm font-semibold text-[#111110] uppercase tracking-wider">What feel are you going for?</h2>
-            <div className="flex flex-wrap gap-3">
-              {feels.map(feel => (
-                <button
-                  key={feel}
-                  onClick={() => setSelectedFeel(feel)}
-                  className={`px-5 py-2.5 rounded-full text-sm font-medium border transition-colors ${
-                    selectedFeel === feel
-                      ? "bg-[#111110] text-white border-[#111110]"
-                      : "bg-white text-[#6B6A66] border-[#E8E6DF] hover:border-[#111110] hover:text-[#111110]"
-                  }`}
-                >
-                  {feel}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Question 3 */}
-          <div className="space-y-4">
-            <h2 className="text-sm font-semibold text-[#111110] uppercase tracking-wider">Which AI tool?</h2>
-            <div className="flex flex-wrap gap-3">
-              {tools.map(tool => (
-                <button
-                  key={tool}
-                  onClick={() => setSelectedTool(tool)}
-                  className={`px-5 py-2.5 rounded-full text-sm font-medium border transition-colors ${
-                    selectedTool === tool
-                      ? "bg-[#111110] text-white border-[#111110]"
-                      : "bg-white text-[#6B6A66] border-[#E8E6DF] hover:border-[#111110] hover:text-[#111110]"
-                  }`}
-                >
-                  {tool}
-                </button>
-              ))}
-            </div>
-          </div>
+          ))}
         </div>
 
         {/* Results */}
-        <div className="mt-20 pt-12 border-t border-[#E8E6DF]">
-          <div className="flex items-center justify-between mb-8">
-            <h3 className="designmd-serif text-2xl font-medium text-[#111110]">
-              <span className="text-[#2563EB]">{matchCount}</span> bundles match
-            </h3>
-            <button className="text-sm font-medium text-[#111110] hover:underline">View all results →</button>
+        <div className="mt-20 pt-12 border-t" style={{ borderColor: BORDER }}>
+          <div className="flex items-end justify-between mb-10">
+            <div>
+              <SectionLabel n="Index 05" t="Plates for you" />
+              <h2 className="mt-4 text-[40px] leading-[1.05] font-normal" style={{ fontFamily: SERIF, color: INK }}>
+                <span>{matchCount}</span> plates,{" "}
+                <em className="font-normal" style={{ fontStyle: "italic" }}>hand-picked.</em>
+              </h2>
+            </div>
+            <a href="#" className="text-[13px] inline-flex items-center gap-1" style={{ color: INK }}>
+              See all results <ArrowUpRight className="h-3.5 w-3.5" />
+            </a>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[
-              { name: "Vercel", desc: "Monochrome, high contrast, clean", colors: ["#000000", "#333333", "#666666", "#EAEAEA", "#FFFFFF"] },
-              { name: "Linear", desc: "Dark mode native, precise, violet accents", colors: ["#5E6AD2", "#1A1A1A", "#2C2C2C", "#8A8F98", "#F4F4F5"] },
-              { name: "Stripe", desc: "Vibrant, angled, modern finance", colors: ["#635BFF", "#0A2540", "#00D4FF", "#FFB320", "#FFFFFF"] }
-            ].map((bundle, i) => (
-              <div key={i} className="group overflow-hidden rounded-xl border border-[#E8E6DF] bg-white transition-all hover:shadow-md hover:border-[#111110]">
-                <PaletteStrip colors={bundle.colors} />
-                <div className="p-5">
-                  <div className="flex justify-between items-start mb-2">
-                    <h4 className="font-bold text-[#111110]">{bundle.name}</h4>
-                    <div className="flex items-center gap-1 rounded bg-green-50 px-1.5 py-0.5 text-[10px] font-medium text-green-700 border border-green-200">
-                      <CheckCircle2 className="h-3 w-3" />
-                      94%
-                    </div>
+              { name: "Vercel", num: "037", desc: "Monochrome · high contrast · clean", colors: ["#000000", "#333333", "#666666", "#EAEAEA", "#FFFFFF"], cov: 94 },
+              { name: "Linear", num: "042", desc: "Dark mode native · precise · violet accents", colors: ["#5E6AD2", "#1A1A1A", "#2C2C2C", "#8A8F98", "#F4F4F5"], cov: 98 },
+              { name: "Stripe", num: "041", desc: "Vibrant · angled · modern finance", colors: ["#635BFF", "#0A2540", "#00D4FF", "#FFB320", "#FFFFFF"], cov: 96 },
+            ].map((b) => (
+              <a key={b.name} href="#" className="block rounded-xl border bg-white overflow-hidden hover:bg-[#FDFAF6] transition-colors" style={{ borderColor: BORDER }}>
+                <PaletteStrip colors={b.colors} />
+                <div className="p-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-[10px] uppercase tracking-[0.18em]" style={{ fontFamily: MONO, color: SUB }}>
+                      № {b.num}
+                    </span>
+                    <ChipLime>{b.cov}% coverage</ChipLime>
                   </div>
-                  <p className="text-sm text-[#6B6A66] mb-4 line-clamp-2">{bundle.desc}</p>
-                  <button className="w-full rounded-md border border-[#E8E6DF] py-2 text-xs font-medium text-[#111110] transition-colors group-hover:bg-[#111110] group-hover:text-white">
-                    View Bundle
-                  </button>
+                  <div className="text-[22px] mb-1" style={{ fontFamily: SERIF, color: INK }}>{b.name}</div>
+                  <p className="text-[13px] leading-[1.55]" style={{ color: SUB }}>{b.desc}</p>
                 </div>
-              </div>
+              </a>
             ))}
           </div>
         </div>
