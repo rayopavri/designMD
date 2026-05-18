@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useLocation, useSearch } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import { saveDraft } from "../lib/draftStore";
 import { queueSubmission } from "../lib/submissionStore";
 import { Check, ChevronDown, Copy, Globe, Loader2, RefreshCw, Send, ShieldCheck } from "lucide-react";
@@ -472,7 +472,8 @@ export function Generate() {
               <button
                 type="button"
                 onClick={() => setOverrideOpen((v) => !v)}
-                className="inline-flex items-center gap-2 h-7 rounded-full border px-3 text-[12px]"
+                disabled={status === "running"}
+                className="inline-flex items-center gap-2 h-7 rounded-full border px-3 text-[12px] disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{
                   borderColor: typeResolved ? meta.accent : BORDER,
                   background: typeResolved ? `${meta.accent}14` : SURFACE,

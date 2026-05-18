@@ -148,7 +148,7 @@ export function Vote() {
                 Did this bundle
                 <br />
                 <span style={{ color: SUB }}>
-                  hold up in {tool ?? "your tool"}?
+                  hold up in {tool ?? "Claude"}?
                 </span>
               </h1>
               <p className="mt-4 text-[14px]" style={{ color: SUB }}>
