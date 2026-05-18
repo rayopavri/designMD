@@ -162,7 +162,7 @@ export function Vote() {
 
             <div
               className="grid grid-cols-2 gap-4 transition-opacity"
-              style={{ opacity: tool ? 1 : 0.4, pointerEvents: tool ? "auto" : "none" }}
+              style={{ opacity: 1 }}
             >
               <VoteCard
                 tone="yes"
@@ -225,7 +225,7 @@ export function Vote() {
                 Cancel
               </Link>
               <button
-                disabled={!vote || !tool}
+                disabled={!vote}
                 onClick={submit}
                 className="h-10 rounded-full px-5 text-[12.5px] font-medium inline-flex items-center gap-2 disabled:opacity-40"
                 style={{ background: INK, color: INK_ON_LIGHT }}

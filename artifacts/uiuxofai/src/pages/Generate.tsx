@@ -117,8 +117,18 @@ function detectType(raw: string): { type: ItemType; reason: string } | null {
     return { type: "skill", reason: `${host} skill source` };
   }
 
-  // Default: brand URL → Bundle
-  return { type: "bundle", reason: "Brand site → bundle" };
+  // Brand / product host → Bundle (single label TLDs like example.com, app, design, io, co, sh)
+  const parts = host.split(".");
+  const tld = parts[parts.length - 1];
+  const KNOWN_TLDS = new Set([
+    "com", "io", "co", "app", "dev", "ai", "design", "studio", "shop",
+    "org", "net", "xyz", "sh", "so", "to", "cloud", "page", "site", "tech",
+  ]);
+  if (parts.length >= 2 && KNOWN_TLDS.has(tld)) {
+    return { type: "bundle", reason: "Brand site → bundle" };
+  }
+  // Unknown / unusual pattern — let the user override explicitly.
+  return null;
 }
 
 function presetBundleSpec(host: string, palette: string[]): string {
