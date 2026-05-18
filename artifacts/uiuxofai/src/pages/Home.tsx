@@ -58,7 +58,7 @@ export function Home() {
       title: "Ship on-brand UI in Cursor in minutes",
       body: "Drop a design system into Cursor and your generations stop looking generic. Brand colors, type, density — all from one spec file.",
       item: outcome1,
-      href: "/library/skills?ds=1&tool=cursor",
+      href: "/library/skills?ds=1",
       shelfLabel: "Browse design systems",
       eyebrow: "with a Design system",
     },

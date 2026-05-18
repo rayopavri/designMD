@@ -59,7 +59,7 @@ export function PulseRow({ bundleId }: { bundleId: string }) {
           ✓
         </span>
         <span className="text-[13px]" style={{ color: INK }}>
-          Thanks — pulse recorded.
+          Thanks ✓
         </span>
         <span
           className="text-[11px] ml-auto"
@@ -112,7 +112,7 @@ export function PulseRow({ bundleId }: { bundleId: string }) {
       style={{ borderColor: BORDER, background: SURFACE }}
     >
       <span className="text-[13px]" style={{ color: INK }}>
-        Did this work in your tool?
+        Did this work for you?
       </span>
       <div className="flex items-center gap-2 ml-auto">
         <button
