@@ -1,0 +1,1221 @@
+
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body { font-family: var(--font-sans); }
+
+  .board { padding: 2rem 0; }
+
+  .section-label {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-text-tertiary);
+    margin: 2rem 0 0.75rem;
+    padding-bottom: 0.4rem;
+    border-bottom: 0.5px solid var(--color-border-tertiary);
+  }
+
+  .screen-card {
+    background: var(--color-background-primary);
+    border: 0.5px solid var(--color-border-tertiary);
+    border-radius: var(--border-radius-lg);
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+  }
+
+  .screen-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1.25rem;
+    border-bottom: 0.5px solid var(--color-border-tertiary);
+    background: var(--color-background-secondary);
+  }
+
+  .screen-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-text-primary);
+  }
+
+  .screen-num {
+    font-size: 11px;
+    color: var(--color-text-tertiary);
+    background: var(--color-background-tertiary);
+    padding: 2px 8px;
+    border-radius: 20px;
+    border: 0.5px solid var(--color-border-tertiary);
+  }
+
+  .mockup-area {
+    padding: 1.25rem;
+    background: var(--color-background-tertiary);
+  }
+
+  .mock-frame {
+    background: var(--color-background-primary);
+    border: 0.5px solid var(--color-border-secondary);
+    border-radius: var(--border-radius-md);
+    overflow: hidden;
+  }
+
+  /* Nav bar */
+  .mock-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    border-bottom: 0.5px solid var(--color-border-tertiary);
+    background: var(--color-background-primary);
+  }
+
+  .nav-logo {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-text-primary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .nav-logo-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #5E6AD2;
+  }
+
+  .nav-links {
+    display: flex;
+    gap: 16px;
+  }
+
+  .nav-link {
+    font-size: 11px;
+    color: var(--color-text-secondary);
+  }
+
+  .nav-link.active {
+    color: var(--color-text-primary);
+    font-weight: 500;
+  }
+
+  .nav-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  /* Buttons */
+  .btn-primary {
+    font-size: 11px;
+    font-weight: 500;
+    padding: 5px 12px;
+    border-radius: 6px;
+    background: #5E6AD2;
+    color: #fff;
+    border: none;
+    cursor: default;
+  }
+
+  .btn-ghost {
+    font-size: 11px;
+    padding: 5px 10px;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--color-text-secondary);
+    border: 0.5px solid var(--color-border-secondary);
+    cursor: default;
+  }
+
+  /* Hero layout */
+  .hero-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    padding: 20px 16px;
+  }
+
+  .hero-left { display: flex; flex-direction: column; gap: 10px; }
+
+  .hero-tagline {
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--color-text-primary);
+    line-height: 1.3;
+  }
+
+  .hero-sub {
+    font-size: 11px;
+    color: var(--color-text-secondary);
+    line-height: 1.5;
+  }
+
+  .tool-badges {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+  }
+
+  .tool-badge {
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 20px;
+    border: 0.5px solid var(--color-border-secondary);
+    color: var(--color-text-secondary);
+    background: var(--color-background-secondary);
+  }
+
+  .tool-badge.active {
+    border-color: #5E6AD2;
+    color: #5E6AD2;
+    background: #EEEDFE;
+  }
+
+  .hero-ctas {
+    display: flex;
+    gap: 8px;
+  }
+
+  .stats-row {
+    display: flex;
+    gap: 12px;
+  }
+
+  .stat-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .stat-num {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--color-text-primary);
+  }
+
+  .stat-label {
+    font-size: 10px;
+    color: var(--color-text-tertiary);
+  }
+
+  /* Featured extraction card */
+  .extraction-card {
+    background: var(--color-background-secondary);
+    border: 0.5px solid var(--color-border-tertiary);
+    border-radius: var(--border-radius-md);
+    overflow: hidden;
+  }
+
+  .extraction-header {
+    padding: 8px 10px 6px;
+    font-size: 10px;
+    color: var(--color-text-tertiary);
+    border-bottom: 0.5px solid var(--color-border-tertiary);
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .extraction-img-placeholder {
+    height: 52px;
+    background: linear-gradient(135deg, #f1f0fb 0%, #e8e6f7 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: #8b87c4;
+    gap: 4px;
+  }
+
+  .palette-strip {
+    display: flex;
+    height: 10px;
+  }
+
+  .swatch { flex: 1; }
+
+  .extraction-meta {
+    padding: 8px 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .extraction-name {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--color-text-primary);
+  }
+
+  .coverage-badge {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 10px;
+    background: #EAF3DE;
+    color: #3B6D11;
+    font-weight: 500;
+  }
+
+  /* Category grid */
+  .category-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    padding: 16px;
+  }
+
+  .cat-tile {
+    padding: 8px 10px;
+    border-radius: var(--border-radius-md);
+    border: 0.5px solid var(--color-border-tertiary);
+    border-top: 2.5px solid;
+    background: var(--color-background-primary);
+  }
+
+  .cat-name {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--color-text-primary);
+  }
+
+  .cat-count {
+    font-size: 10px;
+    color: var(--color-text-tertiary);
+    margin-top: 2px;
+  }
+
+  /* Library cards */
+  .bundle-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    padding: 16px;
+  }
+
+  .bundle-card {
+    background: var(--color-background-primary);
+    border: 0.5px solid var(--color-border-tertiary);
+    border-radius: var(--border-radius-md);
+    overflow: hidden;
+  }
+
+  .bundle-palette {
+    display: flex;
+    height: 28px;
+  }
+
+  .bundle-body {
+    padding: 8px 10px;
+  }
+
+  .bundle-logo-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+  }
+
+  .bundle-logo {
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    font-weight: 500;
+    color: #fff;
+  }
+
+  .bundle-name {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--color-text-primary);
+  }
+
+  .bundle-desc {
+    font-size: 10px;
+    color: var(--color-text-secondary);
+    line-height: 1.4;
+    margin-bottom: 6px;
+  }
+
+  .bundle-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .vote-rate {
+    font-size: 10px;
+    color: #3B6D11;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+
+  .freshness {
+    font-size: 10px;
+    color: var(--color-text-tertiary);
+  }
+
+  /* Filters bar */
+  .filters-bar {
+    padding: 8px 16px;
+    border-bottom: 0.5px solid var(--color-border-tertiary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .filter-chip {
+    font-size: 10px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    border: 0.5px solid var(--color-border-secondary);
+    color: var(--color-text-secondary);
+    background: var(--color-background-secondary);
+  }
+
+  .filter-chip.active {
+    background: #5E6AD2;
+    border-color: #5E6AD2;
+    color: #fff;
+  }
+
+  .filter-count {
+    font-size: 10px;
+    color: var(--color-text-tertiary);
+    margin-left: auto;
+  }
+
+  /* Bundle detail */
+  .detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+  }
+
+  .detail-left {
+    padding: 14px;
+    border-right: 0.5px solid var(--color-border-tertiary);
+  }
+
+  .detail-right {
+    padding: 14px;
+  }
+
+  .detail-section-label {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-text-tertiary);
+    margin-bottom: 8px;
+  }
+
+  .coverage-rows { display: flex; flex-direction: column; gap: 4px; }
+
+  .cov-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+  }
+
+  .cov-label { width: 68px; color: var(--color-text-secondary); flex-shrink: 0; }
+
+  .cov-bar-wrap {
+    flex: 1;
+    height: 4px;
+    background: var(--color-background-tertiary);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .cov-bar {
+    height: 100%;
+    border-radius: 2px;
+    background: #5E6AD2;
+  }
+
+  .cov-score {
+    width: 24px;
+    text-align: right;
+    color: var(--color-text-tertiary);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .code-preview {
+    background: var(--color-background-tertiary);
+    border-radius: var(--border-radius-md);
+    padding: 10px;
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    color: var(--color-text-secondary);
+    line-height: 1.6;
+    height: 130px;
+    overflow: hidden;
+    position: relative;
+    margin-bottom: 8px;
+  }
+
+  .code-fade {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 32px;
+    background: linear-gradient(to bottom, transparent, var(--color-background-tertiary));
+  }
+
+  .get-methods {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .get-method {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: var(--border-radius-md);
+    border: 0.5px solid var(--color-border-tertiary);
+    font-size: 10px;
+    background: var(--color-background-secondary);
+  }
+
+  .get-method.primary {
+    border-color: #5E6AD2;
+    background: #EEEDFE;
+    color: #3C3489;
+    font-weight: 500;
+  }
+
+  .method-icon {
+    width: 14px;
+    height: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Attribution row */
+  .attr-row {
+    padding: 8px 14px;
+    border-bottom: 0.5px solid var(--color-border-tertiary);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 10px;
+    color: var(--color-text-secondary);
+    background: var(--color-background-secondary);
+  }
+
+  .attr-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .attr-sep {
+    color: var(--color-border-secondary);
+  }
+
+  /* Generator screen */
+  .gen-body { padding: 20px 16px; }
+
+  .gen-input-wrap {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+
+  .gen-input {
+    flex: 1;
+    padding: 8px 12px;
+    border-radius: var(--border-radius-md);
+    border: 0.5px solid var(--color-border-secondary);
+    background: var(--color-background-secondary);
+    font-size: 11px;
+    color: var(--color-text-secondary);
+  }
+
+  .progress-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    background: var(--color-background-secondary);
+    border: 0.5px solid var(--color-border-tertiary);
+    border-radius: var(--border-radius-md);
+    overflow: hidden;
+  }
+
+  .progress-step {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-bottom: 0.5px solid var(--color-border-tertiary);
+    font-size: 11px;
+    color: var(--color-text-secondary);
+  }
+
+  .progress-step:last-child { border-bottom: none; }
+
+  .step-icon {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    border: 0.5px solid;
+  }
+
+  .step-icon.done { background: #EAF3DE; border-color: #3B6D11; color: #3B6D11; }
+  .step-icon.running { background: #EEEDFE; border-color: #5E6AD2; color: #5E6AD2; }
+  .step-icon.pending { background: var(--color-background-tertiary); border-color: var(--color-border-tertiary); color: var(--color-text-tertiary); }
+
+  .step-label { flex: 1; }
+  .step-time { font-size: 10px; color: var(--color-text-tertiary); }
+
+  /* Discovery screen */
+  .discovery-body { padding: 20px 16px; display: flex; flex-direction: column; gap: 14px; }
+
+  .question-block { display: flex; flex-direction: column; gap: 6px; }
+  .question-label { font-size: 11px; font-weight: 500; color: var(--color-text-primary); }
+  .chips { display: flex; gap: 5px; flex-wrap: wrap; }
+
+  .chip {
+    font-size: 10px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    border: 0.5px solid var(--color-border-secondary);
+    color: var(--color-text-secondary);
+    background: var(--color-background-secondary);
+    cursor: default;
+  }
+
+  .chip.selected {
+    background: #5E6AD2;
+    border-color: #5E6AD2;
+    color: #fff;
+  }
+
+  .chip .count {
+    font-size: 9px;
+    opacity: 0.7;
+    margin-left: 4px;
+  }
+
+  .results-preview {
+    padding: 10px 14px;
+    background: var(--color-background-tertiary);
+    border-radius: var(--border-radius-md);
+    font-size: 11px;
+    color: var(--color-text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  /* Voting screen */
+  .vote-body { padding: 20px 16px; }
+
+  .vote-q {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--color-text-primary);
+    margin-bottom: 12px;
+    text-align: center;
+  }
+
+  .vote-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-bottom: 14px;
+  }
+
+  .vote-btn {
+    padding: 8px 24px;
+    border-radius: var(--border-radius-md);
+    border: 0.5px solid;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: default;
+  }
+
+  .vote-yes {
+    background: #EAF3DE;
+    border-color: #3B6D11;
+    color: #3B6D11;
+  }
+
+  .vote-no {
+    background: var(--color-background-secondary);
+    border-color: var(--color-border-secondary);
+    color: var(--color-text-secondary);
+  }
+
+  .vote-tags {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .vote-tag {
+    font-size: 10px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    border: 0.5px solid var(--color-border-secondary);
+    color: var(--color-text-secondary);
+    background: var(--color-background-secondary);
+  }
+
+  /* Annotation chips */
+  .annotations {
+    padding: 10px 1.25rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    border-top: 0.5px solid var(--color-border-tertiary);
+  }
+
+  .ann {
+    font-size: 10px;
+    padding: 3px 9px;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .ann.pattern {
+    background: #EEEDFE;
+    color: #3C3489;
+    border: 0.5px solid #AFA9EC;
+  }
+
+  .ann.ref {
+    background: #E1F5EE;
+    color: #0F6E56;
+    border: 0.5px solid #5DCAA5;
+  }
+
+  .ann.risk {
+    background: #FAECE7;
+    color: #993C1D;
+    border: 0.5px solid #F0997B;
+  }
+
+  .ann-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0.7;
+    flex-shrink: 0;
+  }
+</style>
+
+<div class="board">
+
+  <p class="section-label">Screen 1 — homepage</p>
+
+  <div class="screen-card">
+    <div class="screen-header">
+      <span class="screen-title">Homepage — two-column hero + extraction of the week</span>
+      <span class="screen-num">S1</span>
+    </div>
+    <div class="mockup-area">
+      <div class="mock-frame">
+
+        <div class="mock-nav">
+          <div class="nav-logo"><div class="nav-logo-dot"></div>designmd</div>
+          <div class="nav-links">
+            <span class="nav-link active">Library</span>
+            <span class="nav-link">Generate</span>
+            <span class="nav-link">Collections</span>
+            <span class="nav-link">CLI</span>
+          </div>
+          <div class="nav-actions">
+            <button class="btn-ghost">Sign in</button>
+            <button class="btn-primary">Browse library →</button>
+          </div>
+        </div>
+
+        <div class="hero-row">
+          <div class="hero-left">
+            <div class="hero-tagline">Your design system<br>in AI. From the first component.</div>
+            <div class="hero-sub">The only AI design resource built for teams — not for making things look like someone else's brand.</div>
+            <div class="tool-badges">
+              <span class="tool-badge active">Claude</span>
+              <span class="tool-badge">Cursor</span>
+              <span class="tool-badge">Lovable</span>
+              <span class="tool-badge">Figma Make</span>
+              <span class="tool-badge">Replit</span>
+            </div>
+            <div class="hero-ctas">
+              <button class="btn-primary">Browse library →</button>
+              <button class="btn-ghost">Generate from URL</button>
+            </div>
+            <div class="stats-row">
+              <div class="stat-item"><span class="stat-num">830+</span><span class="stat-label">bundles</span></div>
+              <div class="stat-item"><span class="stat-num">74%</span><span class="stat-label">avg vote rate</span></div>
+              <div class="stat-item"><span class="stat-num">6</span><span class="stat-label">project types</span></div>
+            </div>
+          </div>
+
+          <div>
+            <div class="extraction-card">
+              <div class="extraction-header">Extraction of the week</div>
+              <div class="extraction-img-placeholder">
+                <i class="ti ti-world" style="font-size:16px" aria-hidden="true"></i>
+                brand.example.com
+              </div>
+              <div class="palette-strip">
+                <div class="swatch" style="background:#0F62FE"></div>
+                <div class="swatch" style="background:#161616"></div>
+                <div class="swatch" style="background:#FFFFFF; border-top: 0.5px solid #eee"></div>
+                <div class="swatch" style="background:#42BE65"></div>
+                <div class="swatch" style="background:#525252"></div>
+                <div class="swatch" style="background:#8D8D8D"></div>
+              </div>
+              <div class="extraction-meta">
+                <div>
+                  <div class="extraction-name">IBM Carbon Mobile</div>
+                  <div style="font-size:10px;color:var(--color-text-tertiary)">MIT · verified 3 days ago</div>
+                </div>
+                <span class="coverage-badge">91%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="category-grid">
+          <div class="cat-tile" style="border-top-color:#5E6AD2"><div class="cat-name">Mobile apps</div><div class="cat-count">124 bundles</div></div>
+          <div class="cat-tile" style="border-top-color:#0F62FE"><div class="cat-name">SaaS / Web apps</div><div class="cat-count">243 bundles</div></div>
+          <div class="cat-tile" style="border-top-color:#3DBB6C"><div class="cat-name">E-commerce</div><div class="cat-count">89 bundles</div></div>
+          <div class="cat-tile" style="border-top-color:#9747FF"><div class="cat-name">Dashboards</div><div class="cat-count">156 bundles</div></div>
+          <div class="cat-tile" style="border-top-color:#F26207"><div class="cat-name">Marketing sites</div><div class="cat-count">71 bundles</div></div>
+          <div class="cat-tile" style="border-top-color:#E24B4A"><div class="cat-name">Design systems</div><div class="cat-count">47 bundles</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="annotations">
+      <span class="ann pattern"><span class="ann-dot"></span>Two-column hero splits "message left / proof right"</span>
+      <span class="ann ref"><span class="ann-dot"></span>Pattern from LottieFiles — tool badges as trust signals</span>
+      <span class="ann pattern"><span class="ann-dot"></span>Category tiles: top-border accent = color-coded at a glance</span>
+      <span class="ann ref"><span class="ann-dot"></span>Stats bar from Appwrite homepage research</span>
+    </div>
+  </div>
+
+
+  <p class="section-label">Screen 2 — guided discovery</p>
+
+  <div class="screen-card">
+    <div class="screen-header">
+      <span class="screen-title">Guided discovery — chip selectors + result count preview</span>
+      <span class="screen-num">S2</span>
+    </div>
+    <div class="mockup-area">
+      <div class="mock-frame">
+        <div class="mock-nav">
+          <div class="nav-logo"><div class="nav-logo-dot"></div>designmd</div>
+          <div class="nav-actions"><button class="btn-ghost">Browse all</button></div>
+        </div>
+        <div class="discovery-body">
+          <div class="question-block">
+            <div class="question-label">What kind of project?</div>
+            <div class="chips">
+              <span class="chip">Mobile apps <span class="count">[124]</span></span>
+              <span class="chip selected">SaaS / Web apps <span class="count">[243]</span></span>
+              <span class="chip">E-commerce <span class="count">[89]</span></span>
+              <span class="chip">Dashboards <span class="count">[156]</span></span>
+              <span class="chip">Marketing sites <span class="count">[71]</span></span>
+              <span class="chip">Design systems <span class="count">[47]</span></span>
+            </div>
+          </div>
+          <div class="question-block">
+            <div class="question-label">What design style?</div>
+            <div class="chips">
+              <span class="chip">Minimal</span>
+              <span class="chip selected">Enterprise</span>
+              <span class="chip">Bold</span>
+              <span class="chip">Playful</span>
+              <span class="chip">Accessible</span>
+              <span class="chip">Dark mode</span>
+            </div>
+          </div>
+          <div class="question-block">
+            <div class="question-label" style="display:flex;align-items:center;gap:8px;">
+              AI tool
+              <span style="font-size:10px;color:var(--color-text-tertiary);font-weight:400">— from your preferences</span>
+            </div>
+            <div class="chips">
+              <span class="chip selected">Claude</span>
+              <span class="chip">Cursor</span>
+              <span class="chip">Lovable</span>
+              <span class="chip">Figma Make</span>
+              <span class="chip">Universal</span>
+            </div>
+          </div>
+          <div class="results-preview">
+            <span>Showing <strong style="color:var(--color-text-primary)">48 bundles</strong> ranked by match score, vote rate &amp; freshness</span>
+            <button class="btn-primary">Show results →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="annotations">
+      <span class="ann pattern"><span class="ann-dot"></span>Chip selectors — multi-select, counts visible before commitment</span>
+      <span class="ann pattern"><span class="ann-dot"></span>AI tool pre-selected from prefs — reduces friction to 0 taps</span>
+      <span class="ann risk"><span class="ann-dot"></span>Risk: chip labels must fit on one line at small sizes</span>
+      <span class="ann ref"><span class="ann-dot"></span>Result count preview mirrors Relume's "X components" counter</span>
+    </div>
+  </div>
+
+
+  <p class="section-label">Screen 3 — library results</p>
+
+  <div class="screen-card">
+    <div class="screen-header">
+      <span class="screen-title">Library results — visual bundle cards with palette strip header</span>
+      <span class="screen-num">S3</span>
+    </div>
+    <div class="mockup-area">
+      <div class="mock-frame">
+        <div class="mock-nav">
+          <div class="nav-logo"><div class="nav-logo-dot"></div>designmd</div>
+          <div class="nav-actions">
+            <div style="flex:1;max-width:180px">
+              <input type="text" placeholder="Search 830 bundles…" style="width:100%;font-size:11px;padding:5px 10px;border:0.5px solid var(--color-border-secondary);border-radius:6px;background:var(--color-background-secondary);color:var(--color-text-secondary)">
+            </div>
+          </div>
+        </div>
+        <div class="filters-bar">
+          <span class="filter-chip active">SaaS / Web apps</span>
+          <span class="filter-chip active">Enterprise</span>
+          <span class="filter-chip active">Claude</span>
+          <span class="filter-chip">Minimal</span>
+          <span class="filter-chip">Dark mode</span>
+          <span class="filter-count">48 results</span>
+        </div>
+        <div class="bundle-grid">
+
+          <div class="bundle-card">
+            <div class="bundle-palette">
+              <div class="swatch" style="background:#0F62FE"></div>
+              <div class="swatch" style="background:#161616"></div>
+              <div class="swatch" style="background:#F4F4F4"></div>
+              <div class="swatch" style="background:#42BE65"></div>
+              <div class="swatch" style="background:#8D8D8D"></div>
+            </div>
+            <div class="bundle-body">
+              <div class="bundle-logo-row">
+                <div class="bundle-logo" style="background:#0F62FE">C</div>
+                <span class="bundle-name">IBM Carbon Mobile</span>
+              </div>
+              <div class="bundle-desc">Enterprise mobile design system. 7-section coverage.</div>
+              <div class="bundle-meta">
+                <span class="vote-rate"><i class="ti ti-thumb-up" style="font-size:10px" aria-hidden="true"></i> 91%</span>
+                <span class="freshness">3d ago</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="bundle-card" style="border-color:#5E6AD2;">
+            <div style="background:#5E6AD2;padding:2px 8px;font-size:9px;color:#fff;font-weight:500;">Recommended</div>
+            <div class="bundle-palette">
+              <div class="swatch" style="background:#6750A4"></div>
+              <div class="swatch" style="background:#21005D"></div>
+              <div class="swatch" style="background:#FFFBFE"></div>
+              <div class="swatch" style="background:#79747E"></div>
+              <div class="swatch" style="background:#1C1B1F"></div>
+            </div>
+            <div class="bundle-body">
+              <div class="bundle-logo-row">
+                <div class="bundle-logo" style="background:#6750A4">M</div>
+                <span class="bundle-name">Material 3</span>
+              </div>
+              <div class="bundle-desc">Google's design system for cross-platform apps.</div>
+              <div class="bundle-meta">
+                <span class="vote-rate"><i class="ti ti-thumb-up" style="font-size:10px" aria-hidden="true"></i> 87%</span>
+                <span class="freshness">1d ago</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="bundle-card">
+            <div class="bundle-palette">
+              <div class="swatch" style="background:#3B82F6"></div>
+              <div class="swatch" style="background:#111827"></div>
+              <div class="swatch" style="background:#F9FAFB"></div>
+              <div class="swatch" style="background:#10B981"></div>
+              <div class="swatch" style="background:#6B7280"></div>
+            </div>
+            <div class="bundle-body">
+              <div class="bundle-logo-row">
+                <div class="bundle-logo" style="background:#111827">T</div>
+                <span class="bundle-name">Tailwind UI</span>
+              </div>
+              <div class="bundle-desc">Utility-first component system for SaaS apps.</div>
+              <div class="bundle-meta">
+                <span class="vote-rate"><i class="ti ti-thumb-up" style="font-size:10px" aria-hidden="true"></i> 83%</span>
+                <span class="freshness">5d ago</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+        <div style="padding:8px 16px;border-top:0.5px solid var(--color-border-tertiary)">
+          <div style="border:0.5px dashed var(--color-border-secondary);border-radius:var(--border-radius-md);padding:10px;text-align:center;font-size:10px;color:var(--color-text-tertiary)">
+            Don't see what you need? <span style="color:#5E6AD2;font-weight:500">Request a bundle →</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="annotations">
+      <span class="ann pattern"><span class="ann-dot"></span>Palette strip header = instant visual diff between cards</span>
+      <span class="ann ref"><span class="ann-dot"></span>Recommended highlight: 2px border accent (Relume + Mobbin pattern)</span>
+      <span class="ann pattern"><span class="ann-dot"></span>Vote rate shown on every card — quality signal, not decoration</span>
+      <span class="ann ref"><span class="ann-dot"></span>Dashed "request" card at bottom = LottieFiles community submit pattern</span>
+    </div>
+  </div>
+
+
+  <p class="section-label">Screen 4 — bundle detail</p>
+
+  <div class="screen-card">
+    <div class="screen-header">
+      <span class="screen-title">Bundle detail — coverage breakdown + preview + get methods</span>
+      <span class="screen-num">S4</span>
+    </div>
+    <div class="mockup-area">
+      <div class="mock-frame">
+        <div class="attr-row">
+          <span class="attr-item"><i class="ti ti-link" style="font-size:11px" aria-hidden="true"></i> ibm.com/design/language</span>
+          <span class="attr-sep">·</span>
+          <span class="attr-item"><i class="ti ti-user" style="font-size:11px" aria-hidden="true"></i> IBM Design Team</span>
+          <span class="attr-sep">·</span>
+          <span class="attr-item"><i class="ti ti-certificate" style="font-size:11px" aria-hidden="true"></i> Apache 2.0</span>
+          <span class="attr-sep">·</span>
+          <span class="attr-item" style="color:#3B6D11;">verified 3 days ago</span>
+        </div>
+
+        <div class="detail-grid">
+          <div class="detail-left">
+            <div class="detail-section-label">Coverage by section</div>
+            <div class="coverage-rows">
+              <div class="cov-row"><span class="cov-label">Colors</span><div class="cov-bar-wrap"><div class="cov-bar" style="width:100%"></div></div><span class="cov-score">100</span></div>
+              <div class="cov-row"><span class="cov-label">Typography</span><div class="cov-bar-wrap"><div class="cov-bar" style="width:100%"></div></div><span class="cov-score">100</span></div>
+              <div class="cov-row"><span class="cov-label">Layout</span><div class="cov-bar-wrap"><div class="cov-bar" style="width:88%"></div></div><span class="cov-score">88</span></div>
+              <div class="cov-row"><span class="cov-label">Elevation</span><div class="cov-bar-wrap"><div class="cov-bar" style="width:48%;background:#EF9F27"></div></div><span class="cov-score" style="color:#BA7517">48</span></div>
+              <div class="cov-row"><span class="cov-label">Shapes</span><div class="cov-bar-wrap"><div class="cov-bar" style="width:92%"></div></div><span class="cov-score">92</span></div>
+              <div class="cov-row"><span class="cov-label">Components</span><div class="cov-bar-wrap"><div class="cov-bar" style="width:84%"></div></div><span class="cov-score">84</span></div>
+              <div class="cov-row"><span class="cov-label">Dos &amp; don'ts</span><div class="cov-bar-wrap"><div class="cov-bar" style="width:78%"></div></div><span class="cov-score">78</span></div>
+            </div>
+            <div style="margin-top:10px;display:flex;gap:4px;align-items:center">
+              <div class="coverage-badge" style="font-size:12px;padding:4px 10px;">91% overall</div>
+              <span style="font-size:10px;color:var(--color-text-tertiary)">Google linter</span>
+            </div>
+          </div>
+
+          <div class="detail-right">
+            <div class="detail-section-label">Companion prompt preview</div>
+            <div class="code-preview">
+              [DESIGN SYSTEM: IBM Carbon Mobile]<br><br>
+              Absolute constraints — apply these always:<br>
+              1. Never use colors not in this design system.<br>
+              2. Never add decorative elements...<br>
+              3. If a request conflicts with a constraint,<br>
+              &nbsp;&nbsp; explain and offer a compliant alternative.<br><br>
+              Colors [Complete]<br>
+              Use only: interactive-01 (#0F62FE),<br>
+              text-primary (#161616), ui-background...
+              <div class="code-fade"></div>
+            </div>
+            <div class="get-methods">
+              <div class="get-method primary"><i class="ti ti-copy" style="font-size:12px" aria-hidden="true"></i> Copy bundle to AI (design.md + prompt)</div>
+              <div class="get-method"><i class="ti ti-download" style="font-size:12px" aria-hidden="true"></i> Download .md file</div>
+              <div class="get-method" style="font-family:var(--font-mono);color:var(--color-text-tertiary);font-size:9.5px"><i class="ti ti-terminal" style="font-size:12px" aria-hidden="true"></i> npx designmd get ibm-carbon-mobile</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="annotations">
+      <span class="ann pattern"><span class="ann-dot"></span>Coverage bars: amber = thin (40–69), purple = strong (≥70)</span>
+      <span class="ann pattern"><span class="ann-dot"></span>Side-by-side: design.md left / companion prompt right</span>
+      <span class="ann ref"><span class="ann-dot"></span>Three get-methods hierarchy mirrors Literal.club embed pattern</span>
+      <span class="ann risk"><span class="ann-dot"></span>Risk: code preview needs fade-out to signal scrollability</span>
+    </div>
+  </div>
+
+
+  <p class="section-label">Screen 5 — copy success + tool install guide</p>
+
+  <div class="screen-card">
+    <div class="screen-header">
+      <span class="screen-title">Copy success — tool-specific 3-step install + vote nudge</span>
+      <span class="screen-num">S5</span>
+    </div>
+    <div class="mockup-area">
+      <div class="mock-frame">
+        <div class="filters-bar" style="gap:0;padding:0;border-bottom-color:var(--color-border-tertiary)">
+          <span style="padding:8px 14px;font-size:11px;font-weight:500;border-bottom:2px solid #5E6AD2;color:#5E6AD2;cursor:default">Claude</span>
+          <span style="padding:8px 14px;font-size:11px;color:var(--color-text-secondary);cursor:default">Cursor</span>
+          <span style="padding:8px 14px;font-size:11px;color:var(--color-text-secondary);cursor:default">Lovable</span>
+          <span style="padding:8px 14px;font-size:11px;color:var(--color-text-secondary);cursor:default">Figma Make</span>
+        </div>
+        <div style="padding:16px">
+          <div style="background:#EAF3DE;border:0.5px solid #639922;border-radius:var(--border-radius-md);padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;gap:8px">
+            <i class="ti ti-check" style="color:#3B6D11;font-size:14px" aria-hidden="true"></i>
+            <span style="font-size:12px;color:#27500A;font-weight:500">Bundle copied to clipboard</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;gap:10px;align-items:flex-start">
+              <div style="width:20px;height:20px;border-radius:50%;background:#5E6AD2;color:#fff;font-size:10px;font-weight:500;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
+              <div>
+                <div style="font-size:11px;font-weight:500;color:var(--color-text-primary)">Open Claude</div>
+                <div style="font-size:10px;color:var(--color-text-secondary)">Open the Claude desktop app or claude.ai</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:10px;align-items:flex-start">
+              <div style="width:20px;height:20px;border-radius:50%;background:#5E6AD2;color:#fff;font-size:10px;font-weight:500;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
+              <div>
+                <div style="font-size:11px;font-weight:500;color:var(--color-text-primary)">Create a new Project</div>
+                <div style="font-size:10px;color:var(--color-text-secondary)">Go to Projects → New project → Project instructions</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:10px;align-items:flex-start">
+              <div style="width:20px;height:20px;border-radius:50%;background:#5E6AD2;color:#fff;font-size:10px;font-weight:500;display:flex;align-items:center;justify-content:center;flex-shrink:0">3</div>
+              <div>
+                <div style="font-size:11px;font-weight:500;color:var(--color-text-primary)">Paste &amp; start building</div>
+                <div style="font-size:10px;color:var(--color-text-secondary)">Paste the clipboard contents into Project instructions. Every conversation inherits both layers.</div>
+              </div>
+            </div>
+          </div>
+          <div style="margin-top:14px;padding:10px 14px;background:var(--color-background-tertiary);border-radius:var(--border-radius-md);font-size:10px;color:var(--color-text-secondary);text-align:center">
+            Did it work? Come back and vote — it takes 10 seconds.
+            <span style="color:#5E6AD2;font-weight:500;margin-left:4px">Vote →</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="annotations">
+      <span class="ann pattern"><span class="ann-dot"></span>Tab switcher for tool-specific guides — Claude active by default</span>
+      <span class="ann pattern"><span class="ann-dot"></span>Numbered steps: specific, not generic ("Project instructions" not "paste")</span>
+      <span class="ann risk"><span class="ann-dot"></span>Vote nudge must be soft — no modal, just inline text</span>
+    </div>
+  </div>
+
+
+  <p class="section-label">Screen 6 — URL generator</p>
+
+  <div class="screen-card">
+    <div class="screen-header">
+      <span class="screen-title">Generator — URL input + 5-step pipeline progress</span>
+      <span class="screen-num">S6</span>
+    </div>
+    <div class="mockup-area">
+      <div class="mock-frame">
+        <div class="mock-nav">
+          <div class="nav-logo"><div class="nav-logo-dot"></div>designmd</div>
+          <div style="font-size:10px;color:var(--color-text-tertiary)">5 free extractions / day · <span style="color:#5E6AD2">Sign in for more</span></div>
+        </div>
+        <div class="gen-body">
+          <div style="font-size:13px;font-weight:500;color:var(--color-text-primary);margin-bottom:6px">Generate from a brand URL</div>
+          <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:12px">Paste a brand site, design system docs, or Figma component page URL.</div>
+          <div class="gen-input-wrap">
+            <div class="gen-input">https://design.example.com/brand</div>
+            <button class="btn-primary">Generate →</button>
+          </div>
+          <div class="progress-steps">
+            <div class="progress-step">
+              <div class="step-icon done"><i class="ti ti-check" style="font-size:9px" aria-hidden="true"></i></div>
+              <span class="step-label">Compliance check — robots.txt + ToS</span>
+              <span class="step-time">0.4s</span>
+            </div>
+            <div class="progress-step">
+              <div class="step-icon done"><i class="ti ti-check" style="font-size:9px" aria-hidden="true"></i></div>
+              <span class="step-label">Scrape &amp; extract</span>
+              <span class="step-time">2.1s</span>
+            </div>
+            <div class="progress-step" style="background:var(--color-background-secondary)">
+              <div class="step-icon running"><i class="ti ti-loader" style="font-size:9px" aria-hidden="true"></i></div>
+              <span class="step-label" style="color:var(--color-text-primary);font-weight:500">Token extraction — Gemini Flash</span>
+              <span class="step-time" style="color:#5E6AD2">running…</span>
+            </div>
+            <div class="progress-step">
+              <div class="step-icon pending">4</div>
+              <span class="step-label">Companion prompt — Claude Sonnet</span>
+              <span class="step-time"></span>
+            </div>
+            <div class="progress-step">
+              <div class="step-icon pending">5</div>
+              <span class="step-label">Coverage scoring — Google linter</span>
+              <span class="step-time"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="annotations">
+      <span class="ann pattern"><span class="ann-dot"></span>Steps name the AI tools used — builds trust, shows the pipeline</span>
+      <span class="ann pattern"><span class="ann-dot"></span>Running step highlighted: entire row bg + bold label + color timing</span>
+      <span class="ann ref"><span class="ann-dot"></span>Rate limit info in nav: always visible, never modal-blocked</span>
+      <span class="ann risk"><span class="ann-dot"></span>Risk: duplicate detection notice must appear before generation starts</span>
+    </div>
+  </div>
+
+
+  <p class="section-label">Screen 7 — outcome voting</p>
+
+  <div class="screen-card">
+    <div class="screen-header">
+      <span class="screen-title">Voting — yes/no + reason tags + thank-you</span>
+      <span class="screen-num">S7</span>
+    </div>
+    <div class="mockup-area">
+      <div class="mock-frame">
+        <div class="mock-nav">
+          <div class="nav-logo"><div class="nav-logo-dot"></div>designmd</div>
+          <div style="font-size:11px;color:var(--color-text-secondary)">IBM Carbon Mobile</div>
+        </div>
+        <div class="vote-body">
+          <div class="vote-q">Did Claude follow your design system?</div>
+          <div class="vote-buttons">
+            <button class="vote-btn vote-yes"><i class="ti ti-thumb-up" style="font-size:13px;margin-right:4px" aria-hidden="true"></i> Yes, it worked</button>
+            <button class="vote-btn vote-no">Not quite</button>
+          </div>
+          <div style="font-size:11px;color:var(--color-text-secondary);text-align:center;margin-bottom:8px">What went wrong?</div>
+          <div class="vote-tags">
+            <span class="vote-tag">Colors were off</span>
+            <span class="vote-tag">Typography ignored</span>
+            <span class="vote-tag">Spacing wrong</span>
+            <span class="vote-tag">Too generic</span>
+            <span class="vote-tag">Components missing</span>
+          </div>
+          <div style="font-size:10px;color:var(--color-text-tertiary);text-align:center;margin-top:12px">Your vote helps the next designer. Each tag goes straight to the editor review queue.</div>
+        </div>
+      </div>
+    </div>
+    <div class="annotations">
+      <span class="ann pattern"><span class="ann-dot"></span>Single focus question — not a multi-step survey</span>
+      <span class="ann pattern"><span class="ann-dot"></span>Reason tags shown only after "Not quite" — reduces friction for Yes voters</span>
+      <span class="ann ref"><span class="ann-dot"></span>Tags map 1:1 to companion prompt sections (from strategy doc)</span>
+      <span class="ann risk"><span class="ann-dot"></span>Risk: show tags on same page, not a second screen — drop-off risk is high</span>
+    </div>
+  </div>
+
+</div>
