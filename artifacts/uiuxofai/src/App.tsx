@@ -2,6 +2,7 @@ import { Route, Router as WouterRouter, Switch } from "wouter";
 import { Shell } from "./components/Shell";
 import { Home } from "./pages/Home";
 import { Library } from "./pages/Library";
+import { LibraryType } from "./pages/LibraryType";
 import { BundleDetail } from "./pages/BundleDetail";
 import { Generate } from "./pages/Generate";
 import { Vote } from "./pages/Vote";
@@ -14,6 +15,10 @@ function Router() {
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/library" component={Library} />
+      <Route path="/library/skills" component={() => <LibraryType type="skill" />} />
+      <Route path="/library/agents" component={() => <LibraryType type="agent" />} />
+      <Route path="/library/mcps" component={() => <LibraryType type="mcp" />} />
+      <Route path="/library/bundles" component={() => <LibraryType type="bundle" />} />
       <Route path="/library/:id" component={BundleDetail} />
       <Route path="/copy/:id" component={CopySuccess} />
       <Route path="/generate" component={Generate} />

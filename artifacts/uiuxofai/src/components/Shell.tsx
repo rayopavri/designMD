@@ -158,14 +158,13 @@ export function Shell({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function SectionLabel({ n, t }: { n: string; t: string }) {
+export function SectionLabel({ n: _n, t }: { n?: string; t: string }) {
   return (
     <div
       className="inline-flex items-center gap-2.5 text-[10.5px] uppercase tracking-[0.22em]"
       style={{ fontFamily: MONO, color: MUTED }}
     >
-      <span style={{ color: VIOLET }}>§ {n}</span>
-      <span className="h-px w-5" style={{ background: BORDER }} />
+      <span className="h-1.5 w-1.5 rounded-full" style={{ background: VIOLET }} />
       <span style={{ color: SUB }}>{t}</span>
     </div>
   );
