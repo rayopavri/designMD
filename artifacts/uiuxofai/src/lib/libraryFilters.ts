@@ -28,6 +28,7 @@ export const TOOL_OPTIONS = [
   "Cursor",
   "Lovable",
   "Figma Make",
+  "ChatGPT",
 ] as const;
 
 export type ProjectType = (typeof PROJECT_TYPES)[number];

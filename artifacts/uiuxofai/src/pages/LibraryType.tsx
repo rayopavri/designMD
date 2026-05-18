@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { LibraryFilterStrip } from "../components/LibraryFilterStrip";
+import { LibraryFilterPanel } from "../components/LibraryFilterPanel";
 import { matchesFilters, useLibraryFilters } from "../lib/libraryFilters";
 import { Link } from "wouter";
 import { ArrowUpRight, Check, Search } from "lucide-react";
@@ -91,7 +91,6 @@ export function LibraryType({ type }: { type: DisplayType }) {
   const meta = TYPE_META[type];
   const copy = COPY[type];
   const [query, setQuery] = useState("");
-  const [tool, setTool] = useState<Tool | null>(null);
   const [designSystemOnly, setDesignSystemOnly] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     return new URLSearchParams(window.location.search).get("ds") === "1";
@@ -105,7 +104,6 @@ export function LibraryType({ type }: { type: DisplayType }) {
     return all.filter((it) => {
       if (designSystemOnly && !isDesignSystem(it)) return false;
       if (!matchesFilters(it, urlFilters)) return false;
-      if (tool && !(it.tools as string[]).includes(tool)) return false;
       if (query.trim()) {
         const q = query.toLowerCase();
         const haystack = [it.name, it.tagline, it.description, ...it.tags, ...(it.tools as string[])]
@@ -115,7 +113,7 @@ export function LibraryType({ type }: { type: DisplayType }) {
       }
       return true;
     });
-  }, [all, query, tool, designSystemOnly, urlFilters]);
+  }, [all, query, designSystemOnly, urlFilters]);
 
   return (
     <>
@@ -251,92 +249,95 @@ export function LibraryType({ type }: { type: DisplayType }) {
       {/* The catalog */}
       <section>
         <div className="mx-auto max-w-6xl px-6 lg:px-8 py-14">
-          <LibraryFilterStrip count={filtered.length} />
-          <div className="flex items-end justify-between flex-wrap gap-4 mb-8">
-            <div>
-              <div
-                className="text-[10.5px] uppercase tracking-[0.22em]"
-                style={{ fontFamily: MONO, color: MUTED }}
-              >
-                What you'll find here
-              </div>
-              <h2 className="mt-3 text-[28px] leading-[1.08] font-medium tracking-[-0.018em]">
-                {filtered.length}{" "}
-                <span style={{ color: SUB }}>
-                  {filtered.length === 1 ? meta.label.toLowerCase() : meta.plural.toLowerCase()} on the shelf.
-                </span>
-              </h2>
+          <div className="mb-8">
+            <div
+              className="text-[10.5px] uppercase tracking-[0.22em]"
+              style={{ fontFamily: MONO, color: MUTED }}
+            >
+              What you'll find here
             </div>
-            <div className="flex items-center gap-3 flex-wrap">
-              <div className="relative">
-                <Search
-                  className="h-3.5 w-3.5 absolute left-3 top-1/2 -translate-y-1/2"
-                  style={{ color: MUTED }}
-                />
-                <input
-                  type="search"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search…"
-                  className="h-9 rounded-md border pl-9 pr-3 text-[12.5px] w-56"
-                  style={{ borderColor: BORDER, background: SURFACE, color: INK }}
-                />
-              </div>
-              {type === "skill" && dsCount > 0 ? (
-                <button
-                  onClick={() => setDesignSystemOnly((v) => !v)}
-                  className="h-8 px-3 rounded-full border text-[11.5px] inline-flex items-center gap-1.5"
-                  style={{
-                    borderColor: designSystemOnly ? VIOLET : BORDER,
-                    background: designSystemOnly ? `${VIOLET}1A` : SURFACE,
-                    color: designSystemOnly ? INK : SUB,
-                  }}
+            <h2 className="mt-3 text-[28px] leading-[1.08] font-medium tracking-[-0.018em]">
+              {filtered.length}{" "}
+              <span style={{ color: SUB }}>
+                {filtered.length === 1 ? meta.label.toLowerCase() : meta.plural.toLowerCase()} on the shelf.
+              </span>
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-12 gap-8">
+            <aside className="col-span-12 md:col-span-3 space-y-8">
+              <div>
+                <div
+                  className="text-[10.5px] uppercase tracking-[0.22em] mb-3"
+                  style={{ fontFamily: MONO, color: MUTED }}
                 >
-                  <span className="h-1.5 w-1.5 rounded-full" style={{ background: VIOLET }} />
-                  Design systems
-                  <span style={{ fontFamily: MONO, color: MUTED }}>{dsCount}</span>
-                </button>
-              ) : null}
-              <div className="inline-flex items-center gap-1">
-                {(["All", ...TOOLS_ROW] as (Tool | "All")[]).map((t) => {
-                  const active = t === "All" ? tool === null : tool === t;
-                  return (
-                    <button
-                      key={t}
-                      onClick={() => setTool(t === "All" ? null : (t as Tool))}
-                      className="h-8 px-3 rounded-full border text-[11.5px]"
-                      style={{
-                        borderColor: active ? meta.accent : BORDER,
-                        background: active ? `${meta.accent}1A` : SURFACE,
-                        color: active ? INK : SUB,
-                      }}
-                    >
-                      {t}
-                    </button>
-                  );
-                })}
+                  Search
+                </div>
+                <div className="relative">
+                  <Search
+                    className="h-3.5 w-3.5 absolute left-3 top-1/2 -translate-y-1/2"
+                    style={{ color: MUTED }}
+                  />
+                  <input
+                    type="search"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Search…"
+                    className="w-full h-9 rounded-md border pl-9 pr-3 text-[12.5px]"
+                    style={{ borderColor: BORDER, background: SURFACE, color: INK }}
+                  />
+                </div>
               </div>
+
+              <LibraryFilterPanel />
+
+              {type === "skill" && dsCount > 0 ? (
+                <div>
+                  <div
+                    className="text-[10.5px] uppercase tracking-[0.22em] mb-3"
+                    style={{ fontFamily: MONO, color: MUTED }}
+                  >
+                    Design systems
+                  </div>
+                  <button
+                    onClick={() => setDesignSystemOnly((v) => !v)}
+                    className="h-8 px-3 rounded-full border text-[11.5px] inline-flex items-center gap-1.5"
+                    style={{
+                      borderColor: designSystemOnly ? VIOLET : BORDER,
+                      background: designSystemOnly ? `${VIOLET}1A` : SURFACE,
+                      color: designSystemOnly ? INK : SUB,
+                    }}
+                  >
+                    <span className="h-1.5 w-1.5 rounded-full" style={{ background: VIOLET }} />
+                    Design systems only
+                    <span style={{ fontFamily: MONO, color: MUTED }}>{dsCount}</span>
+                  </button>
+                </div>
+              ) : null}
+            </aside>
+
+            <div className="col-span-12 md:col-span-9">
+              {filtered.length === 0 ? (
+                <div
+                  className="rounded-lg border p-12 text-center"
+                  style={{ borderColor: BORDER, background: SURFACE }}
+                >
+                  <p className="text-[14px]" style={{ color: SUB }}>
+                    Nothing matches. Try clearing the filters.
+                  </p>
+                </div>
+              ) : (
+                <div
+                  className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px rounded-lg overflow-hidden"
+                  style={{ background: BORDER }}
+                >
+                  {filtered.map((it) => (
+                    <ItemCard key={it.id} item={it} />
+                  ))}
+                </div>
+              )}
             </div>
           </div>
-          {filtered.length === 0 ? (
-            <div
-              className="rounded-lg border p-12 text-center"
-              style={{ borderColor: BORDER, background: SURFACE }}
-            >
-              <p className="text-[14px]" style={{ color: SUB }}>
-                Nothing matches. Try clearing the filters.
-              </p>
-            </div>
-          ) : (
-            <div
-              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px rounded-lg overflow-hidden"
-              style={{ background: BORDER }}
-            >
-              {filtered.map((it) => (
-                <ItemCard key={it.id} item={it} />
-              ))}
-            </div>
-          )}
 
           <div className="mt-10 flex items-center justify-between flex-wrap gap-3">
             <Link

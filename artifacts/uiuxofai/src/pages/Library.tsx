@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { LibraryFilterStrip } from "../components/LibraryFilterStrip";
+import { LibraryFilterPanel } from "../components/LibraryFilterPanel";
 import { matchesFilters, useLibraryFilters } from "../lib/libraryFilters";
 import { Link, useSearch } from "wouter";
 import { ArrowUpRight, Search, X } from "lucide-react";
@@ -17,7 +17,6 @@ import {
 } from "../lib/tokens";
 import { CATEGORIES, FEELS } from "../lib/bundles";
 
-const ALL_TOOLS: string[] = ["Claude", "Cursor", "Lovable", "Figma Make", "ChatGPT", "Universal"];
 import {
   DISPLAY_TYPES,
   ITEMS,
@@ -74,7 +73,6 @@ export function Library() {
   const [category, setCategory] = useState<string>("All");
   const [feel, setFeel] = useState<string>(initialFeel);
   const [minCoverage, setMinCoverage] = useState<number>(0);
-  const [model, setModel] = useState<string | null>(null);
   const [designSystemOnly, setDesignSystemOnly] = useState<boolean>(initialDesignSystemOnly);
   const [sort, setSort] = useState<Sort>("popular");
 
@@ -93,7 +91,6 @@ export function Library() {
       } else {
         if (category !== "All" || feel !== "All" || minCoverage > 0) return false;
       }
-      if (model && !(it.tools as string[]).includes(model)) return false;
       if (query.trim()) {
         const q = query.toLowerCase();
         const haystack = [
@@ -130,7 +127,7 @@ export function Library() {
       list.sort((a, b) => recentRank(a.updatedAgo) - recentRank(b.updatedAgo));
     }
     return list;
-  }, [query, typeFilter, category, feel, minCoverage, model, sort, designSystemOnly, urlFilters]);
+  }, [query, typeFilter, category, feel, minCoverage, sort, designSystemOnly, urlFilters]);
 
   const activeFilters: { label: string; clear: () => void }[] = [];
   if (typeFilter !== "All")
@@ -141,7 +138,6 @@ export function Library() {
   if (feel !== "All") activeFilters.push({ label: feel, clear: () => setFeel("All") });
   if (minCoverage > 0)
     activeFilters.push({ label: `${minCoverage}%+ coverage`, clear: () => setMinCoverage(0) });
-  if (model) activeFilters.push({ label: model, clear: () => setModel(null) });
 
   // category / feel / coverage are design-system specific — disable when
   // viewing a shelf that has no bundles in it.
@@ -246,7 +242,6 @@ export function Library() {
 
       {/* Unified grid + filters */}
       <div className="mx-auto max-w-7xl px-6 lg:px-8 py-12">
-        <LibraryFilterStrip count={filtered.length} />
         <div className="mb-8 flex items-center gap-2 flex-wrap">
           <span
             className="text-[10.5px] uppercase tracking-[0.22em] mr-2"
@@ -324,6 +319,8 @@ export function Library() {
               </div>
             </div>
 
+            <LibraryFilterPanel />
+
             <FilterBlock label="Category" disabled={designSystemFiltersDisabled}>
               {CATEGORIES.map((c) => (
                 <RadioRow
@@ -360,16 +357,6 @@ export function Library() {
               ))}
             </FilterBlock>
 
-            <FilterBlock label="Tool">
-              {ALL_TOOLS.map((m) => (
-                <CheckRow
-                  key={m}
-                  label={m}
-                  checked={model === m}
-                  onChange={() => setModel(model === m ? null : m)}
-                />
-              ))}
-            </FilterBlock>
           </aside>
 
           <section className="col-span-12 md:col-span-9">
@@ -537,29 +524,6 @@ function RadioRow({
         {checked ? <span className="h-1.5 w-1.5 rounded-full" style={{ background: VIOLET }} /> : null}
       </span>
       <input type="radio" checked={checked} onChange={onChange} disabled={disabled} className="sr-only" />
-      <span style={{ color: checked ? INK : SUB }}>{label}</span>
-    </label>
-  );
-}
-
-function CheckRow({
-  label,
-  checked,
-  onChange,
-}: {
-  label: string;
-  checked: boolean;
-  onChange: () => void;
-}) {
-  return (
-    <label className="flex items-center gap-2.5 text-[12.5px] cursor-pointer">
-      <span
-        className="inline-flex h-3.5 w-3.5 items-center justify-center rounded border"
-        style={{ borderColor: checked ? VIOLET : BORDER, background: checked ? VIOLET : SURFACE }}
-      >
-        {checked ? <span className="h-1 w-1 rounded-sm" style={{ background: "#0A0A0B" }} /> : null}
-      </span>
-      <input type="checkbox" checked={checked} onChange={onChange} className="sr-only" />
       <span style={{ color: checked ? INK : SUB }}>{label}</span>
     </label>
   );
