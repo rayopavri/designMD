@@ -104,7 +104,7 @@ export function Header() {
           >
             <Command className="h-3 w-3" />
             <span style={{ color: SUB }}>K</span>
-            <span className="ml-1">Search 240 bundles</span>
+            <span className="ml-1">Search the library</span>
           </Link>
           <Link href="/generate" className="text-[12.5px] hidden sm:inline" style={{ color: SUB }}>
             Submit

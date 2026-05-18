@@ -16,10 +16,15 @@ import {
   SURFACE_2,
   VIOLET,
 } from "../lib/tokens";
-import { BUNDLES, getBundle } from "../lib/items";
+import { BUNDLES, getBundle, ITEMS, TYPE_META, type ItemType } from "../lib/items";
+
+const TOOL_BADGES = ["Claude", "Cursor", "Lovable", "Figma Make", "ChatGPT", "Universal"];
 
 export function Home() {
   const linear = getBundle("linear")!;
+  const counts: { type: ItemType; n: number }[] = (["bundle", "skill", "agent", "mcp"] as ItemType[]).map(
+    (t) => ({ type: t, n: ITEMS.filter((i) => i.type === t).length }),
+  );
   return (
     <>
       {/* Hero */}
@@ -32,12 +37,12 @@ export function Home() {
             <span className="inline-flex items-center gap-1.5">
               <span
                 className="h-1.5 w-1.5 rounded-full"
-                style={{ background: VIOLET, boxShadow: `0 0 8px ${VIOLET}88` }}
+                style={{ background: LIME, boxShadow: `0 0 8px ${LIME}88` }}
               />
-              <span style={{ color: SUB }}>v0.42</span>
+              <span style={{ color: SUB }}>free forever</span>
             </span>
             <span className="h-px w-6" style={{ background: "#26262A" }} />
-            <span>public beta</span>
+            <span>MDN-style public reference</span>
           </div>
           <h1 className="text-[44px] sm:text-[60px] leading-[1.02] font-medium tracking-[-0.022em]" style={{ color: INK }}>
             Design systems,
@@ -73,19 +78,74 @@ export function Home() {
                 boxShadow: `0 0 0 1px ${VIOLET}66, 0 10px 36px -10px ${VIOLET}88`,
               }}
             >
-              Open the library
+              Browse the library
               <span style={{ fontFamily: MONO, color: MUTED }}>⏎</span>
             </Link>
             <Link
               href="/generate"
-              className="h-10 rounded-full border px-5 text-[12.5px] font-medium inline-flex items-center"
-              style={{ borderColor: BORDER, color: INK, background: SURFACE }}
+              className="h-10 rounded-full px-5 text-[12.5px] font-medium inline-flex items-center gap-2"
+              style={{
+                background: INK,
+                color: INK_ON_LIGHT,
+                boxShadow: `0 0 0 1px ${LIME}66, 0 10px 36px -10px ${LIME}88`,
+              }}
             >
               Generate from URL
+              <span style={{ fontFamily: MONO, color: MUTED }}>↗</span>
             </Link>
           </div>
           <div className="mt-5 text-[11px]" style={{ fontFamily: MONO, color: MUTED }}>
-            no install · paste into any model · free during public beta
+            no install · paste into any model · free forever
+          </div>
+
+          {/* Tool badges */}
+          <div className="mt-8 flex items-center justify-center gap-1.5 flex-wrap">
+            {TOOL_BADGES.map((t) => (
+              <span
+                key={t}
+                className="inline-flex items-center gap-1.5 text-[10.5px] px-2.5 py-1 rounded-full border"
+                style={{
+                  fontFamily: MONO,
+                  color: SUB,
+                  borderColor: BORDER,
+                  background: SURFACE,
+                }}
+              >
+                <span className="h-1 w-1 rounded-full" style={{ background: VIOLET }} />
+                {t.toLowerCase()}
+              </span>
+            ))}
+          </div>
+
+          {/* Stats row — 4 types */}
+          <div
+            className="mt-10 mx-auto max-w-2xl grid grid-cols-4 gap-px rounded-lg overflow-hidden border"
+            style={{ background: BORDER, borderColor: BORDER }}
+          >
+            {counts.map(({ type, n }) => {
+              const m = TYPE_META[type];
+              return (
+                <Link
+                  key={type}
+                  href={`/library?type=${type}`}
+                  className="py-4 px-2 block text-center transition-colors hover:bg-[#101013]"
+                  style={{ background: BG }}
+                >
+                  <div className="flex items-center justify-center gap-1.5">
+                    <span className="h-1.5 w-1.5 rounded-full" style={{ background: m.accent }} />
+                    <span className="text-[20px] font-medium" style={{ color: INK }}>
+                      {n}
+                    </span>
+                  </div>
+                  <div
+                    className="mt-1 text-[10px] uppercase tracking-[0.2em]"
+                    style={{ fontFamily: MONO, color: MUTED }}
+                  >
+                    {m.plural.toLowerCase()}
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         </div>
 
@@ -264,32 +324,6 @@ export function Home() {
         </div>
       </section>
 
-      {/* In use at */}
-      <section className="border-b" style={{ borderColor: BORDER_SOFT }}>
-        <div className="mx-auto max-w-6xl px-6 lg:px-8 py-14">
-          <div
-            className="text-[10.5px] uppercase tracking-[0.22em] mb-6 text-center"
-            style={{ fontFamily: MONO, color: MUTED }}
-          >
-            in use at teams shipping with AI
-          </div>
-          <div className="flex items-center justify-center gap-2 flex-wrap">
-            {["Linear", "Vercel", "Ramp", "Arc", "Raycast", "Cursor", "Lovable"].map((n, i, arr) => (
-              <span
-                key={n}
-                className="inline-flex items-center gap-3 text-[16px] tracking-tight"
-                style={{ color: SUB }}
-              >
-                <span style={{ color: INK, opacity: 0.78 }}>{n}</span>
-                {i < arr.length - 1 ? (
-                  <span style={{ fontFamily: MONO, color: MUTED, opacity: 0.5 }}>/</span>
-                ) : null}
-              </span>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* CTA */}
       <section>
         <div className="mx-auto max-w-3xl px-6 lg:px-8 py-24 text-center">
@@ -300,8 +334,8 @@ export function Home() {
             <span style={{ color: SUB }}>model's defaults.</span>
           </h2>
           <p className="mt-6 text-[15.5px] leading-[1.65] max-w-[34rem] mx-auto" style={{ color: SUB }}>
-            Pick a bundle, paste the spec, ship UI that actually looks like your brand. Free
-            while in public beta.
+            Browse 4,800+ curated specs, skills, agents and MCPs — or paste any URL to generate
+            your own. Free forever.
           </p>
           <div className="mt-9 flex items-center justify-center gap-3 flex-wrap">
             <Link
@@ -313,15 +347,20 @@ export function Home() {
                 boxShadow: `0 0 0 1px ${VIOLET}66, 0 10px 36px -10px ${VIOLET}88`,
               }}
             >
-              Open the library
+              Browse the library
               <span style={{ fontFamily: MONO, color: MUTED }}>⏎</span>
             </Link>
             <Link
               href="/generate"
-              className="h-10 rounded-full border px-5 text-[12.5px] font-medium inline-flex items-center"
-              style={{ borderColor: BORDER, color: INK, background: SURFACE }}
+              className="h-10 rounded-full px-5 text-[12.5px] font-medium inline-flex items-center gap-2"
+              style={{
+                background: INK,
+                color: INK_ON_LIGHT,
+                boxShadow: `0 0 0 1px ${LIME}66, 0 10px 36px -10px ${LIME}88`,
+              }}
             >
-              Submit a system
+              Generate from URL
+              <span style={{ fontFamily: MONO, color: MUTED }}>↗</span>
             </Link>
           </div>
         </div>

@@ -44,10 +44,13 @@ export function Vote() {
   // Voting today is bundle-only; non-bundle items show a graceful message.
   const bundle = item && item.type === "bundle" ? item.bundle : undefined;
 
+  const [tool, setTool] = useState<string | null>(null);
   const [vote, setVote] = useState<Vote>(null);
   const [drift, setDrift] = useState<string[]>([]);
   const [note, setNote] = useState("");
   const [submitted, setSubmitted] = useState(false);
+
+  const TOOLS = ["Claude", "Cursor", "Lovable", "Figma Make", "ChatGPT"];
 
   function toggleDrift(d: string) {
     setDrift((prev) => (prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d]));
@@ -120,18 +123,47 @@ export function Vote() {
         {!submitted ? (
           <>
             <div className="text-center pt-6">
-              <SectionLabel n="01" t="Did this bundle hold?" />
+              <SectionLabel n="01" t="Which tool did you ship with?" />
               <h1 className="mt-4 text-[40px] sm:text-[48px] leading-[1.04] font-medium tracking-[-0.018em]">
-                Did the bundle
+                Did this bundle
                 <br />
-                <span style={{ color: SUB }}>land on-brand?</span>
+                <span style={{ color: SUB }}>
+                  hold up in {tool ?? "your tool"}?
+                </span>
               </h1>
               <p className="mt-4 text-[14px]" style={{ color: SUB }}>
-                Your vote calibrates the companion prompt for everyone.
+                We calibrate the companion prompt per tool — pick the one you used.
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="flex items-center justify-center gap-2 flex-wrap">
+              {TOOLS.map((t) => {
+                const active = tool === t;
+                return (
+                  <button
+                    key={t}
+                    onClick={() => setTool(t)}
+                    className="inline-flex items-center gap-1.5 h-8 rounded-full border px-3 text-[12px]"
+                    style={{
+                      borderColor: active ? VIOLET : BORDER,
+                      background: active ? `${VIOLET}1A` : SURFACE,
+                      color: active ? INK : SUB,
+                    }}
+                  >
+                    <span
+                      className="h-1.5 w-1.5 rounded-full"
+                      style={{ background: active ? VIOLET : MUTED }}
+                    />
+                    {t.toLowerCase()}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div
+              className="grid grid-cols-2 gap-4 transition-opacity"
+              style={{ opacity: tool ? 1 : 0.4, pointerEvents: tool ? "auto" : "none" }}
+            >
               <VoteCard
                 tone="yes"
                 selected={vote === "yes"}
@@ -193,7 +225,7 @@ export function Vote() {
                 Cancel
               </Link>
               <button
-                disabled={!vote}
+                disabled={!vote || !tool}
                 onClick={submit}
                 className="h-10 rounded-full px-5 text-[12.5px] font-medium inline-flex items-center gap-2 disabled:opacity-40"
                 style={{ background: INK, color: INK_ON_LIGHT }}
