@@ -14,7 +14,9 @@ import {
   SURFACE_2,
   VIOLET,
 } from "../lib/tokens";
-import { CATEGORIES, FEELS, MODELS } from "../lib/bundles";
+import { CATEGORIES, FEELS } from "../lib/bundles";
+
+const ALL_TOOLS: string[] = ["Claude", "Cursor", "Lovable", "Figma Make", "ChatGPT", "Universal"];
 import {
   ITEMS,
   TYPE_FILTERS,
@@ -224,7 +226,7 @@ export function Library() {
           </FilterBlock>
 
           <FilterBlock label="Tool">
-            {MODELS.map((m) => (
+            {ALL_TOOLS.map((m) => (
               <CheckRow
                 key={m}
                 label={m}
