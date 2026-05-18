@@ -1,0 +1,231 @@
+# UIUXofAi — Next Pass Spec
+
+> Paste this whole document into Replit Agent. Before executing, ask the agent to share its plan and confirm file paths.
+
+## Context
+
+You're working in `artifacts/uiuxofai/` — a Vite + React + wouter app. The app is a curated catalog of design-system bundles, AI skills, agents, and MCPs for designers shipping UI with AI tools (Claude, Cursor, Lovable, Figma Make).
+
+Existing structure to respect:
+
+- Design tokens in `src/lib/tokens.ts` — **do not change values** (BG, INK, LIME, VIOLET, PEACH, MUTED, SUB, SURFACE, BORDER, etc.). Use them.
+- Item data in `src/lib/items.ts` and `src/lib/bundles.ts`.
+- Routing with `wouter` in `src/App.tsx`.
+- Tool preferences in `src/lib/toolPref.ts` (4 supported: `claude`, `cursor`, `lovable`, `figma`).
+- Install steps in `src/lib/installSteps.ts`.
+- Existing card pattern in `src/components/ItemCard.tsx` — mirror its style for any new card-like UI.
+
+**Do NOT change:** the BundleZip download flow, the Generate pipeline, tokens.ts values, the routing for existing routes, or the items.ts type definitions beyond what's described below.
+
+## Goals of this round
+
+1. Make tool badges on Home actually navigate (filtered library entry).
+2. Add a sticky filter strip to library views (project type · style · tool).
+3. Replace the single overall coverage % on bundle detail with a 7-section 3-state breakdown.
+4. Add a CLI get-method on bundle detail, restore the CLI link in the nav, add a `/docs/cli` page.
+5. Wire Outcomes cards on Home to filtered library views.
+6. Add a featherweight "did this work?" pulse to install-success.
+
+Work through the sections in order. Commit after each section so changes are reviewable.
+
+---
+
+## 1. Home — tappable tool badges
+
+**File:** `src/pages/Home.tsx`
+
+The `TOOL_BADGES` array currently renders 5 decorative `<span>` chips. Convert them to `<Link>` components.
+
+- Map each badge to a `ToolId` from `src/lib/toolPref.ts`. **Drop ChatGPT** — it has no install-step support. Final list: Claude, Cursor, Lovable, Figma Make.
+- Each chip links to `/library?tool=<id>` (e.g. `/library?tool=cursor`).
+- Add a hover state: brighten the lime border from `${LIME}55` to `${LIME}88`, and lift `background` from `${LIME}10` to `${LIME}1A`. Use Tailwind's `transition-colors`.
+- Keep the existing check icon, font, and sizing — this is a behavior change, not a visual one.
+- Add `aria-label="Browse library filtered for <Tool>"` on each link.
+
+Reword the label above the row from "works in" to **"Browse by tool"** — they're actions now, not badges.
+
+## 2. Home — Outcomes cards become filtered entry points
+
+**File:** `src/pages/Home.tsx`
+
+The `outcomes` array currently links each card to a single bundle (`/library/${o.item.id}`). Change the card-level `href` to a filtered shelf:
+
+- "with a Design system" → `/library/skills?ds=1`
+- "with an Agent" → `/library/agents`
+- "with an MCP" → `/library/mcps`
+
+Keep the `o.item` reference rendered at the bottom of each card as a sample/preview. The card itself now navigates to the shelf, not the item. The item-name footer can remain as a "featured" call-out — same visual, different intent.
+
+## 3. Library — sticky filter strip
+
+**Files:** `src/pages/Library.tsx`, `src/pages/LibraryType.tsx`
+
+Add a sticky filter row at the top of the results grid on both views.
+
+Filter groups (each on its own row, with a small `MONO` section label):
+
+- **Project type:** All · Mobile apps · SaaS · E-commerce · Dashboards · Marketing sites · Design systems
+- **Style:** All · Minimal · Enterprise · Bold · Playful · Accessible · Dark mode
+- **Tool:** All · Claude · Cursor · Lovable · Figma Make
+
+Visual:
+
+- Sticky to top of scroll, `BG` background with `border-b ${BORDER_SOFT}`.
+- Selected chip: `INK` background, `INK_ON_LIGHT` text.
+- Unselected chip: transparent with `1px solid ${BORDER}`, `SUB` text.
+- Live result count on the right side of the filter container: `<n> results` in `MONO`, `MUTED` color.
+
+Behavior:
+
+- Read filter state from URL query params (`?tool=cursor&type=saas&style=minimal`). Use wouter's `useSearch` and `useLocation`.
+- Update URL params on chip change; chips reflect URL state on mount.
+- Filter the items array against selected filters before passing to the grid.
+- When a filter is "All", that dimension is ignored.
+
+Items currently lack explicit `projectType` and `style` fields. Either:
+- (a) Add these as optional fields on the `Item` type and back-fill the existing items, OR
+- (b) Derive them from the existing `tags` array.
+
+Pick (a) if cleaner — it's more durable and testable.
+
+**Do NOT create a separate `/discover` route.** This replaces guided discovery entirely.
+
+## 4. Bundle detail — 7-section coverage breakdown
+
+**Files:** `src/pages/BundleDetail.tsx`, `src/lib/items.ts`, `src/lib/bundles.ts`, new component `src/components/SectionCoverage.tsx`
+
+### 4a. Extend the bundle data shape
+
+In `src/lib/items.ts` (wherever `BundleItem.bundle` is typed), add an optional field:
+
+```ts
+sectionCoverage?: {
+  colors: 'strong' | 'thin' | 'missing';
+  typography: 'strong' | 'thin' | 'missing';
+  spacing: 'strong' | 'thin' | 'missing';
+  elevation: 'strong' | 'thin' | 'missing';
+  shapes: 'strong' | 'thin' | 'missing';
+  components: 'strong' | 'thin' | 'missing';
+  dosDonts: 'strong' | 'thin' | 'missing';
+};
+```
+
+Back-fill all existing bundles in `src/lib/bundles.ts` with plausible values inferred from their content. Most rows should be `strong`; expect 1–2 `thin` per bundle, occasional `missing` for shapes or dosDonts.
+
+### 4b. Build `src/components/SectionCoverage.tsx`
+
+Renders 7 rows. Each row:
+
+- Left: section label (text — "Colors", "Typography", "Spacing", "Elevation", "Shapes", "Components", "Dos & Don'ts").
+- Right: a small horizontal bar (72px wide × 4px tall, rounded), followed by a one-word state label in `MONO` `MUTED`.
+
+State styling:
+
+- `strong` → bar full width, fill `LIME`, label `"strong"`.
+- `thin` → bar 60% width, fill `PEACH`, label `"thin"`.
+- `missing` → bar 20% width, fill `MUTED`, label `"missing"`.
+
+Tight row spacing (~6px between rows). All rows align cleanly on the right edge.
+
+### 4c. Wire into BundleDetail
+
+In the right-side aside (currently a 2×2 stat grid), replace the layout with:
+
+1. Big overall stat at the top: `{bundle.coverage}%` with `LIME` accent dot, label "overall coverage".
+2. Below it, the `SectionCoverage` component fed from `bundle.sectionCoverage`.
+3. Below that, a compact line: `<tokens> tokens · <components> components · last verified <updatedAgo>` in smaller `SUB` text.
+
+Keep the palette strip and the forks counter as they are.
+
+## 5. Bundle detail — CLI get-method
+
+**Files:** `src/pages/BundleDetail.tsx`, optionally extend `src/lib/installSteps.ts`
+
+In the install-steps section (visible when `showInstall` is true), add a third card below the existing "Copy design.md" and "Copy companion prompt" cards: a **CLI** card.
+
+Visual: match the existing card pattern exactly — same `rounded-xl border p-5`, same `SURFACE` background, same MONO label structure.
+
+Content:
+
+- Top-left mono label: `cli`.
+- Body: shows the command in a monospace block:
+  ```
+  npx uiuxofai add <bundle.id>
+  ```
+- Click-to-copy on the command using the same `copyText` pattern as the other cards. On copy, swap to the lime check + "Copied ✓" treatment.
+- Subtitle below: `Drops design.md + companion.md into your {toolLabel(tool)} project automatically`.
+
+The CLI doesn't need to actually work yet — this is the UI surface. Leave a `// TODO: wire to real CLI` comment near the copy handler.
+
+## 6. Nav — restore CLI link + add docs route
+
+**Files:** `src/components/Shell.tsx`, `src/App.tsx`, new `src/pages/CliDocs.tsx`
+
+In the global nav (Shell.tsx), add a **"CLI"** link in the nav rhythm — somewhere between "Generate" and any right-side items. Link target: `/docs/cli`. Match the existing nav link style.
+
+Create `src/pages/CliDocs.tsx`:
+
+- Hero matching Home.tsx style: small `MONO` `MUTED` section label ("uiuxofai · cli"), large H1, supporting paragraph.
+- H1: **"uiuxofai — command line"**
+- Subtitle: "Install bundles, skills, agents, and MCPs from your terminal."
+
+Body sections:
+
+1. **Install** — short paragraph + a code block: `npx uiuxofai --help`. No actual install needed; the tool runs via npx.
+2. **Commands** — three rows, each with a mono command on the left and a one-line description on the right:
+   - `add <slug>` — drop bundle files into your project
+   - `list` — show what's installed in the current project
+   - `update` — refresh installed bundles to latest version
+3. **Per-tool placement** — short note for each of the 4 supported tools showing where files land. Use the existing `INSTALL_STEPS` data in `src/lib/installSteps.ts` as the source of truth so this stays consistent.
+
+Add the route in `src/App.tsx`: `<Route path="/docs/cli" component={CliDocs} />`. Place it in the route list before the catch-all `NotFound`.
+
+## 7. Install-success — "did this work?" pulse
+
+**Where it goes:** the `showInstall` section inside `src/pages/BundleDetail.tsx` (this is where bundle install-success actually surfaces today; `CopySuccess.tsx` redirects to BundleDetail for bundles). Add the pulse below the existing copy/download cards in the install steps grid.
+
+Visual — tight one-line layout:
+
+```
+Did this work for you?      [ Yes ]   [ Not quite ]
+```
+
+- Left: label in `SUB` color, normal sans-serif, ~13px.
+- Right: two small buttons (~28px tall), rounded full, transparent with `1px solid ${BORDER}`, `SUB` text on hover lightens to `INK`.
+- Sits below the install cards grid with a thin divider above (`border-t ${BORDER_SOFT}`) and ~24px top padding.
+
+Behavior:
+
+- On **Yes** click: write `{ bundleId, ts, result: 'yes' }` to `sessionStorage` under key `uiuxofai:pulse`. Replace the row with `Thanks ✓` (lime check, no buttons). No further UI.
+- On **Not quite** click: expand inline to show 5 small chips in a row: **Colors · Typography · Spacing · Components · Generic**. Tapping any chip writes `{ bundleId, ts, result: 'no', reason: <chip> }` to sessionStorage and collapses the row to `Thanks ✓`.
+- **No display of pulse data anywhere user-facing.** This is signal for the editorial dashboard only.
+- Skippable. If the user navigates away or scrolls past, no consequence.
+- Once the pulse is recorded for a given `bundleId` in this session, render the row as `Thanks ✓` immediately on revisit (don't ask again).
+
+## Acceptance checks
+
+Before declaring done, verify each:
+
+1. From the home page, clicking the "Cursor" tool chip lands you on `/library?tool=cursor` with the Tool filter chip visibly selected and only Cursor-compatible items shown.
+2. The filter strip on `/library` updates the result count live as chips are toggled, and URL params reflect state.
+3. On any bundle detail page, the right aside shows the 7-section coverage breakdown (3-state) instead of the old 4-stat grid. The overall % is still visible at the top of the aside.
+4. The CLI card appears in the install-steps section alongside the design.md and companion cards. The command copies to clipboard with the "Copied ✓" treatment.
+5. The global nav shows a CLI link. Clicking it routes to `/docs/cli` and the page renders cleanly.
+6. After scrolling into the install steps on a bundle, the "Did this work?" line appears below the copy cards. Yes/Not-quite work; reason chips appear on Not-quite; state persists in sessionStorage for the session.
+7. Existing flows still work end-to-end: generate from URL, download as .zip, switch tool preference (the segmented control on bundle detail), Outcomes cards still render with their featured item callout.
+8. No console errors on any page.
+
+## Tone & quality bar
+
+This product is for working designers. The visual bar is high — keep typography mono-aware where it already is, spacing generous, accents restrained: `LIME` for positive/success, `VIOLET` for primary, `PEACH` for warn/thin. Don't introduce new colors or fonts. When in doubt about a pattern, mirror an existing one from `Home.tsx`, `BundleDetail.tsx`, or `ItemCard.tsx`.
+
+---
+
+## After execution
+
+Reply with:
+
+1. A summary of what changed, grouped by section above.
+2. Any deviations from the spec (and why).
+3. A list of files touched.
+4. Screenshots or paths of the dev server URLs for: Home, `/library?tool=cursor`, a bundle detail, `/docs/cli`.
