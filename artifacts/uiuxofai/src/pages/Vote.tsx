@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useRoute } from "wouter";
 import { ArrowUpRight, Check, X } from "lucide-react";
+
 import { SectionLabel } from "../components/Shell";
 import {
   BG,
@@ -18,6 +19,8 @@ import {
   VIOLET,
 } from "../lib/tokens";
 import { getItem } from "../lib/items";
+
+const TOOL_PREF_KEY = "uiuxofai:vote:tool";
 
 type Vote = "yes" | "no" | null;
 
@@ -44,7 +47,24 @@ export function Vote() {
   // Voting today is bundle-only; non-bundle items show a graceful message.
   const bundle = item && item.type === "bundle" ? item.bundle : undefined;
 
-  const [tool, setTool] = useState<string | null>(null);
+  const [tool, setToolState] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      return window.localStorage.getItem(TOOL_PREF_KEY);
+    } catch {
+      return null;
+    }
+  });
+  const setTool = (t: string | null) => {
+    setToolState(t);
+    if (typeof window === "undefined") return;
+    try {
+      if (t) window.localStorage.setItem(TOOL_PREF_KEY, t);
+      else window.localStorage.removeItem(TOOL_PREF_KEY);
+    } catch {
+      // ignore
+    }
+  };
   const [vote, setVote] = useState<Vote>(null);
   const [drift, setDrift] = useState<string[]>([]);
   const [note, setNote] = useState("");

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useSearch } from "wouter";
 import { saveDraft } from "../lib/draftStore";
+import { queueSubmission } from "../lib/submissionStore";
 import { Check, ChevronDown, Copy, Globe, Loader2, RefreshCw, Send, ShieldCheck } from "lucide-react";
 import { SectionLabel } from "../components/Shell";
 import { CodePanel } from "../components/CodePanel";
@@ -258,6 +259,7 @@ export function Generate() {
   const timersRef = useRef<number[]>([]);
 
   const detection = useMemo(() => detectType(url), [url]);
+  const typeResolved: boolean = !!override || !!detection;
   const activeType: ItemType = override ?? detection?.type ?? "bundle";
   const steps = STEPS_FOR[activeType];
   const meta = TYPE_META[activeType];
@@ -334,6 +336,22 @@ export function Generate() {
 
   function submitForReview() {
     setSubmitState("submitting");
+    const filename =
+      activeType === "bundle"
+        ? "design.md"
+        : activeType === "mcp"
+        ? "mcp.json"
+        : `${activeType}.md`;
+    const language: "yaml" | "md" | "json" =
+      activeType === "bundle" ? "yaml" : activeType === "mcp" ? "json" : "md";
+    queueSubmission({
+      type: activeType,
+      source: host ? `https://${host}` : "draft.local",
+      host: host || "draft.local",
+      filename,
+      language,
+      body: draftSource,
+    });
     window.setTimeout(() => setSubmitState("submitted"), 700);
   }
 
@@ -456,14 +474,23 @@ export function Generate() {
                 onClick={() => setOverrideOpen((v) => !v)}
                 className="inline-flex items-center gap-2 h-7 rounded-full border px-3 text-[12px]"
                 style={{
-                  borderColor: meta.accent,
-                  background: `${meta.accent}14`,
-                  color: INK,
+                  borderColor: typeResolved ? meta.accent : BORDER,
+                  background: typeResolved ? `${meta.accent}14` : SURFACE,
+                  color: typeResolved ? INK : SUB,
                 }}
               >
-                <span className="h-1.5 w-1.5 rounded-full" style={{ background: meta.accent }} />
-                <span style={{ color: meta.accent, fontSize: 12, lineHeight: 1 }}>{meta.icon}</span>
-                {meta.label}
+                {typeResolved ? (
+                  <>
+                    <span className="h-1.5 w-1.5 rounded-full" style={{ background: meta.accent }} />
+                    <span style={{ color: meta.accent, fontSize: 12, lineHeight: 1 }}>{meta.icon}</span>
+                    {meta.label}
+                  </>
+                ) : (
+                  <>
+                    <span className="h-1.5 w-1.5 rounded-full" style={{ background: MUTED }} />
+                    <span style={{ color: MUTED }}>Pick a type</span>
+                  </>
+                )}
                 <ChevronDown className="h-3 w-3" style={{ color: SUB }} />
               </button>
               {overrideOpen ? (
