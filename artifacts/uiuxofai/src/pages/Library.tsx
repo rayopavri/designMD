@@ -317,7 +317,7 @@ function RequestCard({ typeFilter }: { typeFilter: "All" | ItemType }) {
   const isTyped = typeFilter !== "All";
   const meta = isTyped ? TYPE_META[typeFilter as ItemType] : null;
   const accent = meta?.accent ?? VIOLET;
-  const label = isTyped ? `Request a ${TYPE_META[typeFilter as ItemType].label}` : "Request a bundle";
+  const label = isTyped ? `Request a ${TYPE_META[typeFilter as ItemType].label}` : "Request a Bundle";
   const href = isTyped ? `/generate?type=${typeFilter}` : "/generate?type=bundle";
   const body = isTyped
     ? `Can't find the ${TYPE_META[typeFilter as ItemType].label.toLowerCase()} you need? Paste a source URL — we'll draft it and route to the editorial desk.`

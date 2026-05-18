@@ -96,7 +96,7 @@ export function Home() {
                 boxShadow: `0 0 0 1px ${VIOLET}66, 0 10px 36px -10px ${VIOLET}88`,
               }}
             >
-              Browse the library
+              Open the library
               <span style={{ fontFamily: MONO, color: MUTED }}>⏎</span>
             </Link>
             <Link
@@ -372,7 +372,7 @@ export function Home() {
                 boxShadow: `0 0 0 1px ${VIOLET}66, 0 10px 36px -10px ${VIOLET}88`,
               }}
             >
-              Browse the library
+              Open the library
               <span style={{ fontFamily: MONO, color: MUTED }}>⏎</span>
             </Link>
             <Link
