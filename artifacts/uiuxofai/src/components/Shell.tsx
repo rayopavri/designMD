@@ -59,9 +59,13 @@ export function StatusBar() {
 
 type NavItem = { label: string; href: string; matches: (path: string) => boolean };
 
+function basePath(p: string): string {
+  return p.split("?")[0].split("#")[0];
+}
+
 const NAV: NavItem[] = [
-  { label: "Library", href: "/library", matches: (p) => p === "/library" || p.startsWith("/library/") },
-  { label: "Generate", href: "/generate", matches: (p) => p.startsWith("/generate") },
+  { label: "Library", href: "/library", matches: (p) => basePath(p).startsWith("/library") },
+  { label: "Generate", href: "/generate", matches: (p) => basePath(p).startsWith("/generate") },
 ];
 
 export function Header() {
