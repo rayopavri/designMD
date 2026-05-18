@@ -1,5 +1,5 @@
 import { CheckCircle2, Circle, Loader2, Sparkles } from "lucide-react";
-import { Header, PaletteStrip, CoverageBar } from "./_Shared";
+import { Header, CoverageBar } from "./_Shared";
 import "./_group.css";
 
 export function UrlGenerator() {
