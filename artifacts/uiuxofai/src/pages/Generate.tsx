@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useSearch } from "wouter";
+import { Link, useLocation, useSearch } from "wouter";
+import { saveDraft } from "../lib/draftStore";
 import { Check, ChevronDown, Copy, Globe, Loader2, RefreshCw, Send, ShieldCheck } from "lucide-react";
 import { SectionLabel } from "../components/Shell";
 import { CodePanel } from "../components/CodePanel";
@@ -228,6 +229,7 @@ function presetMcpDraft(host: string): string {
 }
 
 export function Generate() {
+  const [, navigate] = useLocation();
   const search = useSearch();
   const prefillType = useMemo(() => {
     const v = new URLSearchParams(search).get("type");
@@ -261,7 +263,24 @@ export function Generate() {
 
   function start() {
     setValidation(null);
-    if (!url.trim()) return;
+    const raw = url.trim();
+    if (!raw) {
+      setValidation("Paste a URL to begin.");
+      return;
+    }
+    // Strict URL validation — must parse and have a host with a TLD
+    let parsedHost = "";
+    try {
+      const u = new URL(raw.startsWith("http") ? raw : `https://${raw}`);
+      parsedHost = u.hostname.replace(/^www\./, "");
+    } catch {
+      setValidation("That doesn't look like a valid URL. Try https://linear.app or github.com/owner/repo.");
+      return;
+    }
+    if (!parsedHost.includes(".") || parsedHost.length < 4) {
+      setValidation("URL needs a real host (e.g. https://linear.app).");
+      return;
+    }
     if (!detection && !override) {
       setValidation("That URL pattern isn't recognised — pick a type below to submit anyway.");
       setOverrideOpen(true);
@@ -308,15 +327,30 @@ export function Generate() {
   }
 
   async function copyDraft() {
+    // Best-effort clipboard write, then hand off to CopySuccess with the draft payload
     try {
       await navigator.clipboard.writeText(draftSource);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2200);
     } catch {
-      // clipboard may be restricted in iframe — surface a soft signal
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2200);
+      // clipboard may be restricted in iframe — CopySuccess offers re-copy buttons
     }
+    setCopied(true);
+    const filename =
+      activeType === "bundle"
+        ? "design.md"
+        : activeType === "mcp"
+        ? "mcp.json"
+        : `${activeType}.md`;
+    const language: "yaml" | "md" | "json" =
+      activeType === "bundle" ? "yaml" : activeType === "mcp" ? "json" : "md";
+    const draft = saveDraft({
+      type: activeType,
+      source: host ? `https://${host}` : "draft.local",
+      host: host || "draft.local",
+      filename,
+      language,
+      body: draftSource,
+    });
+    navigate(`/copy/${draft.id}`);
   }
 
   const elapsed = stepIdx >= 0 ? steps.slice(0, stepIdx).reduce((s, x) => s + x.durationMs, 0) : 0;
