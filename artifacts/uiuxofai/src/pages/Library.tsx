@@ -117,6 +117,8 @@ export function Library() {
   if (model) activeFilters.push({ label: model, clear: () => setModel(null) });
 
   const bundleFiltersDisabled = typeFilter !== "All" && typeFilter !== "bundle";
+  const bundleFiltersActive = category !== "All" || feel !== "All" || minCoverage > 0;
+  const showSuppressionHint = typeFilter === "All" && bundleFiltersActive;
 
   return (
     <div className="mx-auto max-w-7xl px-6 lg:px-8 py-12">
@@ -266,6 +268,22 @@ export function Library() {
               <SortSelect value={sort} onChange={setSort} />
             </div>
           </div>
+
+          {showSuppressionHint ? (
+            <div
+              className="mb-6 -mt-2 inline-flex items-center gap-2 rounded-md border px-3 py-2 text-[11.5px]"
+              style={{
+                borderColor: BORDER,
+                background: SURFACE,
+                color: SUB,
+                fontFamily: MONO,
+              }}
+            >
+              <span className="h-1.5 w-1.5 rounded-full" style={{ background: VIOLET }} />
+              showing bundles only — category, feel & coverage are bundle-specific signals.
+              Clear them to see skills, agents & MCPs.
+            </div>
+          ) : null}
 
           {filtered.length === 0 ? (
             <div
