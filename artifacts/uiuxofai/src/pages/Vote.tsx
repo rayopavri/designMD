@@ -19,8 +19,7 @@ import {
   VIOLET,
 } from "../lib/tokens";
 import { getItem } from "../lib/items";
-
-const TOOL_PREF_KEY = "uiuxofai:vote:tool";
+import { TOOLS as TOOL_PREFS, toolLabel, useToolPref, type ToolId } from "../lib/toolPref";
 
 type Vote = "yes" | "no" | null;
 
@@ -47,30 +46,11 @@ export function Vote() {
   // Voting today is bundle-only; non-bundle items show a graceful message.
   const bundle = item && item.type === "bundle" ? item.bundle : undefined;
 
-  const [tool, setToolState] = useState<string | null>(() => {
-    if (typeof window === "undefined") return null;
-    try {
-      return window.localStorage.getItem(TOOL_PREF_KEY);
-    } catch {
-      return null;
-    }
-  });
-  const setTool = (t: string | null) => {
-    setToolState(t);
-    if (typeof window === "undefined") return;
-    try {
-      if (t) window.localStorage.setItem(TOOL_PREF_KEY, t);
-      else window.localStorage.removeItem(TOOL_PREF_KEY);
-    } catch {
-      // ignore
-    }
-  };
+  const [tool, setTool] = useToolPref();
   const [vote, setVote] = useState<Vote>(null);
   const [drift, setDrift] = useState<string[]>([]);
   const [note, setNote] = useState("");
   const [submitted, setSubmitted] = useState(false);
-
-  const TOOLS = ["Claude", "Cursor", "Lovable", "Figma Make", "ChatGPT"];
 
   function toggleDrift(d: string) {
     setDrift((prev) => (prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d]));
@@ -148,7 +128,7 @@ export function Vote() {
                 Did this bundle
                 <br />
                 <span style={{ color: SUB }}>
-                  hold up in {tool ?? "Claude"}?
+                  hold up in {toolLabel(tool)}?
                 </span>
               </h1>
               <p className="mt-4 text-[14px]" style={{ color: SUB }}>
@@ -157,12 +137,12 @@ export function Vote() {
             </div>
 
             <div className="flex items-center justify-center gap-2 flex-wrap">
-              {TOOLS.map((t) => {
-                const active = tool === t;
+              {TOOL_PREFS.map((t) => {
+                const active = tool === t.id;
                 return (
                   <button
-                    key={t}
-                    onClick={() => setTool(t)}
+                    key={t.id}
+                    onClick={() => setTool(t.id)}
                     className="inline-flex items-center gap-1.5 h-8 rounded-full border px-3 text-[12px]"
                     style={{
                       borderColor: active ? VIOLET : BORDER,
@@ -174,7 +154,7 @@ export function Vote() {
                       className="h-1.5 w-1.5 rounded-full"
                       style={{ background: active ? VIOLET : MUTED }}
                     />
-                    {t.toLowerCase()}
+                    {t.label.toLowerCase()}
                   </button>
                 );
               })}

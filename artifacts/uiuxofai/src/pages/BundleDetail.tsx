@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { Link, useRoute } from "wouter";
-import { ArrowUpRight, Check, ChevronRight, Copy, Download, GitFork, Star } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Link, useRoute, useSearch } from "wouter";
+import { ArrowUpRight, Check, ChevronRight, Copy, GitFork, Star } from "lucide-react";
 import { SectionLabel } from "../components/Shell";
 import { CodePanel } from "../components/CodePanel";
 import { AttributionRow } from "../components/AttributionRow";
@@ -28,6 +28,9 @@ import {
   type McpItem,
   type SkillItem,
 } from "../lib/items";
+import { TOOLS, toolLabel, useToolPref, type ToolId } from "../lib/toolPref";
+import { INSTALL_STEPS } from "../lib/installSteps";
+import { downloadBundleZip } from "../lib/bundleZip";
 
 type Tab = "design.md" | "companion" | "preview";
 
@@ -66,18 +69,58 @@ export function BundleDetail() {
 function BundleView({ item }: { item: BundleItem }) {
   const bundle = item.bundle;
   const [tab, setTab] = useState<Tab>("design.md");
-  const [copied, setCopied] = useState(false);
+  const [tool, setTool] = useToolPref();
+  const search = useSearch();
+  const [showInstall, setShowInstall] = useState<boolean>(() => {
+    const params = new URLSearchParams(search);
+    return params.get("install") === "1";
+  });
+  const [copiedSpec, setCopiedSpec] = useState(false);
+  const [copiedPrompt, setCopiedPrompt] = useState(false);
+  const [zipping, setZipping] = useState(false);
 
-  const onCopyBundle = async () => {
-    const payload = `${bundle.designMd}\n\n---\n\n# Companion prompt\n\n${bundle.companionPrompt}`;
+  useEffect(() => {
+    if (showInstall && typeof window !== "undefined") {
+      requestAnimationFrame(() => {
+        document.getElementById("install-steps")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
+  }, [showInstall]);
+
+  const designLines = bundle.designMd.split("\n").length;
+  const promptLines = bundle.companionPrompt.split("\n").length;
+  const promptTokensApprox = Math.max(1, Math.round(bundle.companionPrompt.length / 4));
+
+  async function copyText(text: string, kind: "spec" | "prompt") {
     try {
-      await navigator.clipboard.writeText(payload);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      await navigator.clipboard.writeText(text);
+      if (kind === "spec") {
+        setCopiedSpec(true);
+        setTimeout(() => setCopiedSpec(false), 2000);
+      } else {
+        setCopiedPrompt(true);
+        setTimeout(() => setCopiedPrompt(false), 2000);
+      }
     } catch {
       // ignore
     }
-  };
+  }
+
+  async function onZip() {
+    setZipping(true);
+    try {
+      await downloadBundleZip({
+        slug: bundle.id,
+        name: bundle.name,
+        version: bundle.version,
+        designMd: bundle.designMd,
+        companionMd: bundle.companionPrompt,
+        tool,
+      });
+    } finally {
+      setZipping(false);
+    }
+  }
 
   return (
     <>
@@ -124,34 +167,89 @@ function BundleView({ item }: { item: BundleItem }) {
                 </span>
               ))}
             </div>
-            <div className="mt-8 flex items-center gap-3 flex-wrap">
+            {/* Tool picker */}
+            <div className="mt-8">
+              <div
+                className="text-[10.5px] uppercase tracking-[0.22em] mb-2.5"
+                style={{ fontFamily: MONO, color: MUTED }}
+              >
+                Pick your tool
+              </div>
+              <div className="inline-flex items-center rounded-full border p-1" style={{ borderColor: BORDER, background: SURFACE }}>
+                {TOOLS.map((t) => {
+                  const active = tool === t.id;
+                  return (
+                    <button
+                      key={t.id}
+                      onClick={() => setTool(t.id)}
+                      className="h-7 px-3 rounded-full text-[12px] font-medium transition-colors"
+                      style={{
+                        background: active ? INK : "transparent",
+                        color: active ? INK_ON_LIGHT : SUB,
+                      }}
+                    >
+                      {t.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Primary CTA + zip link */}
+            <div className="mt-5">
               <button
-                onClick={onCopyBundle}
-                className="h-10 rounded-full px-5 text-[12.5px] font-medium inline-flex items-center gap-2"
+                onClick={() => setShowInstall(true)}
+                className="h-11 rounded-full px-6 text-[13px] font-medium inline-flex items-center gap-2"
                 style={{
                   background: INK,
                   color: INK_ON_LIGHT,
                   boxShadow: `0 0 0 1px ${VIOLET}55, 0 10px 36px -10px ${VIOLET}88`,
                 }}
               >
-                {copied ? (
-                  <>
-                    <Check className="h-3.5 w-3.5" /> Copied bundle
-                  </>
-                ) : (
-                  <>
-                    <Copy className="h-3.5 w-3.5" /> Copy bundle
-                  </>
-                )}
+                Use in {toolLabel(tool)}
+                <ChevronRight className="h-3.5 w-3.5" />
               </button>
-              <Link
-                href={`/copy/${bundle.id}`}
-                className="h-10 rounded-full border px-5 text-[12.5px] font-medium inline-flex items-center gap-2"
-                style={{ borderColor: BORDER, color: INK, background: SURFACE }}
+              <div className="mt-2.5">
+                <button
+                  onClick={onZip}
+                  disabled={zipping}
+                  className="inline-flex items-center gap-1 text-[12px]"
+                  style={{ color: SUB, opacity: zipping ? 0.6 : 1 }}
+                >
+                  <span aria-hidden>↓</span>
+                  {zipping ? "preparing…" : "download as .zip"}
+                </button>
+              </div>
+            </div>
+            <div className="mt-3 text-[11.5px]" style={{ fontFamily: MONO, color: MUTED }}>
+              free forever · no install · paste into any AI tool
+            </div>
+
+            {/* What you'll get */}
+            <div
+              className="mt-8 rounded-xl border p-5"
+              style={{ borderColor: BORDER, background: SURFACE }}
+            >
+              <div
+                className="text-[10.5px] uppercase tracking-[0.22em] mb-3"
+                style={{ fontFamily: MONO, color: MUTED }}
               >
-                <Download className="h-3.5 w-3.5" />
-                Apply to project
-              </Link>
+                What you'll get
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <ArtifactChip
+                  filename="design.md"
+                  hint="the brand spec — tokens, component anatomy, forbidden rules"
+                  meta={`${bundle.tokens.toLocaleString()} tokens · ${designLines} lines`}
+                  accent={LIME}
+                />
+                <ArtifactChip
+                  filename="companion.md"
+                  hint="system instructions that teach your AI how to use the spec"
+                  meta={`~${promptTokensApprox.toLocaleString()} tokens · ${promptLines} lines`}
+                  accent={VIOLET}
+                />
+              </div>
             </div>
           </div>
 
@@ -191,12 +289,123 @@ function BundleView({ item }: { item: BundleItem }) {
         </div>
       </section>
 
+      {showInstall ? (
+        <section id="install-steps" className="border-b" style={{ borderColor: BORDER_SOFT }}>
+          <div className="mx-auto max-w-6xl px-6 lg:px-8 py-14">
+            <div className="grid grid-cols-12 gap-8">
+              <div className="col-span-12 lg:col-span-3">
+                <SectionLabel n="02" t={`Install in ${toolLabel(tool)}`} />
+                <h2 className="mt-3 text-[28px] leading-[1.08] font-medium tracking-[-0.018em]">
+                  Four steps,{" "}
+                  <span style={{ color: SUB }}>then you're shipping.</span>
+                </h2>
+                <p className="mt-5 text-[13.5px] leading-[1.6]" style={{ color: SUB }}>
+                  Copy each file as you go. Switch tools above to see the steps for a different surface.
+                </p>
+                <button
+                  onClick={() => setShowInstall(false)}
+                  className="mt-6 text-[12.5px] inline-flex items-center gap-1"
+                  style={{ color: MUTED }}
+                >
+                  ← hide install steps
+                </button>
+              </div>
+              <div className="col-span-12 lg:col-span-9">
+                <div className="space-y-5">
+                  {INSTALL_STEPS[tool].map((s) => (
+                    <div key={s.n} className="flex items-start gap-4">
+                      <span
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-full shrink-0 text-[12px] font-medium"
+                        style={{ background: INK, color: INK_ON_LIGHT }}
+                      >
+                        {s.n}
+                      </span>
+                      <div className="flex-1 pt-0.5">
+                        <div className="text-[14px]" style={{ color: INK }}>
+                          {s.t}
+                        </div>
+                        {s.cmd ? (
+                          <div
+                            className="mt-2 inline-block rounded-md px-2 py-1 text-[11.5px]"
+                            style={{
+                              background: SURFACE_2,
+                              border: `1px solid ${BORDER}`,
+                              color: SUB,
+                              fontFamily: MONO,
+                            }}
+                          >
+                            {s.cmd}
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <button
+                    onClick={() => copyText(bundle.designMd, "spec")}
+                    className="rounded-xl border p-5 text-left transition-colors"
+                    style={{ borderColor: copiedSpec ? `${LIME}88` : BORDER, background: SURFACE }}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span
+                        className="text-[10.5px] uppercase tracking-[0.22em]"
+                        style={{ fontFamily: MONO, color: MUTED }}
+                      >
+                        spec
+                      </span>
+                      {copiedSpec ? (
+                        <Check className="h-4 w-4" style={{ color: LIME }} />
+                      ) : (
+                        <Copy className="h-4 w-4" style={{ color: SUB }} />
+                      )}
+                    </div>
+                    <div className="text-[14px] font-medium" style={{ color: INK }}>
+                      {copiedSpec ? "Copied ✓" : "Copy design.md"}
+                    </div>
+                    <div className="text-[11.5px] mt-1" style={{ color: SUB }}>
+                      {designLines} lines · {bundle.tokens.toLocaleString()} tokens
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => copyText(bundle.companionPrompt, "prompt")}
+                    className="rounded-xl border p-5 text-left transition-colors"
+                    style={{ borderColor: copiedPrompt ? `${LIME}88` : BORDER, background: SURFACE }}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span
+                        className="text-[10.5px] uppercase tracking-[0.22em]"
+                        style={{ fontFamily: MONO, color: MUTED }}
+                      >
+                        prompt
+                      </span>
+                      {copiedPrompt ? (
+                        <Check className="h-4 w-4" style={{ color: LIME }} />
+                      ) : (
+                        <Copy className="h-4 w-4" style={{ color: SUB }} />
+                      )}
+                    </div>
+                    <div className="text-[14px] font-medium" style={{ color: INK }}>
+                      {copiedPrompt ? "Copied ✓" : "Copy companion prompt"}
+                    </div>
+                    <div className="text-[11.5px] mt-1" style={{ color: SUB }}>
+                      calibrated for {bundle.worksWith.join(" · ")}
+                    </div>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
       {/* The bundle */}
       <section className="border-b" style={{ borderColor: BORDER_SOFT }}>
         <div className="mx-auto max-w-6xl px-6 lg:px-8 py-16">
           <div className="grid grid-cols-12 gap-8">
             <div className="col-span-12 lg:col-span-3">
-              <SectionLabel n="02" t="The bundle" />
+              <SectionLabel n={showInstall ? "03" : "02"} t="The bundle" />
               <h2 className="mt-3 text-[28px] leading-[1.08] font-medium tracking-[-0.018em]">
                 Two files,{" "}
                 <span style={{ color: SUB }}>versioned together.</span>
@@ -266,8 +475,40 @@ function BundleView({ item }: { item: BundleItem }) {
         </div>
       </section>
 
-      <WorksWellWith itemId={item.id} sectionNum="03" />
+      <WorksWellWith itemId={item.id} sectionNum={showInstall ? "04" : "03"} />
     </>
+  );
+}
+
+function ArtifactChip({
+  filename,
+  hint,
+  meta,
+  accent,
+}: {
+  filename: string;
+  hint: string;
+  meta: string;
+  accent: string;
+}) {
+  return (
+    <div
+      className="rounded-lg border p-3.5"
+      style={{ borderColor: BORDER, background: SURFACE_2 }}
+    >
+      <div className="flex items-center gap-2 mb-1.5">
+        <span className="h-1.5 w-1.5 rounded-full" style={{ background: accent }} />
+        <span className="text-[12.5px] font-medium" style={{ color: INK, fontFamily: MONO }}>
+          {filename}
+        </span>
+      </div>
+      <div className="text-[11.5px] leading-[1.5]" style={{ color: SUB }}>
+        {hint}
+      </div>
+      <div className="text-[10.5px] mt-2" style={{ fontFamily: MONO, color: MUTED }}>
+        {meta}
+      </div>
+    </div>
   );
 }
 
