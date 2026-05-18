@@ -8,6 +8,7 @@ export const modules: ModuleMap = {
   "./components/mockups/designmd/Homepage.tsx": () => import("../components/mockups/designmd/Homepage.tsx"),
   "./components/mockups/designmd/HomepageVariantA.tsx": () => import("../components/mockups/designmd/HomepageVariantA.tsx"),
   "./components/mockups/designmd/HomepageVariantB.tsx": () => import("../components/mockups/designmd/HomepageVariantB.tsx"),
+  "./components/mockups/designmd/HomepageVariantB2.tsx": () => import("../components/mockups/designmd/HomepageVariantB2.tsx"),
   "./components/mockups/designmd/HomepageVariantC.tsx": () => import("../components/mockups/designmd/HomepageVariantC.tsx"),
   "./components/mockups/designmd/LibraryResults.tsx": () => import("../components/mockups/designmd/LibraryResults.tsx"),
   "./components/mockups/designmd/UrlGenerator.tsx": () => import("../components/mockups/designmd/UrlGenerator.tsx"),
