@@ -237,6 +237,7 @@ export function Generate() {
   }, [search]);
   const [url, setUrl] = useState("");
   const [override, setOverride] = useState<ItemType | null>(prefillType);
+  const [overrideTouched, setOverrideTouched] = useState<boolean>(!!prefillType);
   const [overrideOpen, setOverrideOpen] = useState(false);
   const [status, setStatus] = useState<Status>("idle");
   const [stepIdx, setStepIdx] = useState(-1);
@@ -394,7 +395,8 @@ export function Generate() {
               value={url}
               onChange={(e) => {
                 setUrl(e.target.value);
-                setOverride(null);
+                // Preserve manual / prefill override; only clear auto-fallbacks.
+                if (!overrideTouched) setOverride(null);
                 setValidation(null);
               }}
               placeholder="https://linear.app  ·  github.com/owner/skill  ·  figma.com/mcp"
@@ -468,6 +470,7 @@ export function Generate() {
                         type="button"
                         onClick={() => {
                           setOverride(t);
+                          setOverrideTouched(true);
                           setOverrideOpen(false);
                         }}
                         className="w-full inline-flex items-center gap-2 h-8 rounded-md px-2 text-[12px] text-left"
