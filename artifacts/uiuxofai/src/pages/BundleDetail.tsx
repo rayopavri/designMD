@@ -70,7 +70,7 @@ export function BundleDetail() {
 
 function BundleView({ item }: { item: BundleItem }) {
   const bundle = item.bundle;
-  const [tab, setTab] = useState<Tab>("design.md");
+  const [tab, setTab] = useState<Tab>("preview");
   const [tool, setTool] = useToolPref();
   const search = useSearch();
   const [showInstall, setShowInstall] = useState<boolean>(() => {
@@ -173,8 +173,11 @@ function BundleView({ item }: { item: BundleItem }) {
                 </span>
               ))}
             </div>
+            <p className="mt-6 text-[15px] leading-[1.65] max-w-[36rem]" style={{ color: SUB }}>
+              Paste both files into Claude, Cursor, Lovable, or Figma Make. The AI will follow this design system on every component it generates.
+            </p>
             {/* Tool picker */}
-            <div className="mt-8">
+            <div className="mt-6">
               <div
                 className="text-[10.5px] uppercase tracking-[0.22em] mb-2.5"
                 style={{ fontFamily: MONO, color: MUTED }}
@@ -466,7 +469,7 @@ function BundleView({ item }: { item: BundleItem }) {
             </div>
             <div className="col-span-12 lg:col-span-9">
               <div className="flex items-center gap-1 border-b mb-6" style={{ borderColor: BORDER }}>
-                {(["design.md", "companion", "preview"] as Tab[]).map((t) => {
+                {(["preview", "design.md", "companion"] as Tab[]).map((t) => {
                   const isActive = tab === t;
                   return (
                     <button
