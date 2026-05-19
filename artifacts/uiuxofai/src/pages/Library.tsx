@@ -288,7 +288,7 @@ export function Library() {
             ) : (
               <div
                 className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px rounded-lg overflow-hidden"
-                style={{ background: BORDER }}
+                style={{ background: BG }}
               >
                 {filtered.map((it) => (
                   <ItemCard key={it.id} item={it} />
