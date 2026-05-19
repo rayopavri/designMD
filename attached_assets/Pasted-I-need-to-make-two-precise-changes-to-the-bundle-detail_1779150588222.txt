@@ -1,0 +1,79 @@
+I need to make two precise changes to the bundle detail page 
+(the route that renders pages like /library/design-systems/ramp). 
+Both changes are localized — do not change anything else on the page.
+
+═══════════════════════════════════════════════════════════════
+CHANGE 1 — Reorder the tabs in the "Two files, versioned together" 
+section so live preview is the default
+═══════════════════════════════════════════════════════════════
+
+Currently the tabs render in this order, with design.md active 
+on page load:
+  1. design.md  ← currently active
+  2. companion prompt
+  3. live preview
+
+Change to this order, with live preview active on page load:
+  1. live preview  ← new default active tab
+  2. design.md
+  3. companion prompt
+
+The content inside each tab stays exactly the same. Only the 
+visual order in the tab bar and the default-active tab change.
+
+Why: designers respond to rendered visual proof before raw YAML. 
+They should see the design system applied first, then the spec, 
+then the AI instructions.
+
+═══════════════════════════════════════════════════════════════
+CHANGE 2 — Add one line of value-prop copy above "PICK YOUR TOOL"
+═══════════════════════════════════════════════════════════════
+
+Currently the page flows: description paragraph → tag chips 
+(Finance · Dark · Tabular · Warm) → small "PICK YOUR TOOL" label 
+→ chip selector.
+
+Insert a single new line of body copy between the tag chips and 
+the "PICK YOUR TOOL" label. Use this exact copy:
+
+  Paste both files into Claude, Cursor, Lovable, or Figma Make. 
+  The AI will follow this design system on every component it 
+  generates.
+
+Styling:
+- Match the existing description paragraph: same font, same size, 
+  same text color
+- Same horizontal width as the description (sits inside the left 
+  content column, not full-page width)
+- Add roughly 24px vertical breathing space above and below it 
+  so it reads as a distinct statement, not a continuation
+
+Why: first-time visitors don't yet understand what a bundle is 
+or what to do with it. One line of orientation between the tags 
+and the action removes that gap without adding another section.
+
+═══════════════════════════════════════════════════════════════
+DO NOT CHANGE
+═══════════════════════════════════════════════════════════════
+
+- The tool picker chips themselves (Claude/Cursor/Lovable/Figma Make)
+- The "Use in Claude" primary button or its dynamic label behavior
+- The "WHAT YOU'LL GET" two-card block (design.md + companion.md)
+- The "free forever · no install · paste into any AI tool" line 
+  beneath that block
+- The "WORKS WELL WITH" section (Skill / MCP / Agent cards)
+- The overall coverage score panel on the right
+- The top status bar or page header
+- The description paragraph or the tag chips themselves
+
+═══════════════════════════════════════════════════════════════
+VERIFY AFTER THE CHANGES
+═══════════════════════════════════════════════════════════════
+
+1. Load /library/design-systems/ramp — live preview should be 
+   the default active tab, not design.md
+2. The new line appears between the tag chips and PICK YOUR TOOL
+3. No other visual changes to the page
+4. Mobile layout: the new line wraps naturally without breaking 
+   the picker layout below it
+5. Tab switching still works in both directions
