@@ -147,10 +147,11 @@ export function Header() {
             <button
               type="button"
               onClick={() => openAuthModal("/generate")}
+              title="Generate a design.md from a URL — sign-in required"
               className="h-8 rounded-full px-4 text-[12.5px] font-medium inline-flex items-center gap-1.5"
               style={{ background: INK, color: INK_ON_LIGHT }}
             >
-              Sign in
+              Generate
             </button>
           )}
         </div>

@@ -24,7 +24,16 @@ type State = {
 };
 
 const USER_KEY = "uiuxofai.user";
-const WELCOME_KEY = "uiuxofai.welcomeSeen";
+const WELCOME_KEY_PREFIX = "uiuxofai.welcomeSeen:";
+
+function welcomeKey(userId: string): string {
+  return `${WELCOME_KEY_PREFIX}${userId}`;
+}
+
+export function hasSeenWelcome(userId: string | null | undefined): boolean {
+  if (!userId || typeof window === "undefined") return false;
+  return window.localStorage.getItem(welcomeKey(userId)) === "1";
+}
 
 function readUser(): AuthUser | null {
   if (typeof window === "undefined") return null;
@@ -162,13 +171,12 @@ export async function mockSignInEmail(email: string): Promise<AuthUser> {
 }
 
 function finishSignIn(user: AuthUser): AuthUser {
-  const welcomeSeen =
-    typeof window !== "undefined" && window.localStorage.getItem(WELCOME_KEY) === "1";
+  const seen = hasSeenWelcome(user.id);
   writeUser(user);
   setState({
     user,
     loading: false,
-    isFirstSignIn: !welcomeSeen,
+    isFirstSignIn: !seen,
     modal: { open: false, returnTo: null },
   });
   return user;
@@ -180,7 +188,10 @@ export function signOut() {
 }
 
 export function markWelcomeSeen() {
-  if (typeof window !== "undefined") window.localStorage.setItem(WELCOME_KEY, "1");
+  const userId = state.user?.id;
+  if (userId && typeof window !== "undefined") {
+    window.localStorage.setItem(welcomeKey(userId), "1");
+  }
   setState({ isFirstSignIn: false });
 }
 
@@ -190,9 +201,10 @@ export function markWelcomeSeen() {
  */
 export function postAuthDestination(returnTo: string | null | undefined): string {
   const dest = returnTo && returnTo.startsWith("/") ? returnTo : "/generate";
-  const welcomeSeen =
-    typeof window !== "undefined" && window.localStorage.getItem(WELCOME_KEY) === "1";
-  if (!welcomeSeen) return `/welcome?returnTo=${encodeURIComponent(dest)}`;
+  const userId = state.user?.id;
+  if (userId && !hasSeenWelcome(userId)) {
+    return `/welcome?returnTo=${encodeURIComponent(dest)}`;
+  }
   return dest;
 }
 

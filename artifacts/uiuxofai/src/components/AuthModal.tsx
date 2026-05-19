@@ -100,6 +100,7 @@ export function AuthModal() {
           intent={intent}
           onSuccess={(_user) => {
             // Auth store closes the modal automatically; route now.
+            // postAuthDestination reads the fresh user from the store at call time.
             queueMicrotask(() => navigate(postAuthDestination(returnTo)));
           }}
         />

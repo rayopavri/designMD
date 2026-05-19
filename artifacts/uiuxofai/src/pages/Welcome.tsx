@@ -15,7 +15,7 @@ import {
   SURFACE_2,
   VIOLET,
 } from "../lib/tokens";
-import { markWelcomeSeen, updateProfile, useAuth } from "../lib/auth";
+import { hasSeenWelcome, markWelcomeSeen, updateProfile, useAuth } from "../lib/auth";
 
 const TOOLS = [
   { id: "claude", label: "Claude" },
@@ -37,7 +37,12 @@ export function Welcome() {
   const [tools, setTools] = useState<string[]>(user?.preferredTools ?? []);
 
   useEffect(() => {
-    if (!user) navigate(`/login?returnTo=${encodeURIComponent(returnTo)}`);
+    if (!user) {
+      navigate(`/login?returnTo=${encodeURIComponent(returnTo)}`);
+      return;
+    }
+    // Onboarding is strictly first-run. Returning users skip straight through.
+    if (hasSeenWelcome(user.id)) navigate(returnTo);
   }, [user, navigate, returnTo]);
 
   function toggleTool(id: string) {
