@@ -1,0 +1,1926 @@
+# designmd — Frontend Implementation Plan
+
+**Version 1.0 · May 2026 · Frontend scope only**
+
+> This plan covers everything Replit needs to build the designmd frontend: pages, components, design system, forms, auth UX, and the API client layer. Backend implementation (API routes, database, AI calls, email) is explicitly out of scope and handled separately. The frontend uses a typed mock API layer that will be swapped for real endpoints later — design it so that swap is a one-file change.
+
+---
+
+## Table of Contents
+
+1. Scope (in/out)
+2. Tech stack
+3. Project structure
+4. Design system
+5. TypeScript types & Zod schemas
+6. API client layer (with mocks)
+7. Public pages
+8. Account pages
+9. Generator pages
+10. Admin pages
+11. Component library
+12. Auth UX (client-side)
+13. State management
+14. Mock data
+15. Implementation phases
+16. Quality bar
+
+---
+
+## 1. Scope
+
+### In scope (build these)
+
+- Every UI page and route
+- All React components (layout, forms, data display)
+- Tailwind v4 design system with custom theme
+- Firebase Auth client SDK integration (sign-in modal, session detection, route guards)
+- Form schemas with Zod validation
+- Client-side search via Orama
+- TypeScript types for every entity
+- Typed API client wrapping all fetch calls
+- Mock implementations of every API call so the frontend works without a backend
+- Responsive design (mobile-first, primary breakpoints: 640px, 1024px, 1280px)
+- Loading states, error states, empty states
+- Toast notifications for user feedback
+- Keyboard navigation and basic accessibility (WCAG 2.1 AA)
+
+### Out of scope (don't build these)
+
+- API route implementations (`/api/*` exists only as stubs that read from mock data)
+- Database queries / Drizzle schema (mock data lives in JSON files)
+- Anthropic, Gemini, Firecrawl integrations (mocked responses)
+- Email sending (logged to console)
+- Cloud Tasks, scheduled jobs (none of this exists in frontend)
+- Firebase Admin SDK (server-side auth verification — not needed yet)
+- Server-side rate limiting (will be added when backend is built)
+- Real Orama index build pipeline (use a static JSON for now)
+
+### How the swap will work later
+
+Every API call in the app goes through `lib/api/*` functions. Each function has two implementations:
+
+```
+lib/api/bundles.ts
+├── bundles.mock.ts    ← used when NEXT_PUBLIC_USE_MOCKS=true
+└── bundles.real.ts    ← used when NEXT_PUBLIC_USE_MOCKS=false (when backend is ready)
+```
+
+A single env var flip switches the app from mocks to real API. Replit builds against mocks; backend gets built alongside; flip env var; deploy.
+
+---
+
+## 2. Tech stack
+
+Lock these in. The choices are deliberate.
+
+| Layer | Choice | Version | Why |
+|---|---|---|---|
+| Framework | Next.js | 15.x | App Router, server components, route handlers |
+| Language | TypeScript | 5.6+ | strict mode, no implicit any |
+| Styling | Tailwind CSS | 4.0+ | `@theme {}` for design tokens |
+| UI primitives | shadcn/ui | latest | Copy-in components, full design control |
+| Icons | Lucide React | 0.460+ | Designer-friendly icon set |
+| Forms | React Hook Form | 7.53+ | Performant, typed |
+| Validation | Zod | 3.23+ | Runtime validation matching TS types |
+| Form resolvers | @hookform/resolvers | 3.9+ | Zod integration |
+| Auth (client) | firebase | 11.0+ | Auth SDK only |
+| Server state | @tanstack/react-query | 5.59+ | Caching, mutations, optimistic updates |
+| UI state | zustand | 5.0+ | Light global state (theme, modals) |
+| Search | @orama/orama | 3.0+ | Client-side full-text search |
+| Date | date-fns | 4.1+ | Date formatting and arithmetic |
+| Toast | sonner | 1.5+ | Notifications |
+| Animation | framer-motion | 11.11+ | Page transitions, micro-interactions |
+| Dev | tsx, eslint, prettier | latest | Tooling |
+
+### package.json starting point
+
+```json
+{
+  "name": "designmd",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "next": "^15.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "typescript": "^5.6.0",
+    "tailwindcss": "^4.0.0",
+    "@tailwindcss/postcss": "^4.0.0",
+    "firebase": "^11.0.0",
+    "zod": "^3.23.0",
+    "react-hook-form": "^7.53.0",
+    "@hookform/resolvers": "^3.9.0",
+    "@tanstack/react-query": "^5.59.0",
+    "zustand": "^5.0.0",
+    "@orama/orama": "^3.0.0",
+    "date-fns": "^4.1.0",
+    "lucide-react": "^0.460.0",
+    "sonner": "^1.5.0",
+    "framer-motion": "^11.11.0",
+    "clsx": "^2.1.0",
+    "tailwind-merge": "^2.5.0",
+    "class-variance-authority": "^0.7.0",
+    "@radix-ui/react-dialog": "latest",
+    "@radix-ui/react-dropdown-menu": "latest",
+    "@radix-ui/react-select": "latest",
+    "@radix-ui/react-tabs": "latest",
+    "@radix-ui/react-toast": "latest",
+    "@radix-ui/react-tooltip": "latest",
+    "@radix-ui/react-radio-group": "latest",
+    "@radix-ui/react-checkbox": "latest",
+    "@radix-ui/react-switch": "latest",
+    "@radix-ui/react-progress": "latest"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "eslint": "^9.0.0",
+    "eslint-config-next": "^15.0.0",
+    "prettier": "^3.3.0",
+    "prettier-plugin-tailwindcss": "^0.6.0"
+  }
+}
+```
+
+---
+
+## 3. Project structure
+
+```
+designmd/
+├── app/                        ← Next.js App Router
+│   ├── (public)/               ← public pages (no auth)
+│   │   ├── page.tsx                  → /
+│   │   ├── library/
+│   │   │   ├── page.tsx              → /library
+│   │   │   └── [slug]/page.tsx       → /library/[slug]
+│   │   ├── collections/
+│   │   │   ├── page.tsx              → /collections
+│   │   │   └── [slug]/page.tsx       → /collections/[slug]
+│   │   ├── discover/page.tsx         → /discover
+│   │   ├── designers/[handle]/page.tsx → /designers/[handle]
+│   │   ├── share/[slug]/page.tsx     → /share/[slug]
+│   │   ├── about/page.tsx
+│   │   └── legal/
+│   │       ├── terms/page.tsx
+│   │       ├── privacy/page.tsx
+│   │       └── attribution/page.tsx
+│   ├── (auth)/                 ← auth pages
+│   │   ├── login/page.tsx            → /login
+│   │   ├── welcome/page.tsx          → /welcome (post-signup)
+│   │   └── claim/[token]/page.tsx    → /claim/[token]
+│   ├── (app)/                  ← authenticated user pages
+│   │   ├── account/
+│   │   │   ├── layout.tsx            (sidebar + content)
+│   │   │   ├── page.tsx              → /account
+│   │   │   ├── bundles/page.tsx      → /account/bundles
+│   │   │   ├── submissions/page.tsx  → /account/submissions
+│   │   │   ├── verified-creator/page.tsx → /account/verified-creator
+│   │   │   ├── claims/page.tsx       → /account/claims
+│   │   │   ├── profile/page.tsx      → /account/profile
+│   │   │   └── settings/page.tsx     → /account/settings
+│   │   └── generate/
+│   │       ├── page.tsx              → /generate
+│   │       └── [jobId]/page.tsx      → /generate/[jobId]
+│   ├── (admin)/                ← editor-only pages
+│   │   └── admin/
+│   │       ├── layout.tsx            (admin nav)
+│   │       ├── page.tsx              → /admin
+│   │       ├── queue/
+│   │       │   ├── page.tsx          → /admin/queue
+│   │       │   └── [id]/page.tsx     → /admin/queue/[id]
+│   │       ├── bundles/page.tsx
+│   │       ├── users/page.tsx
+│   │       ├── verification/page.tsx
+│   │       ├── blocklist/page.tsx
+│   │       ├── abuse/page.tsx
+│   │       └── discovery/page.tsx
+│   ├── api/                    ← stub route handlers, return mock data
+│   │   └── [routes from full plan...]
+│   ├── layout.tsx              ← root layout
+│   ├── not-found.tsx
+│   └── error.tsx
+├── components/
+│   ├── ui/                     ← shadcn/ui components (copied in)
+│   │   ├── button.tsx
+│   │   ├── card.tsx
+│   │   ├── input.tsx
+│   │   ├── dialog.tsx
+│   │   ├── tabs.tsx
+│   │   ├── select.tsx
+│   │   ├── toast.tsx
+│   │   ├── tooltip.tsx
+│   │   ├── badge.tsx
+│   │   ├── progress.tsx
+│   │   ├── dropdown-menu.tsx
+│   │   ├── checkbox.tsx
+│   │   ├── radio-group.tsx
+│   │   ├── switch.tsx
+│   │   └── ...
+│   ├── layout/
+│   │   ├── header.tsx
+│   │   ├── footer.tsx
+│   │   ├── account-sidebar.tsx
+│   │   └── admin-sidebar.tsx
+│   ├── bundle/
+│   │   ├── bundle-card.tsx           ← grid card with palette strip
+│   │   ├── bundle-list-item.tsx      ← list row variant
+│   │   ├── bundle-detail.tsx         ← full bundle detail view
+│   │   ├── companion-prompt-view.tsx ← formatted prompt display
+│   │   ├── coverage-breakdown.tsx    ← 7-section bars
+│   │   ├── coverage-bar.tsx          ← single bar component
+│   │   ├── palette-strip.tsx         ← horizontal color strip
+│   │   ├── attribution-row.tsx       ← source + license + verified
+│   │   ├── copy-buttons.tsx          ← 3 get-method buttons
+│   │   ├── vote-prompt.tsx           ← inline vote UI
+│   │   ├── freshness-indicator.tsx
+│   │   └── bundle-empty-states.tsx
+│   ├── generator/
+│   │   ├── url-input.tsx
+│   │   ├── progress-tracker.tsx      ← 5-step progress UI
+│   │   ├── duplicate-notice.tsx
+│   │   └── result-preview.tsx
+│   ├── discovery/                    (the guided-discovery flow)
+│   │   ├── question-card.tsx
+│   │   ├── chip-selector.tsx
+│   │   ├── results-count.tsx
+│   │   └── ranking-explanation.tsx
+│   ├── auth/
+│   │   ├── login-modal.tsx
+│   │   ├── auth-gate.tsx             ← wraps protected content
+│   │   └── user-menu.tsx
+│   ├── account/
+│   │   ├── bundle-row.tsx
+│   │   ├── submission-status-badge.tsx
+│   │   ├── verification-form.tsx
+│   │   └── data-export-button.tsx
+│   ├── admin/
+│   │   ├── queue-row.tsx
+│   │   ├── review-panel.tsx
+│   │   ├── decision-buttons.tsx
+│   │   └── stats-tiles.tsx
+│   ├── forms/
+│   │   ├── form-field.tsx            ← consistent label + input + error
+│   │   ├── form-section.tsx
+│   │   └── form-actions.tsx
+│   └── shared/
+│       ├── empty-state.tsx
+│       ├── loading-spinner.tsx
+│       ├── error-message.tsx
+│       ├── toast-provider.tsx
+│       ├── theme-provider.tsx
+│       └── command-palette.tsx       ← cmd+k for navigation
+├── lib/
+│   ├── api/                          ← TYPED API CLIENT LAYER
+│   │   ├── client.ts                 ← base fetcher
+│   │   ├── bundles.ts                ← exports getBundles, getBundle, etc.
+│   │   ├── bundles.mock.ts
+│   │   ├── bundles.real.ts
+│   │   ├── auth.ts
+│   │   ├── auth.mock.ts
+│   │   ├── auth.real.ts
+│   │   ├── account.ts
+│   │   ├── account.mock.ts
+│   │   ├── account.real.ts
+│   │   ├── generate.ts
+│   │   ├── generate.mock.ts
+│   │   ├── generate.real.ts
+│   │   ├── admin.ts
+│   │   ├── admin.mock.ts
+│   │   └── admin.real.ts
+│   ├── auth/
+│   │   ├── firebase-client.ts        ← Firebase SDK init
+│   │   ├── use-auth.ts               ← React hook
+│   │   └── auth-context.tsx
+│   ├── search/
+│   │   ├── orama-client.ts
+│   │   └── index-builder.ts
+│   ├── format/
+│   │   ├── date.ts                   ← relative time, "verified X days ago"
+│   │   ├── numbers.ts
+│   │   └── slug.ts
+│   ├── utils.ts                      ← cn() and friends
+│   └── constants.ts                  ← AI tool list, style list, categories
+├── hooks/
+│   ├── use-bundles.ts                ← TanStack Query wrappers
+│   ├── use-generate.ts
+│   ├── use-vote.ts
+│   ├── use-account.ts
+│   ├── use-debounce.ts
+│   └── use-keyboard.ts
+├── types/
+│   ├── bundle.ts
+│   ├── user.ts
+│   ├── collection.ts
+│   ├── generation.ts
+│   ├── candidate.ts
+│   ├── category.ts
+│   └── index.ts                      ← re-exports
+├── mock-data/
+│   ├── bundles.json
+│   ├── users.json
+│   ├── collections.json
+│   ├── categories.json
+│   └── candidates.json
+├── styles/
+│   └── globals.css                   ← Tailwind theme + global styles
+├── public/
+│   ├── logos/                        ← brand logos used in cards
+│   ├── screenshots/                  ← sample bundle screenshots
+│   ├── favicon.ico
+│   └── og-image.png
+├── middleware.ts                     ← route guards
+├── next.config.ts
+├── tailwind.config.ts                ← minimal, theme is in CSS
+├── tsconfig.json
+├── package.json
+├── .env.local.example
+└── README.md
+```
+
+---
+
+## 4. Design system
+
+This is critical. designmd's audience is professional designers — the UI is the product's calling card. If it looks generic or AI-generated, you lose the audience in the first 3 seconds.
+
+### Theme definition
+
+Define in `app/globals.css` using Tailwind v4 syntax:
+
+```css
+@import "tailwindcss";
+
+@theme {
+  /* Color tokens — neutral foundation, distinctive accents */
+  --color-background: oklch(99% 0.005 250);
+  --color-foreground: oklch(15% 0.01 250);
+  --color-muted: oklch(96% 0.008 250);
+  --color-muted-foreground: oklch(45% 0.015 250);
+  --color-border: oklch(91% 0.012 250);
+  --color-input: oklch(96% 0.008 250);
+  --color-ring: oklch(20% 0.015 260);
+  
+  --color-card: oklch(100% 0 0);
+  --color-card-foreground: oklch(15% 0.01 250);
+  
+  /* Primary — distinctive but professional */
+  --color-primary: oklch(20% 0.015 260);
+  --color-primary-foreground: oklch(99% 0.005 250);
+  
+  --color-secondary: oklch(96% 0.008 250);
+  --color-secondary-foreground: oklch(20% 0.015 260);
+  
+  --color-accent: oklch(96% 0.008 250);
+  --color-accent-foreground: oklch(20% 0.015 260);
+  
+  --color-destructive: oklch(55% 0.20 25);
+  --color-destructive-foreground: oklch(99% 0 0);
+  
+  --color-success: oklch(60% 0.15 145);
+  --color-warning: oklch(75% 0.15 75);
+  
+  /* Category accents (match schema seed data) */
+  --color-cat-mobile: #5E6AD2;
+  --color-cat-saas: #0F62FE;
+  --color-cat-ecommerce: #3DBB6C;
+  --color-cat-dashboards: #9747FF;
+  --color-cat-marketing: #F26207;
+  --color-cat-systems: #E24B4A;
+  
+  /* Typography */
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", Monaco, monospace;
+  --font-display: "Inter Display", "Inter", sans-serif;
+  
+  /* Type scale (semantic) */
+  --text-xs: 0.75rem;     /* 12px — meta */
+  --text-sm: 0.875rem;    /* 14px — body small */
+  --text-base: 1rem;      /* 16px — body */
+  --text-lg: 1.125rem;    /* 18px — body large */
+  --text-xl: 1.25rem;     /* 20px — h4 */
+  --text-2xl: 1.5rem;     /* 24px — h3 */
+  --text-3xl: 1.875rem;   /* 30px — h2 */
+  --text-4xl: 2.25rem;    /* 36px — h1 */
+  --text-5xl: 3rem;       /* 48px — display */
+  
+  /* Spacing — 4px base */
+  --spacing-1: 0.25rem;
+  --spacing-2: 0.5rem;
+  --spacing-3: 0.75rem;
+  --spacing-4: 1rem;
+  --spacing-6: 1.5rem;
+  --spacing-8: 2rem;
+  --spacing-12: 3rem;
+  --spacing-16: 4rem;
+  
+  /* Radius */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-full: 9999px;
+  
+  /* Shadows — soft, never harsh */
+  --shadow-xs: 0 1px 2px rgb(0 0 0 / 0.04);
+  --shadow-sm: 0 2px 4px rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 12px rgb(0 0 0 / 0.06);
+  --shadow-lg: 0 12px 24px rgb(0 0 0 / 0.08);
+}
+
+/* Dark mode override */
+@media (prefers-color-scheme: dark) {
+  @theme {
+    --color-background: oklch(14% 0.01 260);
+    --color-foreground: oklch(96% 0.005 250);
+    --color-muted: oklch(18% 0.015 260);
+    --color-muted-foreground: oklch(65% 0.015 250);
+    --color-border: oklch(22% 0.018 260);
+    --color-card: oklch(16% 0.012 260);
+    --color-card-foreground: oklch(96% 0.005 250);
+    --color-primary: oklch(96% 0.005 250);
+    --color-primary-foreground: oklch(20% 0.015 260);
+  }
+}
+
+/* Global styles */
+body {
+  font-family: var(--font-sans);
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  background: var(--color-background);
+  color: var(--color-foreground);
+}
+
+::selection {
+  background: var(--color-foreground);
+  color: var(--color-background);
+}
+```
+
+### Typography principles
+
+- **Headings**: Inter (or Inter Display when available) at weights 600–700. Tight letter-spacing on display sizes (`-0.02em`).
+- **Body**: Inter at 400, with `cv02/03/04/11` features enabled for designer-quality glyphs.
+- **Mono**: JetBrains Mono for design.md code blocks and companion prompts.
+- **Line height**: 1.5 for body, 1.2 for headings, 1.7 for long-form reading.
+- **No more than 2 weights** active on a single screen.
+
+### Component principles
+
+1. **Generous whitespace.** Default vertical padding on sections is 64px (mobile) / 96px (desktop). Cards have 24px internal padding. Forms have 16px gap between fields.
+
+2. **Borders, not shadows, for separation.** 1px borders in `--color-border`. Shadows reserved for elevated surfaces (modals, dropdowns, hover states on cards).
+
+3. **Subtle hover, decisive active.** Hover = slight bg shift (3-5% darker), no scale or transform. Active/selected = stronger bg + border change.
+
+4. **No gradients except in 3 places:** the palette strip on bundle cards, the brand color glow on hero, the category accent dot. Gradients elsewhere look AI-generated.
+
+5. **No rounded-everything.** Match shape to function: `rounded-md` on inputs/buttons, `rounded-lg` on cards, `rounded-full` only on avatars/badges/tags.
+
+6. **No glassmorphism.** No backdrop-blur on cards. Looks dated.
+
+7. **Use the category color as accent**, not as the whole component color. A 4px top border on a bundle card in the category's color is enough.
+
+### Inspiration references
+
+What the UI should feel like, in order of importance:
+- **Linear** — for the polish, spacing, and subtle motion
+- **Vercel dashboard** — for the typography and information density
+- **Stripe docs** — for the navigation patterns and content cards
+- **Notion sidebar** — for the account/admin section navigation
+
+What it should NOT feel like:
+- **Generic shadcn demo** — too much rounded-2xl, too many gradients on every card
+- **Material UI** — heavy and bureaucratic
+- **Bootstrap** — outdated
+- **Tailwind UI marketing components** — overwrought and not designer-coded
+
+### Bundle card — the signature component
+
+This is the visual identity of the entire product. Build it carefully.
+
+```
+┌─────────────────────────────────────────────┐
+│ ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ │  ← Palette strip (8px height, 5 segments)
+│                                             │
+│  [Logo]  IBM Carbon Mobile           ●     │  ← Brand logo + freshness indicator
+│          Enterprise · Mobile                │     (●=fresh, ○=stale)
+│                                             │
+│  Comprehensive mobile design system from   │  ← Description (2 lines max, ellipsis)
+│  IBM's open source Carbon framework...     │
+│                                             │
+│  ▰▰▰▰▰▰▰▰▰▰░░ 91% coverage                 │  ← Coverage bar
+│                                             │
+│  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ │  ← Subtle divider
+│  Claude · Cursor · Lovable     87% ✓ 142  │  ← AI tools + vote rate
+└─────────────────────────────────────────────┘
+```
+
+Hover state: card lifts 2px, border darkens 10%, slight shadow appears. No background change. Cursor pointer.
+
+Loading state: same shape, but every text element is a skeleton bar, palette strip is a solid muted color.
+
+---
+
+## 5. TypeScript types & Zod schemas
+
+Define in `types/` and match the database schema exactly. Use Zod for runtime validation of form inputs.
+
+### `types/bundle.ts`
+
+```typescript
+import { z } from 'zod';
+
+export const BundleStatus = z.enum([
+  'personal',
+  'pending_review',
+  'published',
+  'flagged',
+  'rejected',
+  'archived',
+]);
+export type BundleStatus = z.infer<typeof BundleStatus>;
+
+export const BundleType = z.enum(['design_md', 'skill', 'agent']);
+export type BundleType = z.infer<typeof BundleType>;
+
+export const DesignStyle = z.enum([
+  'minimal', 'enterprise', 'bold', 'playful', 'accessible', 'dark-mode',
+]);
+export type DesignStyle = z.infer<typeof DesignStyle>;
+
+export const AITool = z.enum([
+  'claude', 'cursor', 'lovable', 'figma-make', 'replit', 'all',
+]);
+export type AITool = z.infer<typeof AITool>;
+
+export const VoteReason = z.enum([
+  'colors_off',
+  'typography_ignored',
+  'spacing_wrong',
+  'too_generic',
+  'components_missing',
+]);
+export type VoteReason = z.infer<typeof VoteReason>;
+
+export const HexColor = z.string().regex(/^#[0-9A-Fa-f]{6}$/);
+
+export const Bundle = z.object({
+  id: z.string().uuid(),
+  slug: z.string(),
+  title: z.string(),
+  description: z.string(),
+  type: BundleType,
+  
+  // Content (may be omitted in list views)
+  design_md: z.string().nullable(),
+  companion_prompt: z.string(),
+  companion_prompt_version: z.number().int().min(1),
+  
+  // Coverage scores (null = not scored, 0 = failed)
+  coverage_score: z.number().int().min(0).max(100).nullable(),
+  coverage_colors: z.number().int().min(0).max(100).nullable(),
+  coverage_typography: z.number().int().min(0).max(100).nullable(),
+  coverage_layout: z.number().int().min(0).max(100).nullable(),
+  coverage_elevation: z.number().int().min(0).max(100).nullable(),
+  coverage_shapes: z.number().int().min(0).max(100).nullable(),
+  coverage_components: z.number().int().min(0).max(100).nullable(),
+  coverage_dos_donts: z.number().int().min(0).max(100).nullable(),
+  
+  // Classification
+  primary_category_id: z.string().uuid().nullable(),
+  secondary_category_id: z.string().uuid().nullable(),
+  design_style: z.array(DesignStyle),
+  compatible_tools: z.array(AITool),
+  
+  // Status
+  status: BundleStatus,
+  is_curated: z.boolean(),
+  is_featured: z.boolean(),
+  
+  // Ownership
+  created_by: z.string().uuid(),
+  
+  // Attribution
+  source_url: z.string().url().nullable(),
+  source_domain: z.string().nullable(),
+  author_name: z.string().nullable(),
+  author_url: z.string().url().nullable(),
+  license: z.string().nullable(),
+  attribution_statement: z.string().nullable(),
+  
+  // Visual card data
+  palette_colors: z.array(HexColor),
+  brand_logo_url: z.string().url().nullable(),
+  brand_initial: z.string().nullable(),
+  brand_color: HexColor.nullable(),
+  
+  // Quality signals
+  vote_count: z.number().int().min(0),
+  positive_vote_count: z.number().int().min(0),
+  positive_vote_rate: z.number().min(0).max(100),
+  copy_count: z.number().int().min(0),
+  
+  // Freshness
+  verified_at: z.string().datetime().nullable(),
+  is_stale: z.boolean(),
+  
+  // Metadata
+  created_at: z.string().datetime(),
+  published_at: z.string().datetime().nullable(),
+});
+export type Bundle = z.infer<typeof Bundle>;
+
+// Submission form schema
+export const SubmitToLibraryForm = z.object({
+  title: z.string().min(3, 'Title is required').max(100),
+  description: z.string().min(20, 'Description must be at least 20 characters').max(500),
+  primary_category_id: z.string().uuid('Select a category'),
+  secondary_category_id: z.string().uuid().nullable(),
+  design_style: z.array(DesignStyle).min(1, 'Select at least one style'),
+  compatible_tools: z.array(AITool).min(1, 'Select at least one tool'),
+});
+export type SubmitToLibraryForm = z.infer<typeof SubmitToLibraryForm>;
+
+// Vote form schema
+export const VoteForm = z.object({
+  worked: z.boolean(),
+  reason_tags: z.array(VoteReason).default([]),
+}).refine(
+  (data) => data.worked === true || data.reason_tags.length > 0,
+  { message: 'Please select at least one reason', path: ['reason_tags'] }
+);
+export type VoteForm = z.infer<typeof VoteForm>;
+```
+
+### `types/user.ts`
+
+```typescript
+import { z } from 'zod';
+
+export const VerificationMethod = z.enum([
+  'auto_track_record', 'application_approved', 'editor_grant',
+]);
+
+export const User = z.object({
+  id: z.string().uuid(),
+  firebase_uid: z.string(),
+  auth_provider: z.enum(['google', 'email']),
+  email: z.string().email(),
+  email_verified: z.boolean(),
+  
+  display_name: z.string().nullable(),
+  avatar_url: z.string().url().nullable(),
+  handle: z.string().nullable(),
+  
+  bio: z.string().nullable(),
+  portfolio_url: z.string().url().nullable(),
+  figma_profile_url: z.string().url().nullable(),
+  dribbble_url: z.string().url().nullable(),
+  behance_url: z.string().url().nullable(),
+  linkedin_url: z.string().url().nullable(),
+  
+  preferred_tools: z.array(z.string()),
+  preferred_style: z.array(z.string()),
+  
+  email_on_submission_decision: z.boolean(),
+  email_on_listing_claim: z.boolean(),
+  email_on_weekly_digest: z.boolean(),
+  
+  is_editor: z.boolean(),
+  is_verified_creator: z.boolean(),
+  verification_method: VerificationMethod.nullable(),
+  verified_at: z.string().datetime().nullable(),
+  
+  created_at: z.string().datetime(),
+  last_seen_at: z.string().datetime(),
+});
+export type User = z.infer<typeof User>;
+
+// Profile edit form
+export const ProfileForm = z.object({
+  display_name: z.string().min(1).max(50),
+  handle: z.string().min(3).max(30).regex(/^[a-z0-9-]+$/, 'Lowercase letters, numbers, hyphens only'),
+  bio: z.string().max(500).optional(),
+  portfolio_url: z.string().url().optional().or(z.literal('')),
+  figma_profile_url: z.string().url().optional().or(z.literal('')),
+  dribbble_url: z.string().url().optional().or(z.literal('')),
+  behance_url: z.string().url().optional().or(z.literal('')),
+  linkedin_url: z.string().url().optional().or(z.literal('')),
+});
+
+// Settings form
+export const SettingsForm = z.object({
+  preferred_tools: z.array(z.string()),
+  preferred_style: z.array(z.string()),
+  email_on_submission_decision: z.boolean(),
+  email_on_listing_claim: z.boolean(),
+  email_on_weekly_digest: z.boolean(),
+});
+
+// Verification application
+export const VerificationApplicationForm = z.object({
+  portfolio_url: z.string().url('Valid portfolio URL required'),
+  bio: z.string().min(50, 'Tell us a bit more about yourself (50+ chars)').max(500),
+  figma_profile_url: z.string().url().optional().or(z.literal('')),
+  dribbble_url: z.string().url().optional().or(z.literal('')),
+  behance_url: z.string().url().optional().or(z.literal('')),
+  linkedin_url: z.string().url().optional().or(z.literal('')),
+});
+```
+
+### `types/generation.ts`
+
+```typescript
+import { z } from 'zod';
+
+export const GenerationStatus = z.enum(['queued', 'running', 'completed', 'failed']);
+
+export const GenerationStep = z.enum([
+  'guardrails', 'scraping', 'classifying', 'extracting', 'scoring', 'prompting',
+]);
+
+export const GenerationJob = z.object({
+  id: z.string().uuid(),
+  url: z.string().url(),
+  normalized_url: z.string(),
+  status: GenerationStatus,
+  current_step: GenerationStep.nullable(),
+  user_id: z.string().uuid(),
+  existing_bundle_id: z.string().uuid().nullable(),
+  is_update_requested: z.boolean(),
+  result_bundle_id: z.string().uuid().nullable(),
+  error_message: z.string().nullable(),
+  error_step: z.string().nullable(),
+  created_at: z.string().datetime(),
+});
+export type GenerationJob = z.infer<typeof GenerationJob>;
+
+// URL input form
+export const UrlGenerationForm = z.object({
+  url: z.string().url('Please enter a valid URL').refine(
+    (url) => {
+      try {
+        const u = new URL(url);
+        return ['http:', 'https:'].includes(u.protocol);
+      } catch { return false; }
+    },
+    { message: 'Must be a valid http(s) URL' }
+  ),
+});
+```
+
+Define the rest (`Category`, `Collection`, `BundleRequest`, `DiscoveryCandidate`, `VerificationApplication`) following the same pattern — match the schema exactly, include Zod validators for any user-input form.
+
+---
+
+## 6. API client layer
+
+This is the most important architectural decision in the frontend. Every server call goes through this layer. The frontend never calls `fetch` directly.
+
+### Pattern
+
+```typescript
+// lib/api/client.ts
+const USE_MOCKS = process.env.NEXT_PUBLIC_USE_MOCKS === 'true';
+
+export { default as bundles } from USE_MOCKS 
+  ? './bundles.mock' 
+  : './bundles.real';
+```
+
+Actually, since dynamic imports aren't ideal here, use a runtime check:
+
+```typescript
+// lib/api/bundles.ts
+import * as mock from './bundles.mock';
+import * as real from './bundles.real';
+
+const impl = process.env.NEXT_PUBLIC_USE_MOCKS === 'true' ? mock : real;
+
+export const getBundles = impl.getBundles;
+export const getBundle = impl.getBundle;
+export const submitBundle = impl.submitBundle;
+export const voteBundle = impl.voteBundle;
+// ... etc
+```
+
+### Function signatures (define these for every endpoint)
+
+```typescript
+// lib/api/bundles.ts — interface (both implementations must match)
+import type { Bundle, VoteForm, SubmitToLibraryForm } from '@/types';
+
+export interface BundleQuery {
+  category?: string;
+  style?: string[];
+  tool?: string;
+  status?: 'published'; // public list always shows published only
+  sort?: 'newest' | 'top' | 'trending';
+  limit?: number;
+  offset?: number;
+}
+
+export interface BundleListResponse {
+  items: Bundle[];
+  total: number;
+}
+
+export declare function getBundles(query?: BundleQuery): Promise<BundleListResponse>;
+export declare function getBundle(slug: string): Promise<Bundle | null>;
+export declare function getFeaturedBundles(): Promise<Bundle[]>;
+export declare function getRelatedBundles(slug: string, limit?: number): Promise<Bundle[]>;
+
+export declare function getMyBundles(filter?: { 
+  status?: BundleStatus 
+}): Promise<Bundle[]>;
+
+export declare function submitToLibrary(
+  bundleId: string, 
+  form: SubmitToLibraryForm
+): Promise<Bundle>;
+
+export declare function voteBundle(
+  bundleId: string, 
+  form: VoteForm
+): Promise<{ ok: true }>;
+
+export declare function deleteBundle(bundleId: string): Promise<{ ok: true }>;
+```
+
+### Mock implementation example
+
+```typescript
+// lib/api/bundles.mock.ts
+import bundlesData from '@/mock-data/bundles.json';
+import type { Bundle, BundleQuery, BundleListResponse } from '@/types';
+
+// Simulated network delay
+const delay = (ms = 400) => new Promise(r => setTimeout(r, ms));
+
+export async function getBundles(query: BundleQuery = {}): Promise<BundleListResponse> {
+  await delay();
+  let items = bundlesData as Bundle[];
+  
+  if (query.category) {
+    items = items.filter(b => 
+      b.primary_category_id === query.category ||
+      b.secondary_category_id === query.category
+    );
+  }
+  if (query.style?.length) {
+    items = items.filter(b => 
+      query.style!.some(s => b.design_style.includes(s as any))
+    );
+  }
+  if (query.tool && query.tool !== 'all') {
+    items = items.filter(b => 
+      b.compatible_tools.includes(query.tool as any) ||
+      b.compatible_tools.includes('all')
+    );
+  }
+  
+  // Always filter to published for public lists
+  items = items.filter(b => b.status === 'published');
+  
+  const total = items.length;
+  const offset = query.offset ?? 0;
+  const limit = query.limit ?? 24;
+  items = items.slice(offset, offset + limit);
+  
+  return { items, total };
+}
+
+export async function getBundle(slug: string): Promise<Bundle | null> {
+  await delay(300);
+  return (bundlesData as Bundle[]).find(b => b.slug === slug) ?? null;
+}
+
+// ... implement all other functions
+```
+
+### Real implementation example
+
+```typescript
+// lib/api/bundles.real.ts
+import { apiFetch } from './client';
+import type { Bundle, BundleQuery, BundleListResponse } from '@/types';
+
+export async function getBundles(query: BundleQuery = {}): Promise<BundleListResponse> {
+  const params = new URLSearchParams();
+  if (query.category) params.set('category', query.category);
+  if (query.style) query.style.forEach(s => params.append('style', s));
+  if (query.tool) params.set('tool', query.tool);
+  if (query.limit) params.set('limit', String(query.limit));
+  if (query.offset) params.set('offset', String(query.offset));
+  
+  return apiFetch<BundleListResponse>(`/api/bundles?${params}`);
+}
+
+export async function getBundle(slug: string): Promise<Bundle | null> {
+  try {
+    return await apiFetch<Bundle>(`/api/bundles/${slug}`);
+  } catch (err) {
+    if (err.status === 404) return null;
+    throw err;
+  }
+}
+// ... etc
+```
+
+### Base fetcher
+
+```typescript
+// lib/api/client.ts
+import { getAuth } from 'firebase/auth';
+
+export class ApiError extends Error {
+  constructor(public status: number, public message: string, public details?: any) {
+    super(message);
+  }
+}
+
+export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const auth = getAuth();
+  const token = auth.currentUser ? await auth.currentUser.getIdToken() : null;
+  
+  const response = await fetch(path, {
+    ...init,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...init.headers,
+    },
+  });
+  
+  if (!response.ok) {
+    let details;
+    try { details = await response.json(); } catch {}
+    throw new ApiError(response.status, response.statusText, details);
+  }
+  
+  return response.json();
+}
+```
+
+---
+
+## 7. Public pages
+
+### `/` — Homepage
+
+**Layout**: Two-column hero, then sections stacked vertically.
+
+**Hero left (60%)**:
+- "Works with" badge row: Claude, Cursor, Lovable, Figma Make logos in muted grayscale
+- H1 (text-5xl, weight 700): "Your design system in AI. From the first component."
+- Subtitle (text-lg, muted): One sentence about what designmd does
+- Two CTAs side-by-side: "Browse library" (primary) / "Generate from URL" (outlined)
+- Stats bar below: "[count] curated bundles · [count] designers · [%] success rate"
+
+**Hero right (40%)**:
+- "Extraction of the week" card — `BundleCard` variant with full palette strip, brand logo, coverage score, "View bundle →" link
+- Subtle floating animation on hover
+
+**Section: Browse collections** (below fold)
+- 6 cards in a 3-column grid (mobile: 2 col, then 1 col)
+- Each: category color top-border (4px), category name, count, sample palette
+- Hover: card lifts, top-border thickens to 6px
+
+**Section: Featured bundles**
+- 8 bundles in 4-column grid
+- "View all →" link to /library
+
+**Section: How it works**
+- 3 horizontal steps with subtle illustrations: "1. Paste URL → 2. AI extracts your system → 3. Copy into Claude"
+- This section is small and below the fold — the product should be self-explanatory above the fold
+
+**Section: For designers, by designers**
+- Subtle 2-column with profile cards of contributors (3 cards)
+- "Become a verified creator →"
+
+**Footer**: standard, includes legal links, social, "About"
+
+### `/library` — Browse
+
+**Top bar**:
+- H1 "Library" (text-3xl)
+- Subtitle: "[total count] bundles, all tested by designers"
+- Search input (cmd+k also opens)
+
+**Filters bar** (sticky on scroll):
+- Category chips (single-select, "All" default)
+- Style chips (multi-select)
+- AI tool dropdown (default = user's preference if logged in)
+- Sort dropdown: Newest / Top rated / Most copied / Trending
+
+**Active filters row** (shows when filters applied):
+- Chip per active filter with X to remove
+- "Clear all" link
+
+**Results grid**:
+- 4-column on desktop, 3 on tablet, 2 on mobile, 1 on small mobile
+- Bundle cards with full visual treatment (palette strip + logo + coverage + votes)
+- Pagination at bottom (20 per page) OR infinite scroll on mobile
+
+**Empty state** (no results): "No bundles match these filters. Try removing some, or [request a bundle]."
+
+**Request a bundle card** (always shown at bottom, dashed border): "Can't find what you need? Request a bundle and we'll prioritize it."
+
+### `/library/[slug]` — Bundle detail
+
+**Hero section** (top of page):
+- Breadcrumb: Library > [Category] > [Bundle name]
+- H1 (text-4xl): Bundle title
+- Subtitle: One-line description
+- Attribution row: "Source: [domain] · Author: [name] · License: [type] · Verified [X days ago]"
+
+**Visual block** (right side or below):
+- Brand logo, palette strip preview, sample colors as swatches
+- "[XX]% coverage" with breakdown link
+
+**Main content** (2 columns):
+
+**Left (60%)**:
+- Tabs: design.md / Companion prompt / Both combined
+- Each shows formatted preview in mono font on a soft background
+- Line numbers, syntax-highlighted where helpful
+
+**Right (40%)**:
+- "Get this bundle" panel (sticky on scroll):
+  - Primary button: "Copy bundle" (copies both as one block)
+  - Secondary: "Download .md"
+  - Tertiary (smaller): "CLI: `npx designmd get [slug]`"
+  - Tool-specific install accordion: tabs for Claude / Cursor / Lovable / Figma Make
+- Coverage breakdown panel:
+  - 7 sections with horizontal bars
+  - Each shows percentage and one-line description
+- Quality signals panel:
+  - Vote rate: "87% of designers said this worked"
+  - Vote count: "142 votes"
+  - Copy count: "1,200+ designers used this"
+- Vote prompt (inline, prominent):
+  - "Did Claude follow your design system?"
+  - Big Yes / No buttons
+  - If No: reason tag chips appear
+
+**Below fold**:
+- Related bundles in same category (4-card row)
+- Collections that include this bundle
+
+### `/discover` — Guided discovery
+
+**Full-screen flow**, three steps with progress indicator.
+
+**Step 1**: "What are you building?"
+- 6 large category cards, single-select (chip-selector style)
+- Each shows count of bundles in that category
+- Continue button activates after selection
+
+**Step 2**: "What design style?"
+- 6 style chips, multi-select
+- Live updates "Show [N] bundles" below as user selects
+- Back / Continue buttons
+
+**Step 3**: "Which AI tool?"
+- 6 tool radio options
+- Pre-selected from user preferences if logged in (changeable)
+- Below: "Why we ask — your bundle works best when tailored to your tool"
+
+**Results screen** (after submit):
+- "Show [N] bundles →" big button
+- Shows ranking explanation in muted text: "Sorted by: match score (50%), vote rate (30%), freshness (10%), coverage (10%)"
+- Behind the scenes navigates to `/library?...` with filters applied
+
+### `/collections` and `/collections/[slug]`
+
+Standard list and detail patterns. Collection detail shows bundles as a vertical list with role labels (design.md, skill, agent), one-click "Copy collection" button at top.
+
+### `/designers/[handle]`
+
+Public profile:
+- Avatar, display name, handle, bio
+- Verified Creator badge if applicable
+- Profile links (Figma, Dribbble, etc.)
+- "Bundles created" grid showing their published bundles
+- "Joined [date]" meta info
+
+### `/share/[slug]`
+
+Same as `/library/[slug]` but with a banner at the top:
+- "This is a personal bundle, shared via link by [author name]"
+- "It hasn't been added to the public library yet"
+- If user is logged in AND is the creator: "Edit details / Submit to library" buttons
+- Otherwise: normal copy/download buttons
+
+### `/about` and `/legal/*`
+
+Standard markdown-rendered pages. Use a typography component for consistent reading width and rhythm.
+
+---
+
+## 8. Account pages
+
+All under `/account/*` with a left sidebar.
+
+### Sidebar (account-sidebar.tsx)
+
+Sticky left column, 240px wide:
+- Avatar + display name + handle at top
+- "Verified Creator" badge if applicable
+- Nav links (active state shows accent border on left):
+  - Overview
+  - My bundles (with count badge)
+  - My submissions (with count badge, if pending)
+  - Verified Creator (badge: Apply / Pending / Verified)
+  - Claimed listings (with count)
+  - Profile
+  - Settings
+- Sign out at bottom
+
+### `/account` — Overview
+
+Top: "Welcome back, [first name]"
+
+3 stat tiles:
+- Bundles generated (number + change since last week)
+- Bundles in library (number)
+- Total copies of your bundles (number)
+
+"Recent activity" feed (last 10 items):
+- "You generated [Bundle Name] · 2 hours ago"
+- "[Bundle Name] was approved into the library · 1 day ago"
+- "Someone voted on [Bundle Name] · 3 days ago"
+
+"Quick actions" row of CTA buttons:
+- "Generate a new bundle"
+- "Browse library"
+- "Update profile"
+
+### `/account/bundles` — My bundles
+
+Top: Filter tabs (counts in parens):
+- All ([N])
+- Personal ([N])
+- Under review ([N])
+- Published ([N])
+- Rejected ([N])
+
+Bundle list (not cards — more compact, dense list view):
+- Row per bundle with: title, status badge, category, created date, vote rate (if published)
+- Right side: dropdown menu with actions per status
+  - Personal: View, Copy, Share link, Submit to library, Edit, Delete
+  - Under review: View, Withdraw submission, Cancel submission
+  - Published: View, Copy, View public URL
+  - Rejected: View, Edit & resubmit, See editor notes
+
+Bulk actions toolbar (when items selected):
+- Submit to library (for personal items only)
+- Delete (for personal/rejected only)
+
+### `/account/submissions`
+
+Filtered view: only bundles where `submitted_at IS NOT NULL`.
+
+Each row shows:
+- Bundle name + thumbnail
+- Submitted date
+- Status: "Pending review" (with expected time) / "Published" / "Rejected"
+- If rejected: expanded panel with editor notes + "Edit and resubmit" button
+- If published: "View in library" link, vote/copy stats
+
+### `/account/verified-creator`
+
+Three render states (different components):
+
+**Not applied**:
+- Header: "Become a Verified Creator"
+- Description: brief explanation
+- Form (using VerificationApplicationForm schema)
+- Submit button
+
+**Pending**:
+- Application submitted indicator
+- Read-only view of what they submitted
+- "Withdraw application" link
+
+**Verified**:
+- Big badge display
+- Verification method (auto / approved / granted)
+- Verified date
+- Edit profile CTA
+
+### `/account/claims`
+
+List of claimed listings:
+- Bundle thumbnail
+- Original source (e.g. "github.com/ibm/carbon")
+- Claimed date
+- Actions: Manage, Request takedown
+
+### `/account/profile`
+
+Form using ProfileForm schema. Live preview on right side showing what `/designers/[handle]` will look like.
+
+Avatar uploader (Firebase Storage):
+- Drag-drop zone
+- Crop preview
+- Saves to user's Firebase Storage path
+
+### `/account/settings`
+
+Three sections in cards:
+
+**Preferences**:
+- AI tools checkboxes
+- Design styles checkboxes
+- "These power your guided discovery results"
+
+**Notifications**:
+- Three toggle switches
+- Email preview info
+
+**Account**:
+- Email (read-only)
+- Sign-in provider (read-only)
+- "Export my data" button (downloads JSON)
+- "Delete my account" link (opens confirmation modal with type-to-confirm)
+
+---
+
+## 9. Generator pages
+
+### `/generate` — URL input
+
+**Single-column centered layout**, max-width 640px.
+
+Top:
+- H1: "Generate a bundle from a URL"
+- Subtitle: "Paste a brand or site URL. We extract the design system in about 30 seconds."
+
+Form:
+- Large URL input (autofocus, monospace font, placeholder: "https://stripe.com")
+- Generate button below (full width, primary)
+- Daily quota indicator: "[X] of 20 generations used today" (resets at midnight UTC)
+
+Below input:
+- Recent generations preview (last 3): clickable rows
+- "View all in My bundles →"
+
+Right sidebar (or below on mobile):
+- "What we do": 5-step checklist showing pipeline
+- "Where it goes": "Your generated bundle is private to you. Submit it to the library if you want it published."
+
+### `/generate/[jobId]` — Progress page
+
+**Full-screen progress UI** with clear stages.
+
+Top: URL being processed (truncated if long)
+
+Progress tracker (vertical on mobile, horizontal on desktop):
+- 5 steps with icons:
+  - 🔍 Checking for duplicates and safety
+  - 🌐 Scraping the site
+  - 🎨 Extracting design tokens
+  - ✍️ Writing companion prompt  
+  - 📊 Scoring coverage
+- Current step: animated indicator (pulsing dot or progress spinner)
+- Completed steps: checkmark
+- Failed: red X with error message
+
+Estimated time remaining (decrements as steps complete)
+
+Below progress: "While you wait" — 3 cards of related bundles or tips
+
+If completed: auto-redirect to `/library/[slug]` for the new bundle (since it's `status='personal'`, only the user can see it without sharing the link)
+
+If failed: error panel with:
+- Friendly error message
+- "Try again" button
+- "Try a different URL" suggestion if relevant
+
+---
+
+## 10. Admin pages
+
+All under `/admin/*` with editor-only access.
+
+### `/admin` — Dashboard
+
+Top stat row:
+- Pending submissions: [count]
+- Pending discovery candidates: [count]
+- Pending verification applications: [count]
+- This week's published: [count]
+
+Recent activity feed (last 20):
+- "[user] submitted [bundle title]"
+- "[discovery source] surfaced [candidate name]"
+- "[bundle] was auto-flagged (vote rate dropped below 60%)"
+
+### `/admin/queue` — Editorial review queue
+
+Unified queue of:
+- User submissions (Workflow 1)
+- Discovery candidates (Workflow 2)
+
+Top: Tabs to filter:
+- All
+- Submissions (X)
+- Discovery (X)
+- Auto-drafted (X)
+- Manual additions (X)
+
+Each row:
+- Source badge (Submission / Discovery / Manual)
+- Title
+- Submitter or source (e.g. "by @username" or "github.com/repo")
+- Composite score (for discovery) or status (for submissions)
+- Submitted date
+- "Review →" button → opens `/admin/queue/[id]`
+
+Side panel showing real-time stats:
+- Items reviewed today
+- Average review time
+- Approval rate
+
+### `/admin/queue/[id]` — Review one item
+
+**Two-column layout**:
+
+**Left (content view)**:
+- Full bundle details (design.md preview, companion prompt preview)
+- Coverage breakdown
+- Attribution information
+- Source URL (clickable, opens in new tab)
+- For discovery: full classifier output (scores + notes)
+- For submission: submitter's profile + submission history
+
+**Right (decision panel, sticky)**:
+- Three big buttons stacked:
+  - Approve & Publish (green)
+  - Edit & Approve (yellow) — opens edit modal
+  - Reject (red)
+- Notes textarea (required for reject, optional for approve)
+- Keyboard shortcuts shown: A = approve, R = reject, E = edit
+- Below: "Mark as duplicate" link if applicable
+- "Skip for now" link
+
+### `/admin/bundles`
+
+Full table of all bundles regardless of status. Filters, search, bulk actions (archive, flag, edit metadata).
+
+### `/admin/users`
+
+User table. Filter by role (editor, verified creator, regular). Click user → drawer with details + actions (grant/revoke editor, grant/revoke verified, ban user).
+
+### `/admin/verification`
+
+Pending verification applications. Each shows portfolio link, bio, profile links. Approve / Reject buttons.
+
+### `/admin/blocklist`
+
+Manage `domain_blocklist`. Search, add domain, change category, remove. Bulk import from text file.
+
+### `/admin/abuse`
+
+Recent abuse signals. Filter by signal type. Drill into specific user's signal history.
+
+### `/admin/discovery` (Phase 2)
+
+Status of last discovery run per source. "Run discovery now" button (manual trigger). Recent candidates by source.
+
+---
+
+## 11. Component library
+
+These are the components Replit needs to build. Listed in build order (earliest first).
+
+### Phase F1 components (foundation)
+
+1. **Button** (shadcn/ui base, customized variants)
+2. **Input, Textarea** (with consistent styling, error state)
+3. **Card** (variants: default, elevated, interactive)
+4. **Badge** (variants for status: personal, pending, published, etc.)
+5. **Avatar** (with fallback initial)
+6. **Dialog, Drawer**
+7. **DropdownMenu**
+8. **Tabs**
+9. **Toast** (Sonner)
+10. **Tooltip**
+11. **Header** (logo, search, user menu / sign-in)
+12. **Footer** (legal links, social, brand mark)
+13. **AccountSidebar, AdminSidebar**
+14. **LoginModal** (Google + magic link)
+15. **UserMenu** (avatar dropdown when signed in)
+16. **AuthGate** (HOC for protected content)
+17. **EmptyState** (illustration + message + CTA)
+18. **LoadingSpinner**
+19. **ErrorMessage**
+
+### Phase F2 components (bundle browsing)
+
+20. **BundleCard** — THE signature component, build with care
+21. **BundleListItem** — compact row variant
+22. **PaletteStrip** — horizontal color strip with hover swatches
+23. **CoverageBar** — single horizontal bar with label and percentage
+24. **CoverageBreakdown** — full 7-section panel
+25. **FreshnessIndicator** — colored dot with tooltip
+26. **AttributionRow** — source + author + license + verified
+27. **AICompatibilityBadges** — small AI tool logo row
+28. **CategoryFilterChips**
+29. **StyleFilterChips**
+30. **AIToolSelector**
+31. **VotePrompt** — inline yes/no with reason tags
+32. **CompanionPromptView** — formatted prompt display with copy button
+33. **DesignMdView** — formatted design.md display
+34. **CopyButtons** — three-button get-method panel
+35. **InstallGuideTabs** — tool-specific install instructions
+36. **CommandPalette** (cmd+k navigation)
+37. **SearchInput**
+
+### Phase F3 components (account)
+
+38. **BundleRow** (account version with status + actions)
+39. **SubmissionStatusBadge**
+40. **VerificationForm**
+41. **ProfileEditor** (with live preview)
+42. **AvatarUploader**
+43. **SettingsSection** (consistent settings card pattern)
+44. **DataExportButton**
+45. **DeleteAccountModal** (type-to-confirm)
+46. **StatTile** (number + label + change indicator)
+47. **ActivityFeed**
+
+### Phase F4 components (generator)
+
+48. **URLInput** (large, autofocus, validation)
+49. **QuotaIndicator**
+50. **ProgressTracker** (5-step with current/done/error states)
+51. **DuplicateNotice** (existing bundle found warning)
+52. **JobErrorPanel**
+
+### Phase F5 components (admin)
+
+53. **QueueRow**
+54. **ReviewPanel** (decision buttons + notes)
+55. **DecisionShortcuts** (keyboard hint badges)
+56. **ClassifierOutputDisplay**
+57. **AdminStatsTiles**
+58. **BlocklistTable**
+59. **AbuseSignalRow**
+
+---
+
+## 12. Auth UX (client-side)
+
+### Firebase Auth setup
+
+```typescript
+// lib/auth/firebase-client.ts
+import { initializeApp, getApps } from 'firebase/app';
+import { getAuth, GoogleAuthProvider } from 'firebase/auth';
+
+const firebaseConfig = {
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+};
+
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+export const auth = getAuth(app);
+export const googleProvider = new GoogleAuthProvider();
+```
+
+### Auth hook
+
+```typescript
+// hooks/use-auth.ts
+import { auth } from '@/lib/auth/firebase-client';
+import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
+import { useEffect, useState } from 'react';
+
+export function useAuth() {
+  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+    return onAuthStateChanged(auth, (user) => {
+      setFirebaseUser(user);
+      setLoading(false);
+    });
+  }, []);
+  
+  return { firebaseUser, loading, isAuthenticated: !!firebaseUser };
+}
+```
+
+### Login modal
+
+Three states:
+1. **Provider selection**: "Continue with Google" / "Continue with email"
+2. **Email input** (if user picks email): email field, "Send magic link" button
+3. **Magic link sent**: "Check your email — we sent a sign-in link to [email]"
+
+After successful sign-in:
+- If returnTo URL param exists, redirect there
+- Else, if first sign-in, redirect to `/welcome`
+- Else, redirect to `/account`
+
+### Protected routes
+
+Use Next.js middleware:
+
+```typescript
+// middleware.ts
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+
+const PROTECTED_PATHS = ['/account', '/generate'];
+const ADMIN_PATHS = ['/admin'];
+
+export function middleware(request: NextRequest) {
+  const path = request.nextUrl.pathname;
+  // Note: actual auth check happens client-side via Firebase listener
+  // Middleware just helps with the redirect on direct navigation
+  // (more thorough server-side check happens when backend is wired up)
+  
+  // For now, the AuthGate component handles redirect to /login
+  return NextResponse.next();
+}
+```
+
+For the actual auth check, use the `AuthGate` component:
+
+```typescript
+// components/auth/auth-gate.tsx
+'use client';
+import { useAuth } from '@/hooks/use-auth';
+import { useRouter, usePathname } from 'next/navigation';
+import { useEffect } from 'react';
+
+export function AuthGate({ children, requireEditor = false }: Props) {
+  const { firebaseUser, loading } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
+  
+  useEffect(() => {
+    if (!loading && !firebaseUser) {
+      router.push(`/login?returnTo=${encodeURIComponent(pathname)}`);
+    }
+  }, [loading, firebaseUser, router, pathname]);
+  
+  if (loading) return <LoadingSpinner />;
+  if (!firebaseUser) return null;
+  
+  // requireEditor check happens against /api/me when backend is wired
+  return <>{children}</>;
+}
+```
+
+---
+
+## 13. State management
+
+### Server state — TanStack Query
+
+For everything that comes from the API:
+
+```typescript
+// hooks/use-bundles.ts
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { bundles } from '@/lib/api';
+
+export function useBundles(query: BundleQuery = {}) {
+  return useQuery({
+    queryKey: ['bundles', query],
+    queryFn: () => bundles.getBundles(query),
+    staleTime: 60_000,
+  });
+}
+
+export function useBundle(slug: string) {
+  return useQuery({
+    queryKey: ['bundle', slug],
+    queryFn: () => bundles.getBundle(slug),
+    enabled: !!slug,
+  });
+}
+
+export function useVoteBundle() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ bundleId, form }: { bundleId: string; form: VoteForm }) =>
+      bundles.voteBundle(bundleId, form),
+    onSuccess: (_, { bundleId }) => {
+      qc.invalidateQueries({ queryKey: ['bundle'] });
+    },
+  });
+}
+```
+
+### Form state — React Hook Form + Zod
+
+Every form uses the same pattern:
+
+```typescript
+const form = useForm<SubmitToLibraryForm>({
+  resolver: zodResolver(SubmitToLibraryForm),
+  defaultValues: {
+    title: bundle.title,
+    description: bundle.description,
+    primary_category_id: bundle.primary_category_id ?? '',
+    secondary_category_id: bundle.secondary_category_id,
+    design_style: bundle.design_style,
+    compatible_tools: bundle.compatible_tools,
+  },
+});
+```
+
+### Global UI state — Zustand
+
+Light, only for things React Query can't handle:
+
+```typescript
+// lib/store.ts
+import { create } from 'zustand';
+
+interface UIStore {
+  loginModalOpen: boolean;
+  openLoginModal: () => void;
+  closeLoginModal: () => void;
+  
+  commandPaletteOpen: boolean;
+  toggleCommandPalette: () => void;
+  
+  theme: 'light' | 'dark' | 'system';
+  setTheme: (theme: 'light' | 'dark' | 'system') => void;
+}
+
+export const useUI = create<UIStore>((set) => ({
+  loginModalOpen: false,
+  openLoginModal: () => set({ loginModalOpen: true }),
+  closeLoginModal: () => set({ loginModalOpen: false }),
+  
+  commandPaletteOpen: false,
+  toggleCommandPalette: () => set(s => ({ commandPaletteOpen: !s.commandPaletteOpen })),
+  
+  theme: 'system',
+  setTheme: (theme) => set({ theme }),
+}));
+```
+
+### URL state — Next.js searchParams
+
+For filters and pagination, keep state in the URL:
+
+```typescript
+// app/(public)/library/page.tsx
+'use client';
+import { useSearchParams, useRouter } from 'next/navigation';
+
+export default function LibraryPage() {
+  const params = useSearchParams();
+  const router = useRouter();
+  
+  const query = {
+    category: params.get('category') ?? undefined,
+    style: params.getAll('style'),
+    tool: params.get('tool') ?? undefined,
+    sort: params.get('sort') ?? 'top',
+  };
+  
+  const updateFilter = (key: string, value: string | null) => {
+    const next = new URLSearchParams(params);
+    if (value) next.set(key, value); else next.delete(key);
+    router.push(`?${next.toString()}`);
+  };
+  
+  // ...
+}
+```
+
+---
+
+## 14. Mock data
+
+Create realistic JSON files in `mock-data/`.
+
+### bundles.json
+
+Generate 30 bundles covering all 6 categories. Each must have:
+- All fields from the `Bundle` schema populated
+- Realistic palette_colors (5 colors per bundle)
+- Real-looking design.md content (use actual public design systems as inspiration — IBM Carbon, Material 3, etc.)
+- Companion prompts following the v2 template
+- Varied coverage scores (mix of high and partial)
+- Varied vote rates (don't make all 95%+)
+- Realistic dates spread over the last 6 months
+- Mix of statuses (mostly published, a few flagged for realism)
+
+Examples to create (these are the launch bundles per platform strategy):
+1. IBM Carbon Mobile (status: published, curated, 91% coverage)
+2. Material 3 (published, curated, 88%)
+3. Apple HIG (published, curated, 85%)
+4. Linear (published, 92%)
+5. Vercel (published, 90%)
+6. Stripe Dashboard (published, 87%)
+7. ... continue to 30
+
+### users.json
+
+10 users:
+- 1 admin (you)
+- 3 verified creators
+- 6 regular users
+- One must be marked as the current logged-in user for development
+
+### categories.json
+
+The 6 primary categories from schema + ~30 secondary categories.
+
+### collections.json
+
+5-8 sample collections.
+
+### candidates.json
+
+(For Phase F5 admin testing) 15 sample discovery candidates with various scores and statuses.
+
+---
+
+## 15. Implementation phases
+
+### Phase F1 — Foundation (Week 1)
+
+**Goal**: empty app, design system, auth working
+
+- Project init: Next.js 15, TypeScript strict, Tailwind v4, shadcn/ui base
+- `globals.css` with full theme (Section 4)
+- All Phase F1 components (Section 11)
+- Layouts: root, public, account, admin
+- Firebase Auth client setup
+- Login modal with Google + magic link UI (mocked sign-in works)
+- `useAuth` hook
+- `AuthGate` component
+- Welcome page for first-time users
+- Mock API client structure (all files, all functions defined, mock implementations stubbed)
+- Header with sign-in button or user menu
+
+**Done when**: Can navigate the site shell, sign in via mock (Google button triggers a fake auth state), see user menu, sign out, get redirected from protected routes.
+
+### Phase F2 — Public pages with mock data (Week 2)
+
+**Goal**: full library browsable
+
+- Homepage
+- `/library` with full filtering
+- `/library/[slug]` bundle detail page
+- `/collections` and `/collections/[slug]`
+- `/discover` guided discovery flow
+- `/designers/[handle]` public profile
+- `/share/[slug]`
+- `/about` and legal pages
+- All Phase F2 components
+- Orama search index built from mock data
+- Command palette (cmd+k)
+- Mobile responsive
+
+**Done when**: Can browse 30 mock bundles, filter, search, view details, see palette previews, "copy bundle" works (copies to clipboard), voting UI works (shows toast confirmation but doesn't persist).
+
+### Phase F3 — Account section (Week 3)
+
+**Goal**: logged-in users can manage their stuff
+
+- Sidebar
+- `/account` overview
+- `/account/bundles` with status tabs
+- `/account/submissions`
+- `/account/verified-creator` (all 3 states)
+- `/account/claims`
+- `/account/profile` with avatar uploader
+- `/account/settings`
+- Submit-to-library modal flow
+- Bundle delete confirmation
+- All Phase F3 components
+- Data export download (downloads JSON of mock user data)
+- Account deletion flow
+
+**Done when**: Logged-in user can see their bundles, submit a personal bundle to library, edit profile, change settings, see appropriate empty states everywhere.
+
+### Phase F4 — Generator (Week 4)
+
+**Goal**: end-to-end mock generation flow
+
+- `/generate` URL input page
+- `/generate/[jobId]` progress page with 5-step animation
+- Mock generation API that returns a fake new bundle after 30 seconds (with realistic step progression)
+- Daily quota indicator
+- Duplicate detection UI (when user submits a URL that "exists" in mock data)
+- Error states (try a known-fake URL like "http://blocked-domain.example.com" to trigger error)
+- All Phase F4 components
+
+**Done when**: Logged-in user can paste a URL, watch 5-step progress, land on a new generated bundle in their personal collection, then submit it to library.
+
+### Phase F5 — Admin section (Week 5)
+
+**Goal**: editor can review and approve
+
+- All admin pages with mock data
+- Queue with both submissions and discovery candidates
+- Review panel with approve/reject/edit decisions
+- Keyboard shortcuts for review actions
+- Blocklist management UI
+- All Phase F5 components
+
+**Done when**: Editor user (set `isEditor=true` in mock data) can review a queued submission, approve it, see it move to published in the library, reject one with notes.
+
+### Phase F6 — Polish & launch prep (Week 6)
+
+- Loading skeletons everywhere (not just spinners)
+- Empty states everywhere
+- Error boundaries
+- Toast notifications consistent
+- Keyboard navigation (focus rings, tab order)
+- Dark mode toggle works correctly
+- Mobile breakpoints reviewed end-to-end
+- All forms have proper validation messaging
+- Lighthouse audit: 90+ on accessibility, performance, best practices
+- Build and deploy preview
+
+**Done when**: A designer friend can use the entire site on mobile without confusion or bugs.
+
+---
+
+## 16. Quality bar
+
+This is the most important section. The product is BY designers FOR designers — the UI is the calling card.
+
+### Non-negotiables
+
+1. **No generic AI-generated design.** No 24px rounded corners everywhere, no purple gradients on hero, no emoji icons for sections, no "we use AI" badges, no glassmorphism cards.
+
+2. **Typography is sacred.** Real type hierarchy. No 5 different text sizes on one page. Heading weights consistent. Line lengths under 75 characters. Reading rhythm.
+
+3. **Whitespace earns its keep.** Don't pad just to pad. But cards have breathing room. Sections have clear separation. Forms aren't cramped.
+
+4. **Loading states match the destination.** A bundle card skeleton has the same dimensions and structure as a real card. A page header skeleton has the same height as the loaded version. No layout shift.
+
+5. **Empty states are designed, not blank.** Every empty state has: an illustration or icon, a clear message, a CTA to do something productive.
+
+6. **Errors are helpful, not scary.** "We couldn't load this bundle" + "Try again" button, not "Error 500: Internal Server Error".
+
+7. **Mobile is not an afterthought.** Test every screen at 375px. Touch targets minimum 44x44px. Modals are bottom sheets on mobile, dialogs on desktop.
+
+8. **Animation is subtle.** Hover states are 150ms ease. Page transitions are 200ms. Nothing bounces. Nothing has parallax.
+
+9. **Copy is sharp.** No "Let's get you set up!" — say "Set up your account." No "Awesome!" — say nothing or say "Updated." Active voice. Specific verbs.
+
+10. **The product is the design system.** Don't decorate. Don't add illustrations that aren't necessary. The default is restraint.
+
+### What "good" looks like in practice
+
+- Every component, before being added, should look like it came from Linear or Vercel — not from a Tailwind UI template.
+- If you find yourself adding a third gradient to a page, stop. Remove one.
+- If a form has more than 7 fields, look for what can be defaulted, hidden, or moved to a settings page.
+- If a card has more than 6 elements (logo, title, description, palette, coverage, votes), simplify it.
+- Read every error message aloud. If it sounds like a robot, rewrite it.
+
+### Things that will lose the audience
+
+- shadcn defaults left unstyled (the default looks like every other AI site)
+- Generic icons used too broadly (a 🎨 emoji is not a design system icon)
+- Page titles like "Welcome to designmd!" instead of just the H1 of what's on the page
+- "Get started" CTAs when the user clearly hasn't seen anything yet
+- Hero with a generic illustration of "person looking at screen"
+- Stock photography
+- Light grey on slightly lighter grey (failed contrast)
+- Bold text used to emphasize 5 different things on the same page
+
+---
+
+## Final notes for Replit
+
+1. **Build phases in order, ship each before starting the next.** Don't build all UIs in parallel. Phase F1 has to be polished before Phase F2 starts — the components from F1 are reused throughout, and getting them right early saves rework.
+
+2. **Don't substitute the tech stack.** Drizzle is for backend. Use TanStack Query for server state. Use Zustand only for UI state. Don't add Redux. Don't add tRPC. Don't bring in a different form library.
+
+3. **The mock API is real architecture, not a placeholder.** Build it with the same care as if it were a production API client. The swap to real APIs should be one env var.
+
+4. **Match the schema exactly in TypeScript types.** Don't simplify. Don't omit fields you "don't need yet". The full type from the schema in Section 5 of the full implementation plan is what's in the database — match it.
+
+5. **Read the design system section twice.** The most common failure mode for AI-built designer products is generic UI. Look at Linear's website. Look at Vercel's dashboard. The visual quality bar is "this could have been designed by a human who cares."
+
+6. **No filler content.** If you don't have real content, show an empty state. Don't fill a section with lorem ipsum or generic stock content that the user has to figure out is fake.
+
+7. **Test on mobile.** Every screen. Every interaction. The audience uses laptops, but their clients and stakeholders will share links on phones.
