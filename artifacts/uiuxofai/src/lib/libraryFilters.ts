@@ -17,7 +17,7 @@ export const CATEGORIES = [
   "All",
   "AI & LLM Platforms",
   "Developer Tools & IDEs",
-  "Backend, Database & DevOps",
+  "Database & DevOps",
   "Productivity & SaaS",
   "Design & Creative Tools",
   "Fintech & Crypto",
