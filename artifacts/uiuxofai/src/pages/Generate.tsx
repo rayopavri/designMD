@@ -750,40 +750,40 @@ function GenerateContent() {
           <div className="mx-auto max-w-6xl px-6 lg:px-8 pb-20">
             <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6">
               <div className="relative">
-                <div
-                  style={
-                    gated
-                      ? {
-                          filter: "blur(7px)",
-                          opacity: 0.55,
-                          userSelect: "none",
-                          pointerEvents: "none",
-                        }
-                      : undefined
+                <CodePanel
+                  title={`${host}/${
+                    activeType === "bundle" ? "design.md" : activeType === "mcp" ? "mcp.json" : `${activeType}.md`
+                  }`}
+                  language={activeType === "bundle" ? "yaml" : activeType === "mcp" ? "json" : "md"}
+                  source={draftSource}
+                  rightMeta={
+                    <span className="inline-flex items-center gap-1.5" style={{ color: INK }}>
+                      <span className="h-1.5 w-1.5 rounded-full" style={{ background: PEACH }} />
+                      draft · review before shipping
+                    </span>
                   }
-                  aria-hidden={gated ? "true" : undefined}
-                >
-                  <CodePanel
-                    title={`${host}/${
-                      activeType === "bundle" ? "design.md" : activeType === "mcp" ? "mcp.json" : `${activeType}.md`
-                    }`}
-                    language={activeType === "bundle" ? "yaml" : activeType === "mcp" ? "json" : "md"}
-                    source={draftSource}
-                    rightMeta={
-                      <span className="inline-flex items-center gap-1.5" style={{ color: INK }}>
-                        <span className="h-1.5 w-1.5 rounded-full" style={{ background: PEACH }} />
-                        draft · review before shipping
-                      </span>
-                    }
-                  />
-                </div>
+                />
                 {gated ? (
-                  <div className="absolute inset-0 flex items-center justify-center p-6">
+                  // Overlay is positioned to cover only the code body — the
+                  // CodePanel header (~42px) and footer (~34px) stay crisp.
+                  // backdrop-filter blurs the body text behind this layer
+                  // while leaving the chrome untouched.
+                  <div
+                    className="absolute left-0 right-0 flex items-center justify-center p-6"
+                    style={{
+                      top: 42,
+                      bottom: 34,
+                      backdropFilter: "blur(7px)",
+                      WebkitBackdropFilter: "blur(7px)",
+                      background: "rgba(10, 10, 12, 0.55)",
+                      userSelect: "none",
+                    }}
+                    role="region"
+                    aria-label="Sign in to view your draft"
+                  >
                     <div
                       className="w-full max-w-[360px] rounded-xl border p-6 text-center shadow-2xl"
                       style={{ background: SURFACE, borderColor: BORDER }}
-                      role="region"
-                      aria-label="Sign in to view your draft"
                     >
                       <span
                         className="inline-flex items-center justify-center h-9 w-9 rounded-full mb-3"
@@ -800,7 +800,7 @@ function GenerateContent() {
                       <p className="mt-2 text-[12.5px] leading-[1.55]" style={{ color: SUB }}>
                         Your {activeType === "mcp" ? "mcp.json" : `${activeType === "bundle" ? "design" : activeType}.md`} for {host} is ready — sign in to view, copy, or submit it.
                       </p>
-                      <div className="mt-4 flex flex-col gap-2">
+                      <div className="mt-4 flex flex-col items-stretch gap-2">
                         <button
                           type="button"
                           onClick={() => openAuthModal("/generate")}
@@ -809,14 +809,17 @@ function GenerateContent() {
                         >
                           Sign in to continue
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => openAuthModal("/generate")}
-                          className="h-9 rounded-full px-4 text-[12.5px] font-medium border"
-                          style={{ borderColor: BORDER, color: INK, background: "transparent" }}
+                        <a
+                          href="/login?returnTo=%2Fgenerate"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            openAuthModal("/generate");
+                          }}
+                          className="text-[12.5px] underline underline-offset-4"
+                          style={{ color: SUB }}
                         >
                           Create an account
-                        </button>
+                        </a>
                       </div>
                       <p className="mt-3 text-[10.5px]" style={{ color: MUTED, fontFamily: MONO }}>
                         free · no credit card · keeps this draft
