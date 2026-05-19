@@ -46,7 +46,11 @@ export function ItemCard({ item }: { item: Item }) {
         {item.name}
       </div>
 
-      <div className="flex items-center justify-between mb-3">
+      <div className="text-[12.5px] mb-4" style={{ color: SUB }}>
+        {item.tagline}
+      </div>
+
+      <div className="flex items-center justify-between mb-4">
         <span
           className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em]"
           style={{ fontFamily: MONO, color: MUTED }}
@@ -69,14 +73,10 @@ export function ItemCard({ item }: { item: Item }) {
         )}
       </div>
 
-      <div className="text-[12.5px] mb-5" style={{ color: SUB }}>
-        {item.tagline}
-      </div>
-
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5 flex-wrap">
           <span
-            className="text-[10px] px-1.5 py-0.5 rounded"
+            className="text-[9px] px-1.5 py-0.5 rounded"
             style={{
               background: SURFACE_2,
               color: SUB,
