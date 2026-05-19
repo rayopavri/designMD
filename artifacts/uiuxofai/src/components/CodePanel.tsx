@@ -74,17 +74,25 @@ export function CodePanel({
   source,
   rightMeta,
   highlights,
+  onCopyOverride,
 }: {
   title: string;
   language?: string;
   source: string;
   rightMeta?: React.ReactNode;
   highlights?: Record<number, Highlight["tag"]>;
+  /** When provided, intercepts the header copy button instead of writing
+   * `source` to the clipboard. Used to gate copy for signed-out users. */
+  onCopyOverride?: () => void;
 }) {
   const [copied, setCopied] = useState(false);
   const lines = useMemo(() => source.split("\n"), [source]);
 
   const onCopy = async () => {
+    if (onCopyOverride) {
+      onCopyOverride();
+      return;
+    }
     try {
       await navigator.clipboard.writeText(source);
       setCopied(true);

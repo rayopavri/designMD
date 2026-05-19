@@ -756,6 +756,7 @@ function GenerateContent() {
                   }`}
                   language={activeType === "bundle" ? "yaml" : activeType === "mcp" ? "json" : "md"}
                   source={draftSource}
+                  onCopyOverride={gated ? () => openAuthModal("/generate") : undefined}
                   rightMeta={
                     <span className="inline-flex items-center gap-1.5" style={{ color: INK }}>
                       <span className="h-1.5 w-1.5 rounded-full" style={{ background: PEACH }} />
