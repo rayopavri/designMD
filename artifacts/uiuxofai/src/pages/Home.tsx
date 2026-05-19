@@ -15,11 +15,11 @@ import {
 } from "../lib/tokens";
 import { ITEMS, TYPE_META, type ItemType } from "../lib/items";
 
-const TOOL_BADGES: { id: string; label: string }[] = [
-  { id: "claude", label: "Claude" },
-  { id: "cursor", label: "Cursor" },
-  { id: "lovable", label: "Lovable" },
-  { id: "figma-make", label: "Figma Make" },
+const CATEGORY_BADGES: { slug: string; label: string }[] = [
+  { slug: "ai-llm-platforms", label: "AI & LLM" },
+  { slug: "developer-tools-ides", label: "Developer Tools" },
+  { slug: "design-creative-tools", label: "Design & Creative" },
+  { slug: "fintech-crypto", label: "Fintech" },
 ];
 
 const SHELVES: {
@@ -58,7 +58,7 @@ export function Home() {
       title: "Ship on-brand UI in Cursor in minutes",
       body: "Drop a design system into Cursor and your generations stop looking generic. Brand colors, type, density — all from one spec file.",
       item: outcome1,
-      href: "/library/skills?ds=1",
+      href: "/library?type=design-systems",
       shelfLabel: "Browse design systems",
       eyebrow: "with a Design system",
     },
@@ -151,13 +151,13 @@ export function Home() {
               className="text-[10px] uppercase tracking-[0.22em] mr-1.5"
               style={{ fontFamily: MONO, color: MUTED }}
             >
-              Browse by tool
+              Browse by category
             </span>
-            {TOOL_BADGES.map((t) => (
+            {CATEGORY_BADGES.map((t) => (
               <Link
-                key={t.id}
-                href={`/library?tool=${t.id}`}
-                aria-label={`Browse items made for ${t.label}`}
+                key={t.slug}
+                href={`/library?category=${t.slug}`}
+                aria-label={`Browse items in the ${t.label} category`}
                 className="inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full border transition-colors hover:bg-[#101013]"
                 style={{
                   fontFamily: MONO,

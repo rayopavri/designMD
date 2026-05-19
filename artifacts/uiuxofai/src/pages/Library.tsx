@@ -1,8 +1,13 @@
 import { useMemo, useState } from "react";
 import { LibraryFilterPanel } from "../components/LibraryFilterPanel";
-import { matchesFilters, useLibraryFilters } from "../lib/libraryFilters";
-import { Link, useSearch } from "wouter";
-import { ArrowUpRight, Search, X } from "lucide-react";
+import {
+  matchesCategory,
+  matchesShelf,
+  useLibraryFilters,
+  type ShelfType,
+} from "../lib/libraryFilters";
+import { Link } from "wouter";
+import { ArrowUpRight, X } from "lucide-react";
 import { ItemCard } from "../components/ItemCard";
 import {
   BG,
@@ -15,28 +20,25 @@ import {
   SURFACE,
   VIOLET,
 } from "../lib/tokens";
-import { CATEGORIES, FEELS } from "../lib/bundles";
 
 import {
   DISPLAY_TYPES,
   ITEMS,
-  TYPE_FILTERS,
   TYPE_META,
   displayTypeOf,
   isDesignSystem,
-  type DisplayType,
   type Item,
 } from "../lib/items";
 
 type Sort = "popular" | "coverage" | "recent" | "alpha";
 
-const SHELF_BLURBS: Record<DisplayType, string> = {
+const SHELF_BLURBS: Record<"skill" | "agent" | "mcp", string> = {
   skill: "Single-purpose instruction files — including real brand design systems you can drop into Claude or Cursor.",
   agent: "Personas with a charter — UI engineer, design critic, architect.",
   mcp: "Connections that let your tool see Figma, Mobbin, and more.",
 };
 
-const TYPE_PATH: Record<DisplayType, string> = {
+const TYPE_PATH: Record<"skill" | "agent" | "mcp", string> = {
   skill: "/library/skills",
   agent: "/library/agents",
   mcp: "/library/mcps",
@@ -55,48 +57,21 @@ function recentRank(ago: string): number {
 }
 
 export function Library() {
-  const search = useSearch();
-  const initialFeel = useMemo(() => new URLSearchParams(search).get("feel") ?? "All", [search]);
-  const initialType = useMemo(() => {
-    const v = new URLSearchParams(search).get("type");
-    // legacy: ?type=bundle → show skills shelf with design-system focus
-    if (v === "bundle") return "skill" as DisplayType;
-    return (v && (TYPE_FILTERS as string[]).includes(v) ? v : "All") as "All" | DisplayType;
-  }, [search]);
-  const initialDesignSystemOnly = useMemo(
-    () => new URLSearchParams(search).get("ds") === "1",
-    [search],
-  );
-
   const [query, setQuery] = useState("");
-  const [typeFilter, setTypeFilter] = useState<"All" | DisplayType>(initialType);
-  const [category, setCategory] = useState<string>("All");
-  const [feel, setFeel] = useState<string>(initialFeel);
-  const [minCoverage, setMinCoverage] = useState<number>(0);
-  const [designSystemOnly, setDesignSystemOnly] = useState<boolean>(initialDesignSystemOnly);
   const [sort, setSort] = useState<Sort>("popular");
-
-  const { filters: urlFilters } = useLibraryFilters();
+  const { filters, setType, setCategory, activeCount } = useLibraryFilters();
 
   const filtered = useMemo(() => {
     let list: Item[] = ITEMS.filter((it) => {
-      if (typeFilter !== "All" && displayTypeOf(it) !== typeFilter) return false;
-      if (designSystemOnly && !isDesignSystem(it)) return false;
-      if (!matchesFilters(it, urlFilters)) return false;
-      if (it.type === "bundle") {
-        const b = it.bundle;
-        if (category !== "All" && b.category !== category) return false;
-        if (feel !== "All" && b.feel !== feel) return false;
-        if (b.coverage < minCoverage) return false;
-      } else {
-        if (category !== "All" || feel !== "All" || minCoverage > 0) return false;
-      }
+      if (!matchesShelf(it, filters.type)) return false;
+      if (!matchesCategory(it, filters.category)) return false;
       if (query.trim()) {
         const q = query.toLowerCase();
         const haystack = [
           it.name,
           it.tagline,
           it.description,
+          it.category,
           ...it.tags,
           ...(it.tools as string[]),
           it.type,
@@ -127,23 +102,43 @@ export function Library() {
       list.sort((a, b) => recentRank(a.updatedAgo) - recentRank(b.updatedAgo));
     }
     return list;
-  }, [query, typeFilter, category, feel, minCoverage, sort, designSystemOnly, urlFilters]);
+  }, [query, filters.type, filters.category, sort]);
 
-  const activeFilters: { label: string; clear: () => void }[] = [];
-  if (typeFilter !== "All")
-    activeFilters.push({ label: TYPE_META[typeFilter].plural, clear: () => setTypeFilter("All") });
-  if (designSystemOnly)
-    activeFilters.push({ label: "Design systems only", clear: () => setDesignSystemOnly(false) });
-  if (category !== "All") activeFilters.push({ label: category, clear: () => setCategory("All") });
-  if (feel !== "All") activeFilters.push({ label: feel, clear: () => setFeel("All") });
-  if (minCoverage > 0)
-    activeFilters.push({ label: `${minCoverage}%+ coverage`, clear: () => setMinCoverage(0) });
+  const headingNoun =
+    filters.type === "all"
+      ? filtered.length === 1
+        ? "item"
+        : "items"
+      : filters.type === "design-systems"
+      ? filtered.length === 1
+        ? "design system"
+        : "design systems"
+      : filters.type === "skills"
+      ? filtered.length === 1
+        ? "skill"
+        : "skills"
+      : filters.type === "agents"
+      ? filtered.length === 1
+        ? "agent"
+        : "agents"
+      : filtered.length === 1
+      ? "MCP"
+      : "MCPs";
 
-  // category / feel / coverage are design-system specific — disable when
-  // viewing a shelf that has no bundles in it.
-  const designSystemFiltersDisabled = typeFilter !== "All" && typeFilter !== "skill";
-  const designSystemFiltersActive = category !== "All" || feel !== "All" || minCoverage > 0;
-  const showSuppressionHint = typeFilter === "All" && designSystemFiltersActive;
+  const requestKind: { label: string; href: string } = (() => {
+    switch (filters.type) {
+      case "skills":
+        return { label: "Skill", href: "/generate?type=skill" };
+      case "agents":
+        return { label: "Agent", href: "/generate?type=agent" };
+      case "mcps":
+        return { label: "MCP", href: "/generate?type=mcp" };
+      case "design-systems":
+        return { label: "Design system", href: "/generate?type=bundle" };
+      default:
+        return { label: "Design system", href: "/generate?type=bundle" };
+    }
+  })();
 
   return (
     <>
@@ -182,7 +177,7 @@ export function Library() {
                 </div>
                 Each shelf has a short "how to use one" walkthrough at the top — three steps, no
                 jargon. Start with{" "}
-                <Link href="/library/skills?ds=1" style={{ color: VIOLET }}>
+                <Link href="/library?type=design-systems" style={{ color: VIOLET }}>
                   Design systems
                 </Link>{" "}
                 if you want fast on-brand UI.
@@ -242,121 +237,9 @@ export function Library() {
 
       {/* Unified grid + filters */}
       <div className="mx-auto max-w-7xl px-6 lg:px-8 py-12">
-        <div className="mb-8 flex items-center gap-2 flex-wrap">
-          <span
-            className="text-[10.5px] uppercase tracking-[0.22em] mr-2"
-            style={{ fontFamily: MONO, color: MUTED }}
-          >
-            type
-          </span>
-          {TYPE_FILTERS.map((t) => {
-            const isAll = t === "All";
-            const isActive = typeFilter === t;
-            const count = isAll
-              ? ITEMS.length
-              : ITEMS.filter((i) => displayTypeOf(i) === t).length;
-            const label = isAll ? "All" : TYPE_META[t as DisplayType].plural;
-            const accent = isAll ? VIOLET : TYPE_META[t as DisplayType].accent;
-            return (
-              <button
-                key={t}
-                onClick={() => setTypeFilter(t as "All" | DisplayType)}
-                className="inline-flex items-center gap-2 h-8 rounded-full border px-3 text-[12px]"
-                style={{
-                  borderColor: isActive ? accent : BORDER,
-                  background: isActive ? `${accent}1A` : SURFACE,
-                  color: isActive ? INK : SUB,
-                }}
-              >
-                <span className="h-1.5 w-1.5 rounded-full" style={{ background: accent }} />
-                {label}
-                <span style={{ fontFamily: MONO, color: MUTED }}>{count}</span>
-              </button>
-            );
-          })}
-          {(typeFilter === "All" || typeFilter === "skill") ? (
-            <button
-              onClick={() => setDesignSystemOnly((v) => !v)}
-              className="inline-flex items-center gap-2 h-8 rounded-full border px-3 text-[12px] ml-2"
-              style={{
-                borderColor: designSystemOnly ? VIOLET : BORDER,
-                background: designSystemOnly ? `${VIOLET}1A` : SURFACE,
-                color: designSystemOnly ? INK : SUB,
-              }}
-              title="Show only design-system skills (former bundles)"
-            >
-              <span className="h-1.5 w-1.5 rounded-full" style={{ background: VIOLET }} />
-              Design systems only
-              <span style={{ fontFamily: MONO, color: MUTED }}>
-                {ITEMS.filter(isDesignSystem).length}
-              </span>
-            </button>
-          ) : null}
-        </div>
-
         <div className="grid grid-cols-12 gap-8">
-          <aside className="col-span-12 md:col-span-3 space-y-8">
-            <div>
-              <div
-                className="text-[10.5px] uppercase tracking-[0.22em] mb-3"
-                style={{ fontFamily: MONO, color: MUTED }}
-              >
-                Search
-              </div>
-              <div className="relative">
-                <Search
-                  className="h-3.5 w-3.5 absolute left-3 top-1/2 -translate-y-1/2"
-                  style={{ color: MUTED }}
-                />
-                <input
-                  type="search"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Linear, Figma, agent…"
-                  className="w-full h-9 rounded-md border pl-9 pr-3 text-[12.5px]"
-                  style={{ borderColor: BORDER, background: SURFACE, color: INK }}
-                />
-              </div>
-            </div>
-
-            <LibraryFilterPanel />
-
-            <FilterBlock label="Category" disabled={designSystemFiltersDisabled}>
-              {CATEGORIES.map((c) => (
-                <RadioRow
-                  key={c}
-                  label={c}
-                  checked={category === c}
-                  onChange={() => setCategory(c)}
-                  disabled={designSystemFiltersDisabled}
-                />
-              ))}
-            </FilterBlock>
-
-            <FilterBlock label="Feel" disabled={designSystemFiltersDisabled}>
-              {FEELS.map((f) => (
-                <RadioRow
-                  key={f}
-                  label={f}
-                  checked={feel === f}
-                  onChange={() => setFeel(f)}
-                  disabled={designSystemFiltersDisabled}
-                />
-              ))}
-            </FilterBlock>
-
-            <FilterBlock label="Coverage score" disabled={designSystemFiltersDisabled}>
-              {[0, 80, 90, 95].map((v) => (
-                <RadioRow
-                  key={v}
-                  label={v === 0 ? "Any" : `${v}%+ coverage`}
-                  checked={minCoverage === v}
-                  onChange={() => setMinCoverage(v)}
-                  disabled={designSystemFiltersDisabled}
-                />
-              ))}
-            </FilterBlock>
-
+          <aside className="col-span-12 md:col-span-3">
+            <LibraryFilterPanel query={query} onQueryChange={setQuery} />
           </aside>
 
           <section className="col-span-12 md:col-span-9">
@@ -370,43 +253,29 @@ export function Library() {
                 </div>
                 <h2 className="mt-3 text-[28px] leading-[1.08] font-medium tracking-[-0.018em]">
                   {filtered.length}{" "}
-                  <span style={{ color: SUB }}>
-                    {filtered.length === 1
-                      ? `${typeFilter === "All" ? "item" : TYPE_META[typeFilter as DisplayType].label.toLowerCase()} in stock.`
-                      : `${typeFilter === "All" ? "items" : TYPE_META[typeFilter as DisplayType].plural.toLowerCase()} in stock.`}
-                  </span>
+                  <span style={{ color: SUB }}>{headingNoun} in stock.</span>
                 </h2>
               </div>
               <div className="flex items-center gap-3">
-                {activeFilters.length > 0 ? (
+                {activeCount > 0 ? (
                   <div className="flex items-center gap-2 flex-wrap">
-                    {activeFilters.map((f) => (
-                      <button
-                        key={f.label}
-                        onClick={f.clear}
-                        className="inline-flex items-center gap-1.5 h-7 rounded-full border px-2.5 text-[11.5px]"
-                        style={{ borderColor: BORDER, background: SURFACE, color: SUB }}
-                      >
-                        {f.label}
-                        <X className="h-3 w-3" style={{ color: MUTED }} />
-                      </button>
-                    ))}
+                    {filters.type !== "all" ? (
+                      <ActivePill
+                        label={shelfPillLabel(filters.type)}
+                        onClear={() => setType("all")}
+                      />
+                    ) : null}
+                    {filters.category !== "All" ? (
+                      <ActivePill
+                        label={filters.category}
+                        onClear={() => setCategory("All")}
+                      />
+                    ) : null}
                   </div>
                 ) : null}
                 <SortSelect value={sort} onChange={setSort} />
               </div>
             </div>
-
-            {showSuppressionHint ? (
-              <div
-                className="mb-6 -mt-2 inline-flex items-center gap-2 rounded-md border px-3 py-2 text-[11.5px]"
-                style={{ borderColor: BORDER, background: SURFACE, color: SUB, fontFamily: MONO }}
-              >
-                <span className="h-1.5 w-1.5 rounded-full" style={{ background: VIOLET }} />
-                showing design systems only — category, feel & coverage apply only to design
-                systems. clear them to see all skills, agents & MCPs.
-              </div>
-            ) : null}
 
             {filtered.length === 0 ? (
               <div
@@ -425,7 +294,7 @@ export function Library() {
                 {filtered.map((it) => (
                   <ItemCard key={it.id} item={it} />
                 ))}
-                <RequestCard typeFilter={typeFilter} />
+                <RequestCard label={requestKind.label} href={requestKind.href} />
               </div>
             )}
           </section>
@@ -435,17 +304,29 @@ export function Library() {
   );
 }
 
-function RequestCard({ typeFilter }: { typeFilter: "All" | DisplayType }) {
-  const isTyped = typeFilter !== "All";
-  const meta = isTyped ? TYPE_META[typeFilter as DisplayType] : null;
-  const accent = meta?.accent ?? VIOLET;
-  const label = isTyped
-    ? `Request a ${TYPE_META[typeFilter as DisplayType].label}`
-    : "Request a Design system";
-  const href = isTyped ? `/generate?type=${typeFilter}` : "/generate?type=bundle";
-  const body = isTyped
-    ? `Can't find the ${TYPE_META[typeFilter as DisplayType].label.toLowerCase()} you need? Paste a source URL — we'll draft it and route to the curation desk.`
-    : "Don't see the brand you need? Paste a brand URL — we'll draft a design system and route it to the curation desk.";
+function shelfPillLabel(t: ShelfType): string {
+  if (t === "design-systems") return "Design systems";
+  if (t === "skills") return "Skills";
+  if (t === "agents") return "Agents";
+  if (t === "mcps") return "MCPs";
+  return "All";
+}
+
+function ActivePill({ label, onClear }: { label: string; onClear: () => void }) {
+  return (
+    <button
+      onClick={onClear}
+      className="inline-flex items-center gap-1.5 h-7 rounded-full border px-2.5 text-[11.5px]"
+      style={{ borderColor: BORDER, background: SURFACE, color: SUB }}
+    >
+      {label}
+      <X className="h-3 w-3" style={{ color: MUTED }} />
+    </button>
+  );
+}
+
+function RequestCard({ label, href }: { label: string; href: string }) {
+  const accent = VIOLET;
   return (
     <Link
       href={href}
@@ -463,69 +344,19 @@ function RequestCard({ typeFilter }: { typeFilter: "All" | DisplayType }) {
         request · open slot
       </div>
       <div className="text-[16px] font-medium mb-1" style={{ color: INK }}>
-        {label}
+        Request a {label}
       </div>
       <div className="text-[12.5px] mb-5" style={{ color: SUB }}>
-        {body}
+        Can't find what you need? Paste a source URL — we'll draft it and route to the curation desk.
       </div>
       <div
         className="inline-flex items-center gap-1.5 text-[11.5px]"
         style={{ color: accent, fontFamily: MONO }}
       >
-        {isTyped ? `generate ${typeFilter} from URL` : "generate from URL"}
+        generate from URL
         <ArrowUpRight className="h-3 w-3" />
       </div>
     </Link>
-  );
-}
-
-function FilterBlock({
-  label,
-  children,
-  disabled,
-}: {
-  label: string;
-  children: React.ReactNode;
-  disabled?: boolean;
-}) {
-  return (
-    <div style={{ opacity: disabled ? 0.4 : 1 }}>
-      <div
-        className="text-[10.5px] uppercase tracking-[0.22em] mb-3"
-        style={{ fontFamily: MONO, color: MUTED }}
-      >
-        {label}
-        {disabled ? <span className="ml-2" style={{ color: SUB }}>· design systems only</span> : null}
-      </div>
-      <div className="space-y-1.5">{children}</div>
-    </div>
-  );
-}
-
-function RadioRow({
-  label,
-  checked,
-  onChange,
-  disabled,
-}: {
-  label: string;
-  checked: boolean;
-  onChange: () => void;
-  disabled?: boolean;
-}) {
-  return (
-    <label
-      className={`flex items-center gap-2.5 text-[12.5px] ${disabled ? "cursor-not-allowed" : "cursor-pointer"}`}
-    >
-      <span
-        className="relative inline-flex h-3.5 w-3.5 items-center justify-center rounded-full border"
-        style={{ borderColor: checked ? VIOLET : BORDER, background: SURFACE }}
-      >
-        {checked ? <span className="h-1.5 w-1.5 rounded-full" style={{ background: VIOLET }} /> : null}
-      </span>
-      <input type="radio" checked={checked} onChange={onChange} disabled={disabled} className="sr-only" />
-      <span style={{ color: checked ? INK : SUB }}>{label}</span>
-    </label>
   );
 }
 

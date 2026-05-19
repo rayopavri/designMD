@@ -1,8 +1,13 @@
 import { useMemo, useState } from "react";
 import { LibraryFilterPanel } from "../components/LibraryFilterPanel";
-import { matchesFilters, useLibraryFilters } from "../lib/libraryFilters";
+import {
+  matchesCategory,
+  shelfOf,
+  useLibraryFilters,
+  type ShelfType,
+} from "../lib/libraryFilters";
 import { Link } from "wouter";
-import { ArrowUpRight, Check, Search } from "lucide-react";
+import { ArrowUpRight, Check } from "lucide-react";
 import { ItemCard } from "../components/ItemCard";
 import {
   BG,
@@ -16,19 +21,23 @@ import {
   SUB,
   SURFACE,
   SURFACE_2,
-  VIOLET,
 } from "../lib/tokens";
 import {
   DISPLAY_TYPES,
   ITEMS,
   TYPE_META,
   displayTypeOf,
-  isDesignSystem,
   type DisplayType,
   type Tool,
 } from "../lib/items";
 
 const TOOLS_ROW: Tool[] = ["Claude", "Cursor", "Lovable", "Figma Make", "ChatGPT"];
+
+const SHELF_TYPE_FOR: Record<DisplayType, ShelfType> = {
+  skill: "skills",
+  agent: "agents",
+  mcp: "mcps",
+};
 
 const COPY: Record<
   DisplayType,
@@ -90,30 +99,26 @@ const TYPE_PATH: Record<DisplayType, string> = {
 export function LibraryType({ type }: { type: DisplayType }) {
   const meta = TYPE_META[type];
   const copy = COPY[type];
+  const lockedShelf = SHELF_TYPE_FOR[type];
   const [query, setQuery] = useState("");
-  const [designSystemOnly, setDesignSystemOnly] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    return new URLSearchParams(window.location.search).get("ds") === "1";
-  });
+  const { filters } = useLibraryFilters();
 
-  const { filters: urlFilters } = useLibraryFilters();
-
-  const all = useMemo(() => ITEMS.filter((i) => displayTypeOf(i) === type), [type]);
-  const dsCount = useMemo(() => all.filter(isDesignSystem).length, [all]);
+  // Items whose shelf matches the locked type. Design systems are their own
+  // shelf now, so /library/skills shows only Skill items (no bundles).
+  const all = useMemo(() => ITEMS.filter((i) => shelfOf(i) === lockedShelf), [lockedShelf]);
   const filtered = useMemo(() => {
     return all.filter((it) => {
-      if (designSystemOnly && !isDesignSystem(it)) return false;
-      if (!matchesFilters(it, urlFilters)) return false;
+      if (!matchesCategory(it, filters.category)) return false;
       if (query.trim()) {
         const q = query.toLowerCase();
-        const haystack = [it.name, it.tagline, it.description, ...it.tags, ...(it.tools as string[])]
+        const haystack = [it.name, it.tagline, it.description, it.category, ...it.tags, ...(it.tools as string[])]
           .join(" ")
           .toLowerCase();
         if (!haystack.includes(q)) return false;
       }
       return true;
     });
-  }, [all, query, designSystemOnly, urlFilters]);
+  }, [all, query, filters.category]);
 
   return (
     <>
@@ -265,55 +270,12 @@ export function LibraryType({ type }: { type: DisplayType }) {
           </div>
 
           <div className="grid grid-cols-12 gap-8">
-            <aside className="col-span-12 md:col-span-3 space-y-8">
-              <div>
-                <div
-                  className="text-[10.5px] uppercase tracking-[0.22em] mb-3"
-                  style={{ fontFamily: MONO, color: MUTED }}
-                >
-                  Search
-                </div>
-                <div className="relative">
-                  <Search
-                    className="h-3.5 w-3.5 absolute left-3 top-1/2 -translate-y-1/2"
-                    style={{ color: MUTED }}
-                  />
-                  <input
-                    type="search"
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Search…"
-                    className="w-full h-9 rounded-md border pl-9 pr-3 text-[12.5px]"
-                    style={{ borderColor: BORDER, background: SURFACE, color: INK }}
-                  />
-                </div>
-              </div>
-
-              <LibraryFilterPanel />
-
-              {type === "skill" && dsCount > 0 ? (
-                <div>
-                  <div
-                    className="text-[10.5px] uppercase tracking-[0.22em] mb-3"
-                    style={{ fontFamily: MONO, color: MUTED }}
-                  >
-                    Design systems
-                  </div>
-                  <button
-                    onClick={() => setDesignSystemOnly((v) => !v)}
-                    className="h-8 px-3 rounded-full border text-[11.5px] inline-flex items-center gap-1.5"
-                    style={{
-                      borderColor: designSystemOnly ? VIOLET : BORDER,
-                      background: designSystemOnly ? `${VIOLET}1A` : SURFACE,
-                      color: designSystemOnly ? INK : SUB,
-                    }}
-                  >
-                    <span className="h-1.5 w-1.5 rounded-full" style={{ background: VIOLET }} />
-                    Design systems only
-                    <span style={{ fontFamily: MONO, color: MUTED }}>{dsCount}</span>
-                  </button>
-                </div>
-              ) : null}
+            <aside className="col-span-12 md:col-span-3">
+              <LibraryFilterPanel
+                query={query}
+                onQueryChange={setQuery}
+                lockType={lockedShelf}
+              />
             </aside>
 
             <div className="col-span-12 md:col-span-9">

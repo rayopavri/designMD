@@ -957,10 +957,10 @@ function NonBundleView({ item }: { item: SkillItem | AgentItem | McpItem }) {
 // ─────────────────────────────────────────────────────────────
 
 function Breadcrumb({ item }: { item: Item }) {
-  // Bundles surface as design-system skills — route their breadcrumb to /library/skills.
+  // Design systems (bundles) live on their own shelf, surfaced via ?type=design-systems.
   const shelf =
     item.type === "bundle"
-      ? { href: "/library/skills?ds=1", label: "design systems" }
+      ? { href: "/library?type=design-systems", label: "design systems" }
       : item.type === "mcp"
       ? { href: "/library/mcps", label: "mcps" }
       : { href: `/library/${item.type}s`, label: TYPE_META[item.type].plural.toLowerCase() };

@@ -41,14 +41,16 @@ type BaseItem = {
   updatedAgo: string;
   accent: string;
   icon: string;
-  projectType?:
-    | "Mobile apps"
-    | "SaaS"
-    | "E-commerce"
-    | "Dashboards"
-    | "Marketing sites"
-    | "Design systems";
-  style?: "Minimal" | "Enterprise" | "Bold" | "Playful" | "Accessible" | "Dark mode";
+  category:
+    | "AI & LLM Platforms"
+    | "Developer Tools & IDEs"
+    | "Backend Database & DevOps"
+    | "Productivity & SaaS"
+    | "Design & Creative Tools"
+    | "Fintech & Crypto"
+    | "E-commerce & Retail"
+    | "Media & Consumer Tech"
+    | "Automotive";
 };
 
 export type BundleItem = BaseItem & {
@@ -118,33 +120,37 @@ export const TYPE_FILTERS: ("All" | DisplayType)[] = ["All", "skill", "agent", "
 //  attribution here so we don't churn that file.)
 // ─────────────────────────────────────────────────────────────
 
-type ProjectType = NonNullable<BaseItem["projectType"]>;
-type StyleTag = NonNullable<BaseItem["style"]>;
+type ItemCategory = BaseItem["category"];
 
-const BUNDLE_FILTERS: Record<string, { projectType: ProjectType; style: StyleTag }> = {
-  linear: { projectType: "Dashboards", style: "Dark mode" },
-  stripe: { projectType: "Marketing sites", style: "Bold" },
-  notion: { projectType: "Marketing sites", style: "Minimal" },
-  carbon: { projectType: "Dashboards", style: "Enterprise" },
-  arc: { projectType: "Mobile apps", style: "Playful" },
-  vercel: { projectType: "Marketing sites", style: "Dark mode" },
-  ramp: { projectType: "SaaS", style: "Dark mode" },
-  atlassian: { projectType: "SaaS", style: "Enterprise" },
+const ITEM_CATEGORY: Record<string, ItemCategory> = {
+  // Bundles (design systems)
+  linear: "Developer Tools & IDEs",
+  stripe: "Fintech & Crypto",
+  notion: "Productivity & SaaS",
+  carbon: "Backend Database & DevOps",
+  arc: "Media & Consumer Tech",
+  vercel: "Developer Tools & IDEs",
+  ramp: "Fintech & Crypto",
+  atlassian: "Productivity & SaaS",
+  // Skills
+  "skill-design-system-architect": "Design & Creative Tools",
+  "skill-ui-ux-cursor-rules": "AI & LLM Platforms",
+  "skill-design-system-cursor": "AI & LLM Platforms",
+  "skill-figma-to-react": "Design & Creative Tools",
+  // Agents
+  "agent-ui-engineer": "AI & LLM Platforms",
+  "agent-design-critique": "Design & Creative Tools",
+  "agent-component-architect": "AI & LLM Platforms",
+  // MCPs
+  "mcp-figma-dev-mode": "Design & Creative Tools",
+  "mcp-mobbin": "Design & Creative Tools",
+  "mcp-refero": "Design & Creative Tools",
+  "mcp-stitch": "Design & Creative Tools",
 };
 
-const NON_BUNDLE_FILTERS: Record<string, { projectType: ProjectType; style: StyleTag }> = {
-  "skill-design-system-architect": { projectType: "Design systems", style: "Minimal" },
-  "skill-ui-ux-cursor-rules": { projectType: "SaaS", style: "Minimal" },
-  "skill-design-system-cursor": { projectType: "Design systems", style: "Enterprise" },
-  "skill-figma-to-react": { projectType: "SaaS", style: "Minimal" },
-  "agent-ui-engineer": { projectType: "SaaS", style: "Minimal" },
-  "agent-design-critique": { projectType: "Marketing sites", style: "Accessible" },
-  "agent-component-architect": { projectType: "Design systems", style: "Enterprise" },
-  "mcp-figma-dev-mode": { projectType: "Design systems", style: "Minimal" },
-  "mcp-mobbin": { projectType: "Mobile apps", style: "Playful" },
-  "mcp-refero": { projectType: "Marketing sites", style: "Minimal" },
-  "mcp-stitch": { projectType: "Design systems", style: "Enterprise" },
-};
+function categoryFor(id: string): ItemCategory {
+  return ITEM_CATEGORY[id] ?? "Productivity & SaaS";
+}
 
 const BUNDLE_ATTR: Record<
   string,
@@ -203,7 +209,6 @@ function bundleToItem(b: Bundle): BundleItem {
     relatedIds: [],
     discoveryMethod: "Editorial" as DiscoveryMethod,
   };
-  const filters = BUNDLE_FILTERS[b.id];
   return {
     id: b.id,
     type: "bundle",
@@ -217,8 +222,7 @@ function bundleToItem(b: Bundle): BundleItem {
     updatedAgo: b.updatedAgo,
     accent: TYPE_META.bundle.accent,
     icon: TYPE_META.bundle.icon,
-    projectType: filters?.projectType,
-    style: filters?.style,
+    category: categoryFor(b.id),
     attribution: {
       sourceUrl: `https://${b.url}`,
       author: b.maintainer,
@@ -318,7 +322,7 @@ You translate Figma frames into typed React components that consume design.md to
 - Pairs naturally with the Figma Dev Mode MCP and any UIUXofAi design system.
 `;
 
-const SKILLS: SkillItem[] = [
+const SKILLS: Omit<SkillItem, "category">[] = [
   {
     id: "skill-design-system-architect",
     type: "skill",
@@ -495,7 +499,7 @@ You design the public API of a new component before any code is written.
 - Exposing visual props (colors, spacing) — those come from tokens.
 `;
 
-const AGENTS: AgentItem[] = [
+const AGENTS: Omit<AgentItem, "category">[] = [
   {
     id: "agent-ui-engineer",
     type: "agent",
@@ -623,7 +627,7 @@ const mcpStitchJson = `{
   }
 }`;
 
-const MCPS: McpItem[] = [
+const MCPS: Omit<McpItem, "category">[] = [
   {
     id: "mcp-figma-dev-mode",
     type: "mcp",
@@ -736,19 +740,17 @@ const MCPS: McpItem[] = [
 // Unified catalogue
 // ─────────────────────────────────────────────────────────────
 
-function applyFilters<T extends Item>(it: T): T {
-  const f = NON_BUNDLE_FILTERS[it.id];
-  if (!f) return it;
-  return { ...it, projectType: f.projectType, style: f.style };
+function applyCategory<T extends Omit<Item, "category">>(it: T): T & { category: ItemCategory } {
+  return { ...it, category: categoryFor(it.id) };
 }
 
 export const BUNDLE_ITEMS: BundleItem[] = BUNDLES.map(bundleToItem);
 
 export const ITEMS: Item[] = [
   ...BUNDLE_ITEMS,
-  ...SKILLS.map(applyFilters),
-  ...AGENTS.map(applyFilters),
-  ...MCPS.map(applyFilters),
+  ...SKILLS.map(applyCategory),
+  ...AGENTS.map(applyCategory),
+  ...MCPS.map(applyCategory),
 ];
 
 export function getItem(id: string): Item | undefined {

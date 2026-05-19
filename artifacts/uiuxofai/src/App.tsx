@@ -25,7 +25,7 @@ function Router() {
       <Route path="/library/skills" component={() => <LibraryType type="skill" />} />
       <Route path="/library/agents" component={() => <LibraryType type="agent" />} />
       <Route path="/library/mcps" component={() => <LibraryType type="mcp" />} />
-      <Route path="/library/bundles" component={() => <Redirect to="/library/skills?ds=1" replace />} />
+      <Route path="/library/bundles" component={() => <Redirect to="/library?type=design-systems" replace />} />
       <Route path="/library/:id" component={BundleDetail} />
       <Route path="/copy/:id" component={CopySuccess} />
       <Route path="/generate" component={Generate} />

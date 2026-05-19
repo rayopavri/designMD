@@ -1,70 +1,86 @@
+import { Search } from "lucide-react";
 import { BORDER, INK, MONO, MUTED, SUB, SURFACE, VIOLET } from "../lib/tokens";
+import { ITEMS } from "../lib/items";
 import {
-  PROJECT_TYPES,
-  STYLES,
-  TOOL_OPTIONS,
+  CATEGORIES,
+  SHELF_LABEL,
+  SHELF_TYPES,
+  matchesShelf,
   useLibraryFilters,
-  type LibraryFilters,
+  type Category,
+  type ShelfType,
 } from "../lib/libraryFilters";
 
-type Row = {
-  key: keyof LibraryFilters;
-  label: string;
-  options: readonly string[];
+type Props = {
+  query: string;
+  onQueryChange: (v: string) => void;
+  /** Lock the Type selector (used on /library/skills etc. where shelf is fixed). */
+  lockType?: ShelfType;
 };
 
-const ROWS: Row[] = [
-  { key: "type", label: "Project type", options: PROJECT_TYPES },
-  { key: "style", label: "Style", options: STYLES },
-  { key: "tool", label: "Tool", options: TOOL_OPTIONS },
-];
+export function LibraryFilterPanel({ query, onQueryChange, lockType }: Props) {
+  const { filters, setType, setCategory } = useLibraryFilters();
+  const activeType: ShelfType = lockType ?? filters.type;
 
-export function LibraryFilterPanel() {
-  const { filters, setFilter, reset, activeCount } = useLibraryFilters();
+  const typeCounts = (t: ShelfType): number =>
+    t === "all"
+      ? ITEMS.length
+      : ITEMS.filter((it) => matchesShelf(it, t)).length;
+
+  const categoryCounts = (c: Category): number => {
+    const pool = ITEMS.filter((it) => matchesShelf(it, activeType));
+    return c === "All" ? pool.length : pool.filter((it) => it.category === c).length;
+  };
 
   return (
     <div className="space-y-8">
-      {activeCount > 0 ? (
-        <div
-          className="rounded-md border px-3 py-2 flex items-center justify-between"
-          style={{ borderColor: BORDER, background: SURFACE }}
-        >
-          <span
-            className="text-[10.5px] uppercase tracking-[0.22em]"
-            style={{ fontFamily: MONO, color: MUTED }}
-          >
-            {activeCount} active
-          </span>
-          <button
-            onClick={reset}
-            className="text-[11px]"
-            style={{ color: SUB, fontFamily: MONO }}
-          >
-            clear all
-          </button>
+      <Section label="Search">
+        <div className="relative">
+          <Search
+            className="h-3.5 w-3.5 absolute left-3 top-1/2 -translate-y-1/2"
+            style={{ color: MUTED }}
+          />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => onQueryChange(e.target.value)}
+            placeholder="Linear, Figma, agent…"
+            className="w-full h-9 rounded-md border pl-9 pr-3 text-[12.5px]"
+            style={{ borderColor: BORDER, background: SURFACE, color: INK }}
+          />
         </div>
-      ) : null}
+      </Section>
 
-      {ROWS.map((row) => (
-        <FilterSection key={row.key} label={row.label}>
-          {row.options.map((opt) => {
-            const active = filters[row.key] === opt;
-            return (
-              <RadioRow
-                key={opt}
-                label={opt}
-                checked={active}
-                onChange={() => setFilter(row.key, opt)}
-              />
-            );
-          })}
-        </FilterSection>
-      ))}
+      {lockType ? null : (
+        <Section label="Type">
+          {SHELF_TYPES.map((t) => (
+            <Row
+              key={t}
+              label={SHELF_LABEL[t]}
+              count={typeCounts(t)}
+              checked={filters.type === t}
+              onChange={() => setType(t)}
+            />
+          ))}
+        </Section>
+      )}
+
+      <Section label="Category">
+        {CATEGORIES.map((c) => (
+          <Row
+            key={c}
+            label={c}
+            count={categoryCounts(c)}
+            checked={filters.category === c}
+            onChange={() => setCategory(c)}
+          />
+        ))}
+      </Section>
     </div>
   );
 }
 
-function FilterSection({ label, children }: { label: string; children: React.ReactNode }) {
+function Section({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
       <div
@@ -78,19 +94,21 @@ function FilterSection({ label, children }: { label: string; children: React.Rea
   );
 }
 
-function RadioRow({
+function Row({
   label,
+  count,
   checked,
   onChange,
 }: {
   label: string;
+  count: number;
   checked: boolean;
   onChange: () => void;
 }) {
   return (
     <label className="flex items-center gap-2.5 text-[12.5px] cursor-pointer">
       <span
-        className="relative inline-flex h-3.5 w-3.5 items-center justify-center rounded-full border"
+        className="relative inline-flex h-3.5 w-3.5 items-center justify-center rounded-full border shrink-0"
         style={{ borderColor: checked ? VIOLET : BORDER, background: SURFACE }}
       >
         {checked ? (
@@ -103,7 +121,15 @@ function RadioRow({
         onChange={onChange}
         className="sr-only"
       />
-      <span style={{ color: checked ? INK : SUB }}>{label}</span>
+      <span className="flex-1 truncate" style={{ color: checked ? INK : SUB }}>
+        {label}
+      </span>
+      <span
+        className="text-[11px] tabular-nums"
+        style={{ fontFamily: MONO, color: MUTED }}
+      >
+        {count}
+      </span>
     </label>
   );
 }
