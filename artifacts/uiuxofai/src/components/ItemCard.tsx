@@ -1,10 +1,9 @@
 import { Link } from "wouter";
-import { ArrowUpRight, Check } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import {
   BG,
   BORDER,
   INK,
-  LIME,
   MONO,
   MUTED,
   SUB,
@@ -53,15 +52,7 @@ export function ItemCard({ item }: { item: Item }) {
           <span style={{ color: meta.accent, fontSize: 11, lineHeight: 1 }}>{meta.icon}</span>
           {meta.label}
         </span>
-        {item.type === "bundle" ? (
-          <span
-            className="inline-flex items-center gap-1.5 text-[10.5px]"
-            style={{ fontFamily: MONO, color: SUB }}
-          >
-            <span className="h-1.5 w-1.5 rounded-full" style={{ background: LIME }} />
-            {item.bundle.coverage}% coverage
-          </span>
-        ) : (
+        {item.type === "bundle" ? null : (
           <span
             className="text-[10.5px]"
             style={{ fontFamily: MONO, color: SUB }}
@@ -104,9 +95,11 @@ export function ItemCard({ item }: { item: Item }) {
             className="inline-flex items-center gap-1 text-[10.5px]"
             style={{ fontFamily: MONO, color: MUTED }}
           >
-            <Check className="h-2.5 w-2.5" style={{ color: LIME }} />
-            {item.bundle.coverage}%
-            <span className="ml-2">{item.updatedAgo}</span>
+            <span className="whitespace-nowrap">
+              works in {item.tools.length} {item.tools.length === 1 ? "tool" : "tools"}
+            </span>
+            <span className="mx-1.5" aria-hidden>·</span>
+            <span className="whitespace-nowrap">{item.updatedAgo}</span>
           </span>
         ) : (
           <span
