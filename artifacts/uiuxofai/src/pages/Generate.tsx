@@ -245,12 +245,14 @@ function presetMcpDraft(host: string): string {
 }`;
 }
 
+/** Auth gate. Renders a locked placeholder for signed-out users and opens
+ * the auth modal automatically. GenerateContent (with all generate-specific
+ * hooks) only mounts once the user is signed in — this keeps hook order
+ * stable across the signed-out → signed-in transition. */
 export function Generate() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
-  const search = useSearch();
 
-  // Auth gate — open the modal on direct nav when signed out.
   useEffect(() => {
     if (!user) openAuthModal("/generate");
   }, [user]);
@@ -298,7 +300,12 @@ export function Generate() {
     );
   }
 
+  return <GenerateContent />;
+}
 
+function GenerateContent() {
+  const [, navigate] = useLocation();
+  const search = useSearch();
   const prefillType = useMemo(() => {
     const v = new URLSearchParams(search).get("type");
     return v && (["bundle", "skill", "agent", "mcp"] as string[]).includes(v) ? (v as ItemType) : null;
