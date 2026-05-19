@@ -245,65 +245,17 @@ function presetMcpDraft(host: string): string {
 }`;
 }
 
-/** Auth gate. Renders a locked placeholder for signed-out users and opens
- * the auth modal automatically. GenerateContent (with all generate-specific
- * hooks) only mounts once the user is signed in — this keeps hook order
- * stable across the signed-out → signed-in transition. */
+/** Anyone can run the generator and see metadata for the resulting draft;
+ * the draft body itself is blurred until they sign in. Keeping a single
+ * component (no signed-out branch with different hook count) means hook
+ * order stays stable across the signed-out → signed-in transition. */
 export function Generate() {
-  const { user } = useAuth();
-  const [, navigate] = useLocation();
-
-  useEffect(() => {
-    if (!user) openAuthModal("/generate");
-  }, [user]);
-
-  if (!user) {
-    return (
-      <section className="border-b" style={{ borderColor: BORDER_SOFT }}>
-        <div className="mx-auto max-w-2xl px-6 lg:px-8 pt-24 pb-24 text-center">
-          <span
-            className="inline-flex items-center justify-center h-10 w-10 rounded-full mb-5"
-            style={{ background: SURFACE, color: SUB, border: `1px solid ${BORDER_SOFT}` }}
-          >
-            <Lock className="h-4 w-4" />
-          </span>
-          <h1
-            className="text-[28px] leading-[1.08] font-medium tracking-[-0.018em]"
-            style={{ color: INK }}
-          >
-            Sign in to generate a design.md
-          </h1>
-          <p className="mt-3 text-[14px] leading-[1.6] max-w-[28rem] mx-auto" style={{ color: SUB }}>
-            Generating runs a compliance check and saves drafts to your account. Browsing the
-            library doesn't require sign-in.
-          </p>
-          <div className="mt-6 inline-flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => openAuthModal("/generate")}
-              className="h-10 rounded-full px-5 text-[12.5px] font-medium"
-              style={{ background: INK, color: INK_ON_LIGHT }}
-            >
-              Sign in to continue
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate("/library")}
-              className="text-[12.5px]"
-              style={{ color: SUB, fontFamily: MONO }}
-            >
-              browse the library instead
-            </button>
-          </div>
-        </div>
-      </section>
-    );
-  }
-
   return <GenerateContent />;
 }
 
 function GenerateContent() {
+  const { user } = useAuth();
+  const gated = !user;
   const [, navigate] = useLocation();
   const search = useSearch();
   const prefillType = useMemo(() => {
@@ -399,6 +351,10 @@ function GenerateContent() {
   useEffect(() => () => clearTimers(), []);
 
   function submitForReview() {
+    if (gated) {
+      openAuthModal("/generate");
+      return;
+    }
     setSubmitState("submitting");
     const filename =
       activeType === "bundle"
@@ -420,6 +376,10 @@ function GenerateContent() {
   }
 
   async function copyDraft() {
+    if (gated) {
+      openAuthModal("/generate");
+      return;
+    }
     // Best-effort clipboard write, then hand off to CopySuccess with the draft payload
     try {
       await navigator.clipboard.writeText(draftSource);
@@ -789,19 +749,82 @@ function GenerateContent() {
         {status === "done" ? (
           <div className="mx-auto max-w-6xl px-6 lg:px-8 pb-20">
             <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6">
-              <CodePanel
-                title={`${host}/${
-                  activeType === "bundle" ? "design.md" : activeType === "mcp" ? "mcp.json" : `${activeType}.md`
-                }`}
-                language={activeType === "bundle" ? "yaml" : activeType === "mcp" ? "json" : "md"}
-                source={draftSource}
-                rightMeta={
-                  <span className="inline-flex items-center gap-1.5" style={{ color: INK }}>
-                    <span className="h-1.5 w-1.5 rounded-full" style={{ background: PEACH }} />
-                    draft · review before shipping
-                  </span>
-                }
-              />
+              <div className="relative">
+                <div
+                  style={
+                    gated
+                      ? {
+                          filter: "blur(7px)",
+                          opacity: 0.55,
+                          userSelect: "none",
+                          pointerEvents: "none",
+                        }
+                      : undefined
+                  }
+                  aria-hidden={gated ? "true" : undefined}
+                >
+                  <CodePanel
+                    title={`${host}/${
+                      activeType === "bundle" ? "design.md" : activeType === "mcp" ? "mcp.json" : `${activeType}.md`
+                    }`}
+                    language={activeType === "bundle" ? "yaml" : activeType === "mcp" ? "json" : "md"}
+                    source={draftSource}
+                    rightMeta={
+                      <span className="inline-flex items-center gap-1.5" style={{ color: INK }}>
+                        <span className="h-1.5 w-1.5 rounded-full" style={{ background: PEACH }} />
+                        draft · review before shipping
+                      </span>
+                    }
+                  />
+                </div>
+                {gated ? (
+                  <div className="absolute inset-0 flex items-center justify-center p-6">
+                    <div
+                      className="w-full max-w-[360px] rounded-xl border p-6 text-center shadow-2xl"
+                      style={{ background: SURFACE, borderColor: BORDER }}
+                      role="region"
+                      aria-label="Sign in to view your draft"
+                    >
+                      <span
+                        className="inline-flex items-center justify-center h-9 w-9 rounded-full mb-3"
+                        style={{ background: SURFACE_2, color: INK, border: `1px solid ${BORDER_SOFT}` }}
+                      >
+                        <Lock className="h-4 w-4" />
+                      </span>
+                      <h3
+                        className="text-[17px] leading-[1.2] font-medium tracking-[-0.012em]"
+                        style={{ color: INK }}
+                      >
+                        Sign in to view your draft
+                      </h3>
+                      <p className="mt-2 text-[12.5px] leading-[1.55]" style={{ color: SUB }}>
+                        Your {activeType === "mcp" ? "mcp.json" : `${activeType === "bundle" ? "design" : activeType}.md`} for {host} is ready — sign in to view, copy, or submit it.
+                      </p>
+                      <div className="mt-4 flex flex-col gap-2">
+                        <button
+                          type="button"
+                          onClick={() => openAuthModal("/generate")}
+                          className="h-9 rounded-full px-4 text-[12.5px] font-medium"
+                          style={{ background: INK, color: INK_ON_LIGHT }}
+                        >
+                          Sign in to continue
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openAuthModal("/generate")}
+                          className="h-9 rounded-full px-4 text-[12.5px] font-medium border"
+                          style={{ borderColor: BORDER, color: INK, background: "transparent" }}
+                        >
+                          Create an account
+                        </button>
+                      </div>
+                      <p className="mt-3 text-[10.5px]" style={{ color: MUTED, fontFamily: MONO }}>
+                        free · no credit card · keeps this draft
+                      </p>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
               <aside
                 className="rounded-xl border p-6 flex flex-col gap-5"
                 style={{ borderColor: BORDER, background: SURFACE }}
@@ -820,13 +843,27 @@ function GenerateContent() {
                     type="button"
                     onClick={copyDraft}
                     className="h-10 rounded-full px-4 text-[12.5px] font-medium inline-flex items-center justify-center gap-2"
-                    style={{
-                      background: INK,
-                      color: INK_ON_LIGHT,
-                      boxShadow: `0 0 0 1px ${meta.accent}55, 0 10px 36px -10px ${meta.accent}88`,
-                    }}
+                    style={
+                      gated
+                        ? {
+                            background: SURFACE_2,
+                            color: SUB,
+                            border: `1px solid ${BORDER}`,
+                          }
+                        : {
+                            background: INK,
+                            color: INK_ON_LIGHT,
+                            boxShadow: `0 0 0 1px ${meta.accent}55, 0 10px 36px -10px ${meta.accent}88`,
+                          }
+                    }
+                    title={gated ? "Sign in to copy your draft" : undefined}
                   >
-                    {copied ? (
+                    {gated ? (
+                      <>
+                        <Lock className="h-3.5 w-3.5" />
+                        Sign in to copy
+                      </>
+                    ) : copied ? (
                       <>
                         <Check className="h-3.5 w-3.5" style={{ color: LIME }} />
                         Copied to clipboard
@@ -856,13 +893,27 @@ function GenerateContent() {
                       onClick={submitForReview}
                       disabled={submitState === "submitting"}
                       className="h-10 rounded-full px-4 text-[12.5px] font-medium inline-flex items-center justify-center gap-2 disabled:opacity-60"
-                      style={{
-                        background: INK,
-                        color: INK_ON_LIGHT,
-                        boxShadow: `0 0 0 1px ${VIOLET}55, 0 10px 36px -10px ${VIOLET}88`,
-                      }}
+                      style={
+                        gated
+                          ? {
+                              background: SURFACE_2,
+                              color: SUB,
+                              border: `1px solid ${BORDER}`,
+                            }
+                          : {
+                              background: INK,
+                              color: INK_ON_LIGHT,
+                              boxShadow: `0 0 0 1px ${VIOLET}55, 0 10px 36px -10px ${VIOLET}88`,
+                            }
+                      }
+                      title={gated ? "Sign in to submit for review" : undefined}
                     >
-                      {submitState === "submitting" ? (
+                      {gated ? (
+                        <>
+                          <Lock className="h-3.5 w-3.5" />
+                          Sign in to submit
+                        </>
+                      ) : submitState === "submitting" ? (
                         <>
                           <Loader2 className="h-3.5 w-3.5 animate-spin" />
                           Sending

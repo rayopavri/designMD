@@ -17,7 +17,7 @@ import {
   SURFACE,
   VIOLET,
 } from "../lib/tokens";
-import { openAuthModal, useAuth, useAuthStorageSync } from "../lib/auth";
+import { useAuth, useAuthStorageSync } from "../lib/auth";
 import { AuthModal } from "./AuthModal";
 import { UserMenu } from "./UserMenu";
 
@@ -77,18 +77,8 @@ const NAV: NavItem[] = [
 ];
 
 export function Header() {
-  const [location, navigate] = useLocation();
+  const [location] = useLocation();
   const { user } = useAuth();
-
-  function handleGenerateClick(e: React.MouseEvent) {
-    if (user) return; // let the Link navigate
-    e.preventDefault();
-    if (location !== "/generate") {
-      // Update URL silently so returnTo is correct after sign-in
-      navigate("/generate");
-    }
-    openAuthModal("/generate");
-  }
 
   return (
     <header
@@ -104,12 +94,10 @@ export function Header() {
           <nav className="hidden md:flex items-center gap-7 text-[12.5px]" style={{ fontFamily: SANS, color: SUB }}>
             {NAV.map((n) => {
               const isActive = n.matches(location);
-              const isGenerate = n.href === "/generate";
               return (
                 <Link
                   key={n.label}
                   href={n.href}
-                  onClick={isGenerate ? handleGenerateClick : undefined}
                   className="relative inline-flex items-center gap-1.5"
                   style={{ color: isActive ? INK : SUB }}
                 >
@@ -144,15 +132,14 @@ export function Header() {
               <UserMenu />
             </>
           ) : (
-            <button
-              type="button"
-              onClick={() => openAuthModal("/generate")}
-              title="Generate a design.md from a URL — sign-in required"
+            <Link
+              href="/generate"
+              title="Paste a URL and generate a draft — sign in to view it"
               className="h-8 rounded-full px-4 text-[12.5px] font-medium inline-flex items-center gap-1.5"
               style={{ background: INK, color: INK_ON_LIGHT }}
             >
               Generate
-            </button>
+            </Link>
           )}
         </div>
       </div>
