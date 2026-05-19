@@ -89,6 +89,19 @@ export function ItemCard({ item }: { item: Item }) {
               {m.toLowerCase()}
             </span>
           ))}
+          {item.tools.length > 3 ? (
+            <span
+              className="text-[10px] px-1.5 py-0.5 rounded"
+              style={{
+                background: SURFACE_2,
+                color: MUTED,
+                fontFamily: MONO,
+                border: `1px solid ${BORDER}`,
+              }}
+            >
+              +{item.tools.length - 3}
+            </span>
+          ) : null}
         </div>
         {item.type === "bundle" ? (
           <span
