@@ -174,6 +174,59 @@ export function Home() {
         </div>
       </section>
 
+      {/* How it works — three steps, no jargon */}
+      <section className="border-b" style={{ borderColor: BORDER_SOFT }}>
+        <div className="mx-auto max-w-6xl px-6 lg:px-8 py-16">
+          <div
+            className="text-[10.5px] uppercase tracking-[0.22em] mb-3"
+            style={{ fontFamily: MONO, color: MUTED }}
+          >
+            How it works
+          </div>
+          <h2 className="text-[28px] sm:text-[32px] leading-[1.08] font-medium tracking-[-0.018em] mb-10">
+            Three steps,{" "}
+            <span style={{ color: SUB }}>no setup.</span>
+          </h2>
+          <div
+            className="grid grid-cols-1 md:grid-cols-3 gap-px rounded-lg overflow-hidden"
+            style={{ background: BORDER }}
+          >
+            {[
+              {
+                n: "01",
+                t: "Pick a shelf",
+                d: "Design system, Skill, Agent, or MCP — each one solves a different on-brand UI problem.",
+              },
+              {
+                n: "02",
+                t: "Copy the spec",
+                d: "One click copies the files. No account, no install, no email signup.",
+              },
+              {
+                n: "03",
+                t: "Paste into your tool",
+                d: "Claude, Cursor, Lovable, or Figma Make. Your tool starts shipping UI on-brand.",
+              },
+            ].map((s) => (
+              <div key={s.n} className="p-6" style={{ background: BG }}>
+                <div
+                  className="text-[10.5px] uppercase tracking-[0.22em] mb-3"
+                  style={{ fontFamily: MONO, color: VIOLET }}
+                >
+                  {s.n}
+                </div>
+                <div className="text-[16px] font-medium mb-2" style={{ color: INK }}>
+                  {s.t}
+                </div>
+                <p className="text-[13px] leading-[1.55]" style={{ color: SUB }}>
+                  {s.d}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Act 2 — The library, upfront */}
       <section className="border-b" style={{ borderColor: BORDER_SOFT }}>
         <div className="mx-auto max-w-6xl px-6 lg:px-8 py-20">

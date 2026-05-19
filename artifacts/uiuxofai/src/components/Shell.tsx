@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Command, GitCommit } from "lucide-react";
 import { BG_SOFT_HEADER } from "../lib/constants";
+import { ITEMS } from "../lib/items";
 import {
   BG,
   BORDER,
@@ -42,7 +43,9 @@ export function StatusBar() {
             <span className="h-1.5 w-1.5 rounded-full" style={{ background: LIME, boxShadow: `0 0 6px ${LIME}88` }} />
             <span style={{ color: INK }}>operational</span>
           </span>
-          <span className="hidden sm:inline">240 systems · 4,812 specs</span>
+          <span className="hidden sm:inline" title="Items currently catalogued across all shelves">
+            {ITEMS.length} systems · {ITEMS.reduce((n, it) => n + (it.type === "bundle" ? it.bundle.tokens : 0), 0).toLocaleString()} tokens
+          </span>
           <span className="hidden lg:inline">edge · iad1 / fra1 / sin1</span>
         </div>
         <div className="flex items-center gap-5">
@@ -102,15 +105,21 @@ export function Header() {
         <div className="flex items-center gap-3" style={{ fontFamily: SANS }}>
           <Link
             href="/library"
+            aria-label="Search the library (Cmd/Ctrl+K)"
             className="hidden lg:flex h-7 items-center gap-2 rounded-md border px-2 text-[11.5px]"
             style={{ borderColor: BORDER, color: MUTED, background: SURFACE }}
           >
-            <Command className="h-3 w-3" />
+            <Command className="h-3 w-3" aria-hidden="true" />
             <span style={{ color: SUB }}>K</span>
             <span className="ml-1">Search the library</span>
           </Link>
-          <Link href="/generate" className="text-[12.5px] hidden sm:inline" style={{ color: SUB }}>
-            Submit
+          <Link
+            href="/generate"
+            className="text-[12.5px] hidden sm:inline"
+            style={{ color: SUB }}
+            title="Submit a URL — we'll generate a draft and route it to the curation desk"
+          >
+            Submit a URL
           </Link>
         </div>
       </div>

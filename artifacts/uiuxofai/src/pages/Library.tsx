@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { LibraryFilterPanel } from "../components/LibraryFilterPanel";
 import {
   matchesCategory,
@@ -6,7 +6,7 @@ import {
   useLibraryFilters,
   type ShelfType,
 } from "../lib/libraryFilters";
-import { Link } from "wouter";
+import { Link, useSearch } from "wouter";
 import { ArrowUpRight, X } from "lucide-react";
 import { ItemCard } from "../components/ItemCard";
 import {
@@ -63,9 +63,22 @@ function recentRank(ago: string): number {
 }
 
 export function Library() {
-  const [query, setQuery] = useState("");
+  const search = useSearch();
+  const initialQ = useMemo(() => new URLSearchParams(search).get("q") ?? "", [search]);
+  const [query, setQuery] = useState(initialQ);
   const [sort, setSort] = useState<Sort>("popular");
-  const { filters, setType, setCategory, activeCount } = useLibraryFilters();
+  const { filters, setType, setCategory, reset, activeCount } = useLibraryFilters();
+
+  // Keep the query in sync if the URL ?q= changes (e.g. arriving from 404).
+  useEffect(() => {
+    setQuery(initialQ);
+  }, [initialQ]);
+
+  const hasAnyFilter = activeCount > 0 || query.trim().length > 0;
+  const clearAll = () => {
+    setQuery("");
+    reset();
+  };
 
   const filtered = useMemo(() => {
     let list: Item[] = ITEMS.filter((it) => {
@@ -256,8 +269,14 @@ export function Library() {
                 </h2>
               </div>
               <div className="flex items-center gap-3">
-                {activeCount > 0 ? (
+                {hasAnyFilter ? (
                   <div className="flex items-center gap-2 flex-wrap">
+                    {query.trim() ? (
+                      <ActivePill
+                        label={`"${query.trim()}"`}
+                        onClear={() => setQuery("")}
+                      />
+                    ) : null}
                     {filters.type !== "all" ? (
                       <ActivePill
                         label={shelfPillLabel(filters.type)}
@@ -270,6 +289,13 @@ export function Library() {
                         onClear={() => setCategory("All")}
                       />
                     ) : null}
+                    <button
+                      onClick={clearAll}
+                      className="text-[11.5px] underline-offset-2 hover:underline"
+                      style={{ color: MUTED, fontFamily: MONO }}
+                    >
+                      clear all
+                    </button>
                   </div>
                 ) : null}
                 <SortSelect value={sort} onChange={setSort} />
@@ -281,9 +307,37 @@ export function Library() {
                 className="rounded-lg border p-12 text-center"
                 style={{ borderColor: BORDER, background: SURFACE }}
               >
-                <p className="text-[14px]" style={{ color: SUB }}>
-                  Nothing matches these filters.
+                <p className="text-[14px]" style={{ color: INK }}>
+                  {query.trim() ? (
+                    <>
+                      No results for{" "}
+                      <span style={{ fontFamily: MONO, color: VIOLET }}>"{query.trim()}"</span>
+                      {activeCount > 0 ? " with the current filters." : "."}
+                    </>
+                  ) : (
+                    "Nothing matches these filters."
+                  )}
                 </p>
+                <p className="mt-2 text-[12.5px]" style={{ color: SUB }}>
+                  Try a broader search, drop a filter, or request a draft from the URL.
+                </p>
+                <div className="mt-6 inline-flex items-center gap-4 flex-wrap justify-center">
+                  <button
+                    onClick={clearAll}
+                    className="h-8 rounded-full px-4 text-[12px] border"
+                    style={{ borderColor: BORDER, background: BG, color: INK }}
+                  >
+                    Clear all filters
+                  </button>
+                  <Link
+                    href="/generate"
+                    className="inline-flex items-center gap-1.5 text-[12.5px]"
+                    style={{ color: VIOLET }}
+                  >
+                    Generate from a URL
+                    <ArrowUpRight className="h-3 w-3" />
+                  </Link>
+                </div>
               </div>
             ) : (
               <div

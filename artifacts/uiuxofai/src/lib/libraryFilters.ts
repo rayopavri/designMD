@@ -119,6 +119,7 @@ export function useLibraryFilters(): {
     const next = new URLSearchParams(search);
     next.delete("type");
     next.delete("category");
+    next.delete("q");
     const qs = next.toString();
     navigate(qs ? `${location}?${qs}` : location, { replace: true });
   };

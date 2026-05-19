@@ -237,8 +237,12 @@ function BundleView({ item }: { item: BundleItem }) {
               <div className="flex items-baseline justify-between mb-5">
                 <div>
                   <div
-                    className="text-[10.5px] uppercase tracking-[0.22em] mb-1.5"
+                    className="text-[10.5px] uppercase tracking-[0.22em] mb-1.5 cursor-help"
                     style={{ fontFamily: MONO, color: MUTED }}
+                    tabIndex={0}
+                    role="note"
+                    title="Coverage = the % of common UI surface (tokens, components, motion, content) this spec actually defines. Higher = your AI has fewer gaps to guess."
+                    aria-label="Overall coverage — the percent of common UI surface (tokens, components, motion, content) this spec actually defines. Higher means your AI has fewer gaps to guess."
                   >
                     overall coverage
                   </div>
@@ -271,10 +275,20 @@ function BundleView({ item }: { item: BundleItem }) {
                 className="flex items-center justify-between pt-4 border-t text-[11.5px]"
                 style={{ borderColor: BORDER, fontFamily: MONO, color: MUTED }}
               >
-                <span>
+                <span
+                  className="cursor-help"
+                  tabIndex={0}
+                  title="Tokens = named design values (colors, sizes, spacing) declared in the spec. Components = named UI patterns with full anatomy."
+                  aria-label={`${bundle.tokens.toLocaleString()} tokens (named design values like colors, sizes, spacing) and ${bundle.components} components (named UI patterns with full anatomy)`}
+                >
                   {bundle.tokens.toLocaleString()} tokens · {bundle.components} components
                 </span>
-                <span className="inline-flex items-center gap-1.5">
+                <span
+                  className="inline-flex items-center gap-1.5 cursor-help"
+                  tabIndex={0}
+                  title="How many people have copied this spec into their tool"
+                  aria-label={`${bundle.forks} forks — how many people have copied this spec into their tool`}
+                >
                   <GitFork className="h-3 w-3" />
                   {bundle.forks} forks
                 </span>

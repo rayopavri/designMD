@@ -67,9 +67,25 @@ export function AttributionRow({ attr }: { attr: Attribution }) {
         {methodLabel(attr.discoveryMethod, attr.communityHandle)}
       </span>
       <span style={{ color: BORDER }}>·</span>
-      <span style={{ color: SUB }}>discovered {attr.discoveredAt}</span>
+      <span
+        style={{ color: SUB }}
+        className="cursor-help"
+        tabIndex={0}
+        title="When this spec was first added to the library"
+        aria-label={`Discovered ${attr.discoveredAt} — when this spec was first added to the library`}
+      >
+        discovered {attr.discoveredAt}
+      </span>
       <span style={{ color: BORDER }}>·</span>
-      <span style={{ color: SUB }}>verified {attr.verifiedAt}</span>
+      <span
+        style={{ color: SUB }}
+        className="cursor-help"
+        tabIndex={0}
+        title="When the spec was last re-checked against its source — confirms it still matches the live brand"
+        aria-label={`Verified ${attr.verifiedAt} — when the spec was last re-checked against its source`}
+      >
+        verified {attr.verifiedAt}
+      </span>
     </div>
   );
 }

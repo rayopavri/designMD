@@ -447,15 +447,26 @@ export function Generate() {
                 Generate <span style={{ fontFamily: MONO, color: MUTED }}>⏎</span>
               </button>
             ) : status === "running" ? (
-              <button
-                type="button"
-                className="h-9 rounded-full px-5 text-[12.5px] font-medium inline-flex items-center gap-2"
-                style={{ background: INK, color: INK_ON_LIGHT }}
-                disabled
-              >
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                Generating
-              </button>
+              <div className="inline-flex items-center gap-2">
+                <button
+                  type="button"
+                  className="h-9 rounded-full px-5 text-[12.5px] font-medium inline-flex items-center gap-2"
+                  style={{ background: INK, color: INK_ON_LIGHT }}
+                  disabled
+                >
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Generating
+                </button>
+                <button
+                  type="button"
+                  onClick={reset}
+                  className="h-9 rounded-full px-3 text-[11.5px]"
+                  style={{ color: SUB, fontFamily: MONO }}
+                  aria-label="Cancel generation"
+                >
+                  cancel
+                </button>
+              </div>
             ) : (
               <button
                 type="button"
