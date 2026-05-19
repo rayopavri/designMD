@@ -17,7 +17,7 @@ export const CATEGORIES = [
   "All",
   "AI & LLM Platforms",
   "Developer Tools & IDEs",
-  "Backend Database & DevOps",
+  "Backend, Database & DevOps",
   "Productivity & SaaS",
   "Design & Creative Tools",
   "Fintech & Crypto",
@@ -72,6 +72,14 @@ export function matchesCategory(it: Item, c: Category): boolean {
 
 export type LibraryFilters = { type: ShelfType; category: Category };
 
+/**
+ * Compatibility helper combining the shelf + category predicates.
+ * Prefer matchesShelf/matchesCategory in new code.
+ */
+export function matchesFilters(it: Item, f: LibraryFilters): boolean {
+  return matchesShelf(it, f.type) && matchesCategory(it, f.category);
+}
+
 export function useLibraryFilters(): {
   filters: LibraryFilters;
   setType: (t: ShelfType) => void;
@@ -88,12 +96,15 @@ export function useLibraryFilters(): {
     category: categoryFromParam(params.get("category")),
   };
 
+  // The Type selector is global across the library — picking a Type always
+  // lands the user on /library so the unified grid takes over (rather than
+  // staying on a typed shelf route and leaving the filter inert).
   const setType = (t: ShelfType) => {
     const next = new URLSearchParams(search);
     if (t === "all") next.delete("type");
     else next.set("type", t);
     const qs = next.toString();
-    navigate(qs ? `${location}?${qs}` : location, { replace: true });
+    navigate(qs ? `/library?${qs}` : "/library", { replace: true });
   };
 
   const setCategory = (c: Category) => {

@@ -274,7 +274,7 @@ export function LibraryType({ type }: { type: DisplayType }) {
               <LibraryFilterPanel
                 query={query}
                 onQueryChange={setQuery}
-                lockType={lockedShelf}
+                presetType={lockedShelf}
               />
             </aside>
 

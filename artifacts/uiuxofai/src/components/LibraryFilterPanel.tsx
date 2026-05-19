@@ -14,13 +14,18 @@ import {
 type Props = {
   query: string;
   onQueryChange: (v: string) => void;
-  /** Lock the Type selector (used on /library/skills etc. where shelf is fixed). */
-  lockType?: ShelfType;
+  /**
+   * Optional preselected shelf type when the page itself implies one (e.g.
+   * /library/skills). The Type section is always rendered; this just
+   * overrides the active row for display so the user sees the correct
+   * shelf highlighted regardless of URL state.
+   */
+  presetType?: ShelfType;
 };
 
-export function LibraryFilterPanel({ query, onQueryChange, lockType }: Props) {
+export function LibraryFilterPanel({ query, onQueryChange, presetType }: Props) {
   const { filters, setType, setCategory } = useLibraryFilters();
-  const activeType: ShelfType = lockType ?? filters.type;
+  const activeType: ShelfType = presetType ?? filters.type;
 
   const typeCounts = (t: ShelfType): number =>
     t === "all"
@@ -51,19 +56,17 @@ export function LibraryFilterPanel({ query, onQueryChange, lockType }: Props) {
         </div>
       </Section>
 
-      {lockType ? null : (
-        <Section label="Type">
-          {SHELF_TYPES.map((t) => (
-            <Row
-              key={t}
-              label={SHELF_LABEL[t]}
-              count={typeCounts(t)}
-              checked={filters.type === t}
-              onChange={() => setType(t)}
-            />
-          ))}
-        </Section>
-      )}
+      <Section label="Type">
+        {SHELF_TYPES.map((t) => (
+          <Row
+            key={t}
+            label={SHELF_LABEL[t]}
+            count={typeCounts(t)}
+            checked={activeType === t}
+            onChange={() => setType(t)}
+          />
+        ))}
+      </Section>
 
       <Section label="Category">
         {CATEGORIES.map((c) => (

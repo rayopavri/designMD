@@ -44,7 +44,7 @@ type BaseItem = {
   category:
     | "AI & LLM Platforms"
     | "Developer Tools & IDEs"
-    | "Backend Database & DevOps"
+    | "Backend, Database & DevOps"
     | "Productivity & SaaS"
     | "Design & Creative Tools"
     | "Fintech & Crypto"
@@ -127,7 +127,7 @@ const ITEM_CATEGORY: Record<string, ItemCategory> = {
   linear: "Developer Tools & IDEs",
   stripe: "Fintech & Crypto",
   notion: "Productivity & SaaS",
-  carbon: "Backend Database & DevOps",
+  carbon: "Backend, Database & DevOps",
   arc: "Media & Consumer Tech",
   vercel: "Developer Tools & IDEs",
   ramp: "Fintech & Crypto",
