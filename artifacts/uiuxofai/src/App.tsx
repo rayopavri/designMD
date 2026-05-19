@@ -7,6 +7,9 @@ import { BundleDetail } from "./pages/BundleDetail";
 import { Generate } from "./pages/Generate";
 import { CopySuccess } from "./pages/CopySuccess";
 import { CliDocs } from "./pages/CliDocs";
+import { Login } from "./pages/Login";
+import { Welcome } from "./pages/Welcome";
+import { Account } from "./pages/Account";
 import NotFound from "./pages/not-found";
 import { getItem } from "./lib/items";
 
@@ -30,6 +33,10 @@ function Router() {
       <Route path="/copy/:id" component={CopySuccess} />
       <Route path="/generate" component={Generate} />
       <Route path="/docs/cli" component={CliDocs} />
+      <Route path="/login" component={Login} />
+      <Route path="/welcome" component={Welcome} />
+      <Route path="/account" component={Account} />
+      <Route path="/account/settings" component={Account} />
       <Route path="/vote" component={() => <Redirect to="/library/skills" replace />} />
       <Route path="/vote/:id" component={VoteItemRedirect} />
       <Route component={NotFound} />

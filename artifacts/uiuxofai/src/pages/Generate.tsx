@@ -2,9 +2,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useSearch } from "wouter";
 import { saveDraft } from "../lib/draftStore";
 import { queueSubmission } from "../lib/submissionStore";
-import { Check, ChevronDown, Copy, Globe, Loader2, RefreshCw, Send, ShieldCheck } from "lucide-react";
+import { Check, ChevronDown, Copy, Globe, Loader2, Lock, RefreshCw, Send, ShieldCheck } from "lucide-react";
 import { SectionLabel } from "../components/Shell";
 import { CodePanel } from "../components/CodePanel";
+import { openAuthModal, useAuth } from "../lib/auth";
 import {
   BG,
   BORDER,
@@ -245,8 +246,59 @@ function presetMcpDraft(host: string): string {
 }
 
 export function Generate() {
+  const { user } = useAuth();
   const [, navigate] = useLocation();
   const search = useSearch();
+
+  // Auth gate — open the modal on direct nav when signed out.
+  useEffect(() => {
+    if (!user) openAuthModal("/generate");
+  }, [user]);
+
+  if (!user) {
+    return (
+      <section className="border-b" style={{ borderColor: BORDER_SOFT }}>
+        <div className="mx-auto max-w-2xl px-6 lg:px-8 pt-24 pb-24 text-center">
+          <span
+            className="inline-flex items-center justify-center h-10 w-10 rounded-full mb-5"
+            style={{ background: SURFACE, color: SUB, border: `1px solid ${BORDER_SOFT}` }}
+          >
+            <Lock className="h-4 w-4" />
+          </span>
+          <h1
+            className="text-[28px] leading-[1.08] font-medium tracking-[-0.018em]"
+            style={{ color: INK }}
+          >
+            Sign in to generate a design.md
+          </h1>
+          <p className="mt-3 text-[14px] leading-[1.6] max-w-[28rem] mx-auto" style={{ color: SUB }}>
+            Generating runs a compliance check and saves drafts to your account. Browsing the
+            library doesn't require sign-in.
+          </p>
+          <div className="mt-6 inline-flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => openAuthModal("/generate")}
+              className="h-10 rounded-full px-5 text-[12.5px] font-medium"
+              style={{ background: INK, color: INK_ON_LIGHT }}
+            >
+              Sign in to continue
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate("/library")}
+              className="text-[12.5px]"
+              style={{ color: SUB, fontFamily: MONO }}
+            >
+              browse the library instead
+            </button>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+
   const prefillType = useMemo(() => {
     const v = new URLSearchParams(search).get("type");
     return v && (["bundle", "skill", "agent", "mcp"] as string[]).includes(v) ? (v as ItemType) : null;

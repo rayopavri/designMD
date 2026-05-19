@@ -1,5 +1,6 @@
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { ArrowUpRight, Check } from "lucide-react";
+import { openAuthModal, useAuth } from "../lib/auth";
 import {
   BG,
   BORDER,
@@ -45,6 +46,16 @@ const SHELVES: {
 ];
 
 export function Home() {
+  const { user } = useAuth();
+  const [, navigate] = useLocation();
+
+  function handleGenerateCta(e: React.MouseEvent) {
+    if (user) return;
+    e.preventDefault();
+    navigate("/generate");
+    openAuthModal("/generate");
+  }
+
   const count = (t: ItemType) =>
     ITEMS.filter((i) => (t === "skill" ? i.type === "skill" || i.type === "bundle" : i.type === t)).length;
 
@@ -134,6 +145,7 @@ export function Home() {
             </Link>
             <Link
               href="/generate"
+              onClick={handleGenerateCta}
               className="h-10 rounded-full px-5 text-[12.5px] font-medium inline-flex items-center gap-2"
               style={{
                 background: INK,
@@ -411,6 +423,7 @@ export function Home() {
             </Link>
             <Link
               href="/generate"
+              onClick={handleGenerateCta}
               className="h-10 rounded-full px-5 text-[12.5px] font-medium inline-flex items-center gap-2"
               style={{
                 background: SURFACE,

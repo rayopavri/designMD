@@ -8,6 +8,7 @@ import {
   BORDER,
   BORDER_SOFT,
   INK,
+  INK_ON_LIGHT,
   LIME,
   MONO,
   MUTED,
@@ -16,6 +17,9 @@ import {
   SURFACE,
   VIOLET,
 } from "../lib/tokens";
+import { openAuthModal, useAuth, useAuthStorageSync } from "../lib/auth";
+import { AuthModal } from "./AuthModal";
+import { UserMenu } from "./UserMenu";
 
 function useUtcClock() {
   const [now, setNow] = useState<Date>(() => new Date());
@@ -73,7 +77,19 @@ const NAV: NavItem[] = [
 ];
 
 export function Header() {
-  const [location] = useLocation();
+  const [location, navigate] = useLocation();
+  const { user } = useAuth();
+
+  function handleGenerateClick(e: React.MouseEvent) {
+    if (user) return; // let the Link navigate
+    e.preventDefault();
+    if (location !== "/generate") {
+      // Update URL silently so returnTo is correct after sign-in
+      navigate("/generate");
+    }
+    openAuthModal("/generate");
+  }
+
   return (
     <header
       className="sticky top-0 z-50 w-full border-b backdrop-blur-md"
@@ -88,10 +104,12 @@ export function Header() {
           <nav className="hidden md:flex items-center gap-7 text-[12.5px]" style={{ fontFamily: SANS, color: SUB }}>
             {NAV.map((n) => {
               const isActive = n.matches(location);
+              const isGenerate = n.href === "/generate";
               return (
                 <Link
                   key={n.label}
                   href={n.href}
+                  onClick={isGenerate ? handleGenerateClick : undefined}
                   className="relative inline-flex items-center gap-1.5"
                   style={{ color: isActive ? INK : SUB }}
                 >
@@ -113,14 +131,28 @@ export function Header() {
             <span style={{ color: SUB }}>K</span>
             <span className="ml-1">Search the library</span>
           </Link>
-          <Link
-            href="/generate"
-            className="text-[12.5px] hidden sm:inline"
-            style={{ color: SUB }}
-            title="Submit a URL — we'll generate a draft and route it to the curation desk"
-          >
-            Submit a URL
-          </Link>
+          {user ? (
+            <>
+              <Link
+                href="/generate"
+                className="text-[12.5px] hidden sm:inline"
+                style={{ color: SUB }}
+                title="Submit a URL — we'll generate a draft and route it to the curation desk"
+              >
+                Submit a URL
+              </Link>
+              <UserMenu />
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => openAuthModal("/generate")}
+              className="h-8 rounded-full px-4 text-[12.5px] font-medium inline-flex items-center gap-1.5"
+              style={{ background: INK, color: INK_ON_LIGHT }}
+            >
+              Sign in
+            </button>
+          )}
         </div>
       </div>
     </header>
@@ -153,12 +185,14 @@ export function Footer() {
 }
 
 export function Shell({ children }: { children: React.ReactNode }) {
+  useAuthStorageSync();
   return (
     <div className="min-h-screen flex flex-col" style={{ background: BG, color: INK, fontFamily: SANS }}>
       <StatusBar />
       <Header />
       <main className="flex-1">{children}</main>
       <Footer />
+      <AuthModal />
     </div>
   );
 }
