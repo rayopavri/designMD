@@ -227,35 +227,6 @@ function BundleView({ item }: { item: BundleItem }) {
                 </button>
               </div>
             </div>
-            {/* What you'll get */}
-            <div
-              className="mt-8 rounded-xl border p-5"
-              style={{ borderColor: BORDER, background: SURFACE }}
-            >
-              <div
-                className="text-[10.5px] uppercase tracking-[0.22em] mb-3"
-                style={{ fontFamily: MONO, color: MUTED }}
-              >
-                What you'll get
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <ArtifactChip
-                  filename="design.md"
-                  hint="the brand spec — tokens, component anatomy, forbidden rules"
-                  meta={`${bundle.tokens.toLocaleString()} tokens · ${designLines} lines`}
-                  accent={LIME}
-                />
-                <ArtifactChip
-                  filename="companion.md"
-                  hint="system instructions that teach your AI how to use the spec"
-                  meta={`~${promptTokensApprox.toLocaleString()} tokens · ${promptLines} lines`}
-                  accent={VIOLET}
-                />
-              </div>
-            </div>
-            <div className="mt-4 text-[11.5px]" style={{ fontFamily: MONO, color: MUTED }}>
-              free forever · no install · paste into any AI tool
-            </div>
           </div>
 
           <aside className="col-span-12 lg:col-span-5">
@@ -305,6 +276,34 @@ function BundleView({ item }: { item: BundleItem }) {
                   {bundle.forks} forks
                 </span>
               </div>
+            </div>
+            <div
+              className="mt-4 rounded-xl border p-5"
+              style={{ borderColor: BORDER, background: SURFACE }}
+            >
+              <div
+                className="text-[10.5px] uppercase tracking-[0.22em] mb-3"
+                style={{ fontFamily: MONO, color: MUTED }}
+              >
+                What you'll get
+              </div>
+              <div className="grid grid-cols-1 gap-3">
+                <ArtifactChip
+                  filename="design.md"
+                  hint="the brand spec — tokens, component anatomy, forbidden rules"
+                  meta={`${bundle.tokens.toLocaleString()} tokens · ${designLines} lines`}
+                  accent={LIME}
+                />
+                <ArtifactChip
+                  filename="companion.md"
+                  hint="system instructions that teach your AI how to use the spec"
+                  meta={`~${promptTokensApprox.toLocaleString()} tokens · ${promptLines} lines`}
+                  accent={VIOLET}
+                />
+              </div>
+            </div>
+            <div className="mt-3 text-[11.5px]" style={{ fontFamily: MONO, color: MUTED }}>
+              free forever · no install · paste into any AI tool
             </div>
           </aside>
         </div>
