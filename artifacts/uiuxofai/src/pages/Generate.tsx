@@ -99,34 +99,39 @@ function detectType(raw: string): { type: ItemType; reason: string } | null {
   if (!host.includes(".")) return null;
 
   // MCP detection
-  if (host === "figma.com" && path.includes("/mcp")) return { type: "mcp", reason: "figma.com/mcp pattern" };
+  if (host === "figma.com" && path.includes("/mcp")) return { type: "mcp", reason: "Figma MCP endpoint" };
   if (path.endsWith("/mcp") || path.includes("/mcp/") || path.includes("mcp-catalog")) {
     return { type: "mcp", reason: "MCP registry path" };
   }
   if (host.includes("mobbin.com") && path.includes("mcp")) return { type: "mcp", reason: "Mobbin MCP" };
   if (host.includes("refero.design") && path.includes("mcp")) return { type: "mcp", reason: "Refero MCP" };
 
-  // Skill / Agent detection (GitHub repos default to Skill; "agent" or ".claude/agents" → Agent)
+  // Skill / Agent detection (GitHub repos default to designer Skill;
+  // "agent" or ".claude/agents" in the path → designer Agent)
   if (host === "github.com") {
     const lower = (path + " " + url).toLowerCase();
     if (lower.includes("agent") || lower.includes(".claude/agents")) {
-      return { type: "agent", reason: "GitHub repo (agent)" };
+      return { type: "agent", reason: "GitHub repo → designer agent" };
     }
-    return { type: "skill", reason: "GitHub repo (skill)" };
+    return { type: "skill", reason: "GitHub repo → designer skill" };
   }
   if (host.includes("skills.sh") || host.includes("aitmpl.com")) {
-    return { type: "skill", reason: `${host} skill source` };
+    return { type: "skill", reason: `${host} → designer skill` };
   }
 
-  // Brand / product host → Design system skill (single-label TLDs)
+  // Brand / product host → design.md (single-label TLDs)
   const parts = host.split(".");
   const tld = parts[parts.length - 1];
   const KNOWN_TLDS = new Set([
+    // existing
     "com", "io", "co", "app", "dev", "ai", "design", "studio", "shop",
     "org", "net", "xyz", "sh", "so", "to", "cloud", "page", "site", "tech",
+    // modern brand TLDs
+    "fyi", "me", "new", "build", "agency", "pro", "fund", "fashion",
+    "world", "global", "club",
   ]);
   if (parts.length >= 2 && KNOWN_TLDS.has(tld)) {
-    return { type: "bundle", reason: "Brand site → design system" };
+    return { type: "bundle", reason: "Brand site → design.md" };
   }
   // Unknown / unusual pattern — let the user override explicitly.
   return null;
@@ -536,6 +541,13 @@ export function Generate() {
               </span>
             ) : null}
           </div>
+
+          {detection?.type === "skill" && host && host.includes("github.com") && !override ? (
+            <div className="mt-3 text-[11px]" style={{ fontFamily: MONO, color: MUTED }}>
+              heads up — Skills are for repos that help designers (research, critique,
+              token enforcement). Confirm before submitting.
+            </div>
+          ) : null}
 
           {validation ? (
             <div

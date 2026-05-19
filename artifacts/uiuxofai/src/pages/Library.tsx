@@ -22,27 +22,33 @@ import {
 } from "../lib/tokens";
 
 import {
-  DISPLAY_TYPES,
   ITEMS,
   TYPE_META,
-  displayTypeOf,
-  isDesignSystem,
   type Item,
 } from "../lib/items";
 
 type Sort = "popular" | "coverage" | "recent" | "alpha";
 
-const SHELF_BLURBS: Record<"skill" | "agent" | "mcp", string> = {
-  skill: "Single-purpose instruction files — including real brand design systems you can drop into Claude or Cursor.",
-  agent: "Personas with a charter — UI engineer, design critic, architect.",
+const SHELF_BLURBS: Record<"bundle" | "skill" | "agent" | "mcp", string> = {
+  bundle: "design.md files for real brands and design systems — drop one in and your AI tool ships on-brand UI.",
+  skill: "Single-purpose instruction files for designers — research, critique, token enforcement, UX writing.",
+  agent: "Personas with a charter — UI engineer, design critic, component architect.",
   mcp: "Connections that let your tool see Figma, Mobbin, and more.",
 };
 
-const TYPE_PATH: Record<"skill" | "agent" | "mcp", string> = {
+const TYPE_PATH: Record<"bundle" | "skill" | "agent" | "mcp", string> = {
+  bundle: "/library?type=design-systems",
   skill: "/library/skills",
   agent: "/library/agents",
   mcp: "/library/mcps",
 };
+
+const HEADLINE_SHELVES: Array<"bundle" | "skill" | "agent" | "mcp"> = [
+  "bundle",
+  "skill",
+  "agent",
+  "mcp",
+];
 
 function recentRank(ago: string): number {
   const m = ago.match(/^(\d+)\s*(h|d|w|mo|y)/);
@@ -159,9 +165,9 @@ export function Library() {
                 <span style={{ color: SUB }}>Install what fits. Ship.</span>
               </h1>
               <p className="mt-5 max-w-[36rem] text-[14.5px] leading-[1.6]" style={{ color: SUB }}>
-                Three shelves: Skills (including real brand design systems), Agents, and MCPs.
-                Each one slots into Claude, Cursor, Lovable, or Figma Make. Open a shelf to see
-                what's inside — or use the grid below to search across everything.
+                Four shelves: Design systems, Skills, Agents, and MCPs. Each one slots into
+                Claude, Cursor, Lovable, or Figma Make. Open a shelf to see what's inside — or
+                use the grid below to search across everything.
               </p>
             </div>
             <div className="col-span-12 lg:col-span-5">
@@ -186,13 +192,14 @@ export function Library() {
           </div>
 
           <div
-            className="grid grid-cols-1 sm:grid-cols-3 gap-px rounded-lg overflow-hidden"
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-px rounded-lg overflow-hidden"
             style={{ background: BORDER }}
           >
-            {DISPLAY_TYPES.map((t) => {
+            {HEADLINE_SHELVES.map((t) => {
               const m = TYPE_META[t];
-              const count = ITEMS.filter((i) => displayTypeOf(i) === t).length;
-              const dsCount = t === "skill" ? ITEMS.filter(isDesignSystem).length : 0;
+              // Count by raw item.type so Skills excludes bundles
+              // (design systems get their own peer shelf above).
+              const count = ITEMS.filter((i) => i.type === t).length;
               return (
                 <Link
                   key={t}
@@ -216,14 +223,6 @@ export function Library() {
                   </div>
                   <div className="text-[24px] leading-[1] font-medium tracking-[-0.018em] mb-3" style={{ color: INK }}>
                     {count}
-                    {dsCount > 0 ? (
-                      <span
-                        className="ml-2 text-[11px] align-middle"
-                        style={{ fontFamily: MONO, color: VIOLET }}
-                      >
-                        incl. {dsCount} design systems
-                      </span>
-                    ) : null}
                   </div>
                   <div className="text-[12.5px] leading-[1.55]" style={{ color: SUB }}>
                     {SHELF_BLURBS[t]}
