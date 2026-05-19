@@ -1,6 +1,5 @@
 import { Link } from "wouter";
 import { ArrowUpRight, Check } from "lucide-react";
-import { useAuth } from "../lib/auth";
 import {
   BG,
   BORDER,
@@ -46,8 +45,6 @@ const SHELVES: {
 ];
 
 export function Home() {
-  useAuth();
-
   const count = (t: ItemType) =>
     ITEMS.filter((i) => (t === "skill" ? i.type === "skill" || i.type === "bundle" : i.type === t)).length;
 
