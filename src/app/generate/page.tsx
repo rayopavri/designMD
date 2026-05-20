@@ -93,15 +93,6 @@ const BUNDLE_STEPS_UPLOAD: PipelineStep[] = [
   { id: "scoring", label: "Coverage scoring", tool: "Linter model", detail: "Section weights + WCAG factor", durationMs: 400 },
 ];
 
-/** Optional self-heal step the worker emits when WCAG/orphans fail.
- * Not in the linear progression — we surface it inline if it fires. */
-const BUNDLE_HEAL_STEP: PipelineStep = {
-  id: "healing-orphans",
-  label: "Self-heal pass",
-  tool: "Claude Sonnet 4.6",
-  detail: "Rewriting with derived constraints",
-  durationMs: 15000,
-};
 
 const SKILL_STEPS: PipelineStep[] = [
   COMPLIANCE_STEP,
@@ -335,8 +326,14 @@ function GenerateContent() {
   const [realBundle, setRealBundle] = useState<RealBundle | null>(null);
   const [existingSlug, setExistingSlug] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [didHeal, setDidHeal] = useState(false);
   const pollRef = useRef<number | null>(null);
+  // Per-step start times keyed by step index. Captured every time stepIdx
+  // advances. Used to compute real elapsed for done steps + live elapsed
+  // for the active step.
+  const [stepTimes, setStepTimes] = useState<{ startedAt: number; endedAt: number | null }[]>([]);
+  // Force re-render every 250ms while pipeline runs so the active step's
+  // live timer ticks up smoothly without spamming setState.
+  const [, setTick] = useState(0);
   // Bundle source mode — only meaningful when activeType === "bundle".
   // 'url' uses the existing scrape pipeline; 'upload' takes a screenshot.
   const [bundleMode, setBundleMode] = useState<"url" | "upload">("url");
@@ -347,15 +344,11 @@ function GenerateContent() {
   const detection = useMemo(() => detectType(url), [url]);
   const typeResolved: boolean = !!override || !!detection;
   const activeType: ItemType = override ?? detection?.type ?? "bundle";
-  // Steps for the visual pipeline. Bundle picks URL vs upload variant and
-  // inserts an optional heal step when the backend reported `healing-orphans`.
+  // Steps for the visual pipeline. Bundle picks URL vs upload variant.
   const steps = useMemo(() => {
     if (activeType !== "bundle") return STEPS_FOR[activeType];
-    const base = bundleMode === "upload" ? BUNDLE_STEPS_UPLOAD : BUNDLE_STEPS_URL;
-    if (!didHeal) return base;
-    const lintIdx = base.findIndex((s) => s.id === "linting");
-    return [...base.slice(0, lintIdx + 1), BUNDLE_HEAL_STEP, ...base.slice(lintIdx + 1)];
-  }, [activeType, bundleMode, didHeal]);
+    return bundleMode === "upload" ? BUNDLE_STEPS_UPLOAD : BUNDLE_STEPS_URL;
+  }, [activeType, bundleMode]);
   const meta = TYPE_META[activeType];
   const bundleSteps = bundleMode === "upload" ? BUNDLE_STEPS_UPLOAD : BUNDLE_STEPS_URL;
 
@@ -396,7 +389,6 @@ function GenerateContent() {
       setRealBundle(null);
       setExistingSlug(null);
       setErrorMsg(null);
-      setDidHeal(false);
       setSubmitState("idle");
       void startBundleUpload(uploadFile, brandName.trim());
       return;
@@ -434,7 +426,6 @@ function GenerateContent() {
     setRealBundle(null);
     setExistingSlug(null);
     setErrorMsg(null);
-    setDidHeal(false);
     setSubmitState("idle");
 
     if (activeType === "bundle") {
@@ -559,10 +550,6 @@ function GenerateContent() {
   function applyJobUpdate(job: JobPollResult) {
     const step = job.currentStep;
     if (!step) return;
-    if (step === "healing-orphans") {
-      setDidHeal(true);
-      return;
-    }
     if (step === "ready_for_review" || step === "held_as_draft") {
       setStepIdx(bundleSteps.length);
       return;
@@ -595,7 +582,6 @@ function GenerateContent() {
     setRealBundle(null);
     setExistingSlug(null);
     setErrorMsg(null);
-    setDidHeal(false);
     // Keep bundleMode + uploadFile + brandName so a "Try another" doesn't
     // wipe what the user just configured; they can clear manually.
   }
@@ -605,6 +591,43 @@ function GenerateContent() {
     timersRef.current = [];
   }
   useEffect(() => () => { clearTimers(); stopPolling(); }, []);
+
+  // Record step transitions for the real-time timer. Closes the previous
+  // step's endedAt and opens the new one. Resets cleanly when stepIdx
+  // goes back to -1.
+  useEffect(() => {
+    if (stepIdx < 0) {
+      setStepTimes([]);
+      return;
+    }
+    setStepTimes((prev) => {
+      const now = Date.now();
+      const next = [...prev];
+      // Close any earlier step that's still open.
+      for (let i = 0; i < stepIdx; i++) {
+        if (!next[i]) next[i] = { startedAt: now, endedAt: now };
+        else if (next[i].endedAt === null) next[i] = { ...next[i], endedAt: now };
+      }
+      // Open the current step. If we passed the end (>= steps.length),
+      // it means the pipeline finished — close the last step.
+      if (stepIdx >= steps.length) {
+        const last = steps.length - 1;
+        if (next[last] && next[last].endedAt === null) {
+          next[last] = { ...next[last], endedAt: now };
+        }
+      } else if (!next[stepIdx]) {
+        next[stepIdx] = { startedAt: now, endedAt: null };
+      }
+      return next;
+    });
+  }, [stepIdx, steps.length]);
+
+  // Tick the active step's live timer while the pipeline is running.
+  useEffect(() => {
+    if (status !== "running") return;
+    const id = window.setInterval(() => setTick((t) => t + 1), 250);
+    return () => clearInterval(id);
+  }, [status]);
 
   function submitForReview() {
     if (gated) {
@@ -662,7 +685,16 @@ function GenerateContent() {
     navigate(`/copy/${draft.id}`);
   }
 
-  const elapsed = stepIdx >= 0 ? steps.slice(0, stepIdx).reduce((s, x) => s + x.durationMs, 0) : 0;
+  // Total real elapsed across all steps so far (live for active step).
+  const elapsedMs = (() => {
+    if (stepTimes.length === 0) return 0;
+    const first = stepTimes[0]?.startedAt;
+    if (!first) return 0;
+    const lastEnd =
+      stepTimes[stepTimes.length - 1]?.endedAt ??
+      (status === "running" ? Date.now() : stepTimes[stepTimes.length - 1]?.startedAt ?? first);
+    return Math.max(0, lastEnd - first);
+  })();
   const total = steps.reduce((s, x) => s + x.durationMs, 0);
 
   const draftSource =
@@ -972,17 +1004,17 @@ function GenerateContent() {
           <div className="mt-4 text-[11px]" style={{ fontFamily: MONO, color: MUTED }}>
             {status === "idle"
               ? activeType === "bundle"
-                ? "real pipeline · 60-180s · free · review-required"
+                ? "real pipeline · free · review-required"
                 : "preview only · free · MDN-style public reference"
               : status === "running"
               ? activeType === "bundle"
-                ? `step ${stepIdx + 1} of ${steps.length} · ${steps[Math.max(0, Math.min(stepIdx, steps.length - 1))]?.label ?? "starting"}`
-                : `${(elapsed / 1000).toFixed(1)}s elapsed of ~${(total / 1000).toFixed(0)}s`
+                ? `${(elapsedMs / 1000).toFixed(1)}s · step ${stepIdx + 1} of ${steps.length} · ${steps[Math.max(0, Math.min(stepIdx, steps.length - 1))]?.label ?? "starting"}`
+                : `${(elapsedMs / 1000).toFixed(1)}s elapsed of ~${(total / 1000).toFixed(0)}s`
               : status === "failed"
               ? "pipeline failed — try another URL or refresh"
               : activeType === "bundle" && realBundle
-              ? `generated ${realBundle.slug} · status: ${realBundle.status} · coverage: ${realBundle.coverageScore ?? "—"}`
-              : `generated from ${host} · ${(total / 1000).toFixed(0)}s total`}
+              ? `generated ${realBundle.slug} · ${(elapsedMs / 1000).toFixed(1)}s · status: ${realBundle.status} · coverage: ${realBundle.coverageScore ?? "—"}`
+              : `generated from ${host} · ${(elapsedMs / 1000).toFixed(1)}s`}
           </div>
         </div>
       </section>
@@ -1062,13 +1094,13 @@ function GenerateContent() {
                       </div>
                     </div>
                     <span
-                      className="text-[10.5px] shrink-0 mt-1.5"
+                      className="text-[10.5px] shrink-0 mt-1.5 tabular-nums"
                       style={{
                         fontFamily: MONO,
                         color: state === "done" ? LIME : state === "active" ? meta.accent : MUTED,
                       }}
                     >
-                      {(s.durationMs / 1000).toFixed(1)}s
+                      {formatStepElapsed(stepTimes[i], state)}
                     </span>
                   </div>
                 );
@@ -1528,6 +1560,18 @@ function Field({ label, value, accent }: { label: string; value: string; accent?
       </div>
     </div>
   );
+}
+
+/** Formats per-step elapsed time. Pending shows nothing, active shows
+ * live counter, done shows actual measured duration. */
+function formatStepElapsed(
+  entry: { startedAt: number; endedAt: number | null } | undefined,
+  state: "done" | "active" | "pending",
+): string {
+  if (state === "pending" || !entry) return "—";
+  const end = entry.endedAt ?? Date.now();
+  const seconds = (end - entry.startedAt) / 1000;
+  return `${seconds.toFixed(1)}s`;
 }
 
 function generatePalette(seed: string): string[] {
