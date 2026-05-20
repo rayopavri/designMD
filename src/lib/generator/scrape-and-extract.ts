@@ -162,6 +162,30 @@ export async function runScrapeAndExtract(payload: ScrapeAndExtractPayload): Pro
     return failJob(jobId, 'writing-design-md', err);
   }
 
+  // ─── 5b. Persist designMd to DB + fire companion task NOW ────
+  // The companion worker only needs designMd + brand info — it doesn't
+  // wait on lint or scoring. Kicking it off here lets it run in parallel
+  // with the remaining ~3-4s of lint+score+final-persist, cutting
+  // wall-clock time-to-companion-ready by ~10s.
+  try {
+    await db
+      .update(bundles)
+      .set({
+        designMd: designMdContent,
+        companionStatus: 'pending',
+        updatedAt: new Date(),
+      })
+      .where(eq(bundles.id, bundleId));
+  } catch (err) {
+    return failJob(jobId, 'persisting-design-md', err);
+  }
+  try {
+    await enqueueTask('generate-companion', { bundleId });
+  } catch (err) {
+    console.error('[scrape-and-extract] failed to enqueue companion task:', err);
+    // Continue — the bundle has design.md; companion can be retried later.
+  }
+
   // ─── 6. Lint with official linter ─────────────────────
   await setJobStep(jobId, 'linting');
   let lintSummary: LintSummary;
@@ -196,11 +220,7 @@ export async function runScrapeAndExtract(payload: ScrapeAndExtractPayload): Pro
     await db
       .update(bundles)
       .set({
-        designMd: designMdContent,
-        // Companion prompt is generated in a second worker; leave the
-        // placeholder from writeDraftBundle() in place for now. The
-        // companion task overwrites it once Sonnet finishes.
-        companionStatus: 'pending',
+        // designMd + companionStatus already written in step 5b above.
         coverageScore: coverage.overall,
         coverageColors: coverage.colors,
         coverageTypography: coverage.typography,
@@ -232,16 +252,6 @@ export async function runScrapeAndExtract(payload: ScrapeAndExtractPayload): Pro
       updatedAt: new Date(),
     })
     .where(eq(generationJobs.id, jobId));
-
-  // ─── Fire off companion generation as a separate worker ───────
-  // Fire-and-forget; the user already sees the bundle as ready.
-  try {
-    await enqueueTask('generate-companion', { bundleId });
-  } catch (err) {
-    console.error('[scrape-and-extract] failed to enqueue companion task:', err);
-    // Don't fail the job — the user has their bundle; companion can be
-    // retried manually via a separate endpoint later if needed.
-  }
 }
 
 // ─── Helpers ─────────────────────────────────────────────────
