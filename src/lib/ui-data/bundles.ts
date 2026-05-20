@@ -38,6 +38,10 @@ export type Bundle = {
    * WCAG-failing contrast pairs. Format: one-line summary followed by
    * `componentPath: message` lines. Populated by the generator pipeline. */
   accessibilityNotes?: string;
+  /** Companion prompt status — 'pending' when the second worker hasn't
+   * finished yet, 'ready' when usable, 'failed' on error. Curated/seed
+   * bundles default to 'ready'. */
+  companionStatus?: 'pending' | 'ready' | 'failed';
 };
 
 const linear = `---

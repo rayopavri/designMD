@@ -23,7 +23,7 @@ import {
 } from '@/lib/ai/gemini';
 import { scrapeUrl, type ScrapeResult } from '@/lib/ai/firecrawl';
 import { generateDesignMd } from '@/lib/ai/generate-design-md';
-import { generateCompanionPrompt } from '@/lib/ai/generate-companion-prompt';
+import { enqueueTask } from '@/lib/queue';
 import { scoreFromLint } from '@/lib/generator/coverage';
 import {
   extractComputedStyles,
@@ -177,24 +177,14 @@ export async function runScrapeAndExtract(payload: ScrapeAndExtractPayload): Pro
   // is held as `personal` instead of being promoted to `pending_review`
   // when failures exist, so low-quality output doesn't pollute the queue.
 
-  // ─── 7. Sonnet writes companion prompt ────────────────
-  await setJobStep(jobId, 'writing-companion');
-  let companion: string;
-  try {
-    companion = await generateCompanionPrompt({
-      brandName: brand.name,
-      designMd: designMdContent,
-      designStyles: brand.designStyles,
-    });
-  } catch (err) {
-    return failJob(jobId, 'writing-companion', err);
-  }
-
-  // ─── 8. Score from linter model ──────────────────────
+  // ─── 7. Score from linter model ──────────────────────
+  // (Companion prompt was previously here; moved to a second worker
+  // function — see /api/internal/tasks/generate-companion. This keeps
+  // the main pipeline under Vercel Hobby's 60s budget.)
   await setJobStep(jobId, 'scoring');
   const coverage = scoreFromLint(lintSummary, designMdContent);
 
-  // ─── 9. Persist & quality-gated promotion ─────────────
+  // ─── 8. Persist & quality-gated promotion ─────────────
   // Gate: bundles with errors OR overall score < 40 stay personal so the
   // editor queue isn't polluted with low-quality drafts. The user can
   // still find them in their /account drafts.
@@ -207,9 +197,10 @@ export async function runScrapeAndExtract(payload: ScrapeAndExtractPayload): Pro
       .update(bundles)
       .set({
         designMd: designMdContent,
-        companionPrompt: companion,
-        companionPromptVersion: 1,
-        companionPromptUpdatedAt: new Date(),
+        // Companion prompt is generated in a second worker; leave the
+        // placeholder from writeDraftBundle() in place for now. The
+        // companion task overwrites it once Sonnet finishes.
+        companionStatus: 'pending',
         coverageScore: coverage.overall,
         coverageColors: coverage.colors,
         coverageTypography: coverage.typography,
@@ -241,6 +232,16 @@ export async function runScrapeAndExtract(payload: ScrapeAndExtractPayload): Pro
       updatedAt: new Date(),
     })
     .where(eq(generationJobs.id, jobId));
+
+  // ─── Fire off companion generation as a separate worker ───────
+  // Fire-and-forget; the user already sees the bundle as ready.
+  try {
+    await enqueueTask('generate-companion', { bundleId });
+  } catch (err) {
+    console.error('[scrape-and-extract] failed to enqueue companion task:', err);
+    // Don't fail the job — the user has their bundle; companion can be
+    // retried manually via a separate endpoint later if needed.
+  }
 }
 
 // ─── Helpers ─────────────────────────────────────────────────
@@ -316,6 +317,7 @@ Source: ${job.url}
       designMd: null,
       companionPrompt: placeholderCompanion,
       companionPromptVersion: 0,
+      companionStatus: 'pending',
       primaryCategoryId,
       designStyle: brand.designStyles,
       compatibleTools,

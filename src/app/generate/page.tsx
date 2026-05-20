@@ -76,7 +76,6 @@ const BUNDLE_STEPS_URL: PipelineStep[] = [
   { id: "persisting", label: "Draft persisted", tool: "Postgres", detail: "Bundle row created", durationMs: 500 },
   { id: "writing-design-md", label: "Design.md authored", tool: "Claude Sonnet 4.6", detail: "Canonical Google DESIGN.md spec", durationMs: 18000 },
   { id: "linting", label: "Lint + WCAG check", tool: "@google/design.md", detail: "Contrast · orphans · section coverage", durationMs: 1500 },
-  { id: "writing-companion", label: "Companion prompt", tool: "Claude Sonnet 4.6", detail: "Tool-agnostic system prompt", durationMs: 12000 },
   { id: "scoring", label: "Coverage scoring", tool: "Linter model", detail: "Section weights + WCAG factor", durationMs: 400 },
 ];
 
@@ -89,7 +88,6 @@ const BUNDLE_STEPS_UPLOAD: PipelineStep[] = [
   { id: "persisting", label: "Draft persisted", tool: "Postgres", detail: "Bundle row created", durationMs: 500 },
   { id: "writing-design-md", label: "Design.md authored", tool: "Claude Sonnet 4.6", detail: "Canonical Google DESIGN.md spec", durationMs: 18000 },
   { id: "linting", label: "Lint + WCAG check", tool: "@google/design.md", detail: "Contrast · orphans · section coverage", durationMs: 1500 },
-  { id: "writing-companion", label: "Companion prompt", tool: "Claude Sonnet 4.6", detail: "Tool-agnostic system prompt", durationMs: 12000 },
   { id: "scoring", label: "Coverage scoring", tool: "Linter model", detail: "Section weights + WCAG factor", durationMs: 400 },
 ];
 

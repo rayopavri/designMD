@@ -569,17 +569,23 @@ function BundleView({ item }: { item: BundleItem }) {
                   }
                 />
               ) : tab === "companion" ? (
-                <CodePanel
-                  title={`${bundle.name.toLowerCase()} / companion.md`}
-                  language="md"
-                  source={bundle.companionPrompt}
-                  rightMeta={
-                    <span className="inline-flex items-center gap-1.5" style={{ color: INK }}>
-                      <span className="h-1.5 w-1.5 rounded-full" style={{ background: VIOLET }} />
-                      calibrated for Claude / GPT
-                    </span>
-                  }
-                />
+                bundle.companionStatus === "pending" ? (
+                  <CompanionPending />
+                ) : bundle.companionStatus === "failed" ? (
+                  <CompanionFailed />
+                ) : (
+                  <CodePanel
+                    title={`${bundle.name.toLowerCase()} / companion.md`}
+                    language="md"
+                    source={bundle.companionPrompt}
+                    rightMeta={
+                      <span className="inline-flex items-center gap-1.5" style={{ color: INK }}>
+                        <span className="h-1.5 w-1.5 rounded-full" style={{ background: VIOLET }} />
+                        calibrated for Claude / GPT
+                      </span>
+                    }
+                  />
+                )
               ) : (
                 <PreviewPane bundle={bundle} />
               )}
@@ -590,6 +596,43 @@ function BundleView({ item }: { item: BundleItem }) {
 
       <WorksWellWith itemId={item.id} sectionNum={showInstall ? "04" : "03"} />
     </>
+  );
+}
+
+function CompanionPending() {
+  return (
+    <div
+      className="rounded-lg border p-8 flex flex-col items-center justify-center gap-3 text-center"
+      style={{ borderColor: BORDER, background: SURFACE }}
+    >
+      <span
+        className="inline-block h-2 w-2 rounded-full animate-pulse"
+        style={{ background: VIOLET }}
+        aria-hidden
+      />
+      <div className="text-[13.5px]" style={{ color: INK }}>
+        Generating companion prompt…
+      </div>
+      <div className="text-[11px] max-w-sm" style={{ color: SUB, fontFamily: MONO }}>
+        Sonnet 4.6 is writing the tool-agnostic system prompt. Usually ~10 seconds — this page auto-refreshes when it's ready.
+      </div>
+    </div>
+  );
+}
+
+function CompanionFailed() {
+  return (
+    <div
+      className="rounded-lg border p-8 flex flex-col items-center justify-center gap-3 text-center"
+      style={{ borderColor: BORDER, background: SURFACE }}
+    >
+      <div className="text-[13.5px]" style={{ color: INK }}>
+        Companion prompt unavailable
+      </div>
+      <div className="text-[11px] max-w-sm" style={{ color: SUB, fontFamily: MONO }}>
+        Generation failed. The design.md is intact and copyable; the companion prompt can be regenerated later.
+      </div>
+    </div>
   );
 }
 

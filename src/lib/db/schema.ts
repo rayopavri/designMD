@@ -183,6 +183,9 @@ export const bundles = pgTable(
     companionPromptVersion: integer('companion_prompt_version').notNull().default(1),
     companionPromptUpdatedAt: timestamp('companion_prompt_updated_at', { withTimezone: true }),
     companionPromptUpdatedBy: uuid('companion_prompt_updated_by').references(() => users.id),
+    // 'pending' | 'ready' | 'failed' — companion is generated in a second
+    // worker function so the main pipeline fits Vercel Hobby's 60s budget.
+    companionStatus: text('companion_status').notNull().default('ready'),
 
     // Coverage scores (NULL = not scored, 0 = linter failed)
     coverageScore: integer('coverage_score'),

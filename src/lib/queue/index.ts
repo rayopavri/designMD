@@ -12,7 +12,7 @@
  */
 import { env } from '@/lib/env';
 
-export type TaskName = 'scrape-and-extract';
+export type TaskName = 'scrape-and-extract' | 'generate-companion';
 
 export interface EnqueueResult {
   inline: boolean;
