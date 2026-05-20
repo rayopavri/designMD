@@ -12,17 +12,21 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   // @google/design.md ships non-JS data files (.yaml, .md) inside its
-  // dist folder that its linter reads at runtime. Next's serverless
-  // tracing only bundles .js by default, which causes ENOENT in Vercel.
-  // Explicitly include those files for any route that touches the linter.
+  // dist folder that its linter reads at runtime. pnpm symlinks the
+  // package from .pnpm/ which breaks Next's trace globbing. Mark it
+  // external so Node resolves it normally at runtime and the adjacent
+  // data files are reachable.
+  serverExternalPackages: ['@google/design.md'],
+  // Also include the pnpm-real path explicitly so Vercel ships the
+  // assets next to the resolved module.
   outputFileTracingIncludes: {
     '/api/internal/tasks/scrape-and-extract': [
-      './node_modules/@google/design.md/dist/**/*.yaml',
-      './node_modules/@google/design.md/dist/**/*.md',
+      './node_modules/.pnpm/@google+design.md@*/node_modules/@google/design.md/dist/**/*.yaml',
+      './node_modules/.pnpm/@google+design.md@*/node_modules/@google/design.md/dist/**/*.md',
     ],
     '/api/bundles/[slug]/export': [
-      './node_modules/@google/design.md/dist/**/*.yaml',
-      './node_modules/@google/design.md/dist/**/*.md',
+      './node_modules/.pnpm/@google+design.md@*/node_modules/@google/design.md/dist/**/*.yaml',
+      './node_modules/.pnpm/@google+design.md@*/node_modules/@google/design.md/dist/**/*.md',
     ],
   },
 };
