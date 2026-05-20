@@ -166,44 +166,11 @@ export async function runScrapeAndExtract(payload: ScrapeAndExtractPayload): Pro
     return failJob(jobId, 'linting', err);
   }
 
-  // ─── 6b. WCAG self-heal: re-prompt once if contrast failed ─
-  if (lintSummary.contrastFailures.length > 0) {
-    try {
-      const regenerated = await generateDesignMd({
-        brand,
-        url: job.url,
-        scrapedMarkdown: scrape.markdown,
-        derivedDonts: lintSummary.derivedDonts,
-      });
-      designMdContent = regenerated.content;
-      lintSummary = await lintDesignMd(designMdContent);
-    } catch (err) {
-      console.warn('[scrape-and-extract] WCAG-aware retry failed:', err);
-    }
-  }
-
-  // ─── 6c. Orphan self-heal: deterministic — if Sonnet missed any token,
-  //         resolveOrphans synthesizes components and we rebuild the YAML
-  //         without a second AI call.
-  if (lintSummary.orphanTokens.length > 0) {
-    await setJobStep(jobId, 'healing-orphans');
-    try {
-      // Re-run the resolver — by now Sonnet may have decided to omit components
-      // that Gemini provided. The resolver makes sure every color still gets a
-      // home in the YAML.
-      brand = resolveOrphans(brand);
-      const regenerated = await generateDesignMd({
-        brand,
-        url: job.url,
-        scrapedMarkdown: scrape.markdown,
-        derivedDonts: lintSummary.derivedDonts,
-      });
-      designMdContent = regenerated.content;
-      lintSummary = await lintDesignMd(designMdContent);
-    } catch (err) {
-      console.warn('[scrape-and-extract] orphan-aware retry failed:', err);
-    }
-  }
+  // Self-heal loops (WCAG retry + orphan retry) removed for free-tier
+  // Vercel 60s budget. Lint failures still surface to the editor via
+  // reviewNotes + score penalty (wcagFactor in coverage.ts). The bundle
+  // is held as `personal` instead of being promoted to `pending_review`
+  // when failures exist, so low-quality output doesn't pollute the queue.
 
   // ─── 7. Sonnet writes companion prompt ────────────────
   await setJobStep(jobId, 'writing-companion');
