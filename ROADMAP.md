@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-05-20** (post-QStash)
+> Last updated: **2026-05-20** (post-cron warmer)
 > Current state: **Live in production** at https://uiuxskills.com (and design-md-chi.vercel.app)
 
 ---
@@ -26,9 +26,11 @@
 
 ## 🔁 Remaining housekeeping
 
-- [ ] **Rotate QStash credentials** — the original token + signing keys were pasted into chat. On Upstash QStash US Region page, click **Reset Token** + **Roll Signing Key**, then update the three Vercel env vars with the new values and redeploy.
+- [ ] **Rotate QStash credentials** — original token + signing keys were pasted into chat. On Upstash QStash US Region page, click **Reset Token** + **Roll Signing Key**, then update the three Vercel env vars with the new values and redeploy.
 - [ ] **Confirm `NEXT_PUBLIC_APP_URL` env var** in Vercel points to `https://uiuxskills.com`
+- [ ] **Set `CRON_SECRET` env var in Vercel** (optional) — locks the `/api/cron/warm-db` endpoint to Vercel cron invocations only. Generate a random 32-char string, add to Vercel env, redeploy. The endpoint works without it; this just prevents random callers from triggering free DB pings.
 - [ ] **Vercel project rename** (optional cosmetic) — `design-md` → `uiuxskills` in Project Settings → General
+- [ ] **DNS sinkhole on corporate network** — `uiuxskills.com` is currently blocked by Palo Alto DNS filtering on the Deloitte network (newly-registered domain). Resolves fine externally. Wait 24-72h for reputation to build, or request allowlist from Deloitte IT.
 
 ---
 
@@ -235,7 +237,8 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
-- [x] **2026-05-20** · P1-6 done: admin "Re-run pipeline" button. Full extraction pipeline re-runs against existing source URL, overwrites system fields in place, preserves editor edits + slug + votes.
+- [x] **2026-05-20** · Vercel Cron warms Neon every 4 min (`GET /api/cron/warm-db`) to dodge the 5-min autosuspend on Free tier. Removes cold-start latency for the first visitor in idle windows. (`2adb726`)
+- [x] **2026-05-20** · P1-6 done: admin "Re-run pipeline" button. Full extraction pipeline re-runs against existing source URL, overwrites system fields in place, preserves editor edits + slug + votes. (`4a1c768`)
 - [x] **2026-05-20** · QStash replaces fragile fire-and-forget task dispatch. Adds admin "Re-run companion" button for stuck bundles. Idempotent worker auth via signature verification (production) + token (local dev).
 - [x] **2026-05-20** · Rebrand UIUXofAi → UIUXskills across UI copy, CLI command, handle domain, localStorage key prefixes (`d030690`)
 - [x] **2026-05-20** · Custom domain `uiuxskills.com` attached to Vercel project
