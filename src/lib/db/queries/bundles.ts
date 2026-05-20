@@ -137,6 +137,125 @@ export async function listPublishedBundles(
   return { items: items as BundleListItem[], nextCursor };
 }
 
+// ─── Admin list query ─────────────────────────────────────────
+// Mirrors listPublishedBundles but does NOT clamp to status='published'.
+// Editors use this to see every bundle across all lifecycle states.
+
+const ADMIN_STATUSES = [
+  'personal',
+  'pending_review',
+  'published',
+  'flagged',
+  'rejected',
+  'archived',
+] as const;
+type AdminStatus = (typeof ADMIN_STATUSES)[number];
+
+export interface AdminBundleListFilters extends BundleListFilters {
+  /** When omitted, all statuses are returned. */
+  status?: AdminStatus[];
+}
+
+export interface AdminBundleListItem extends BundleListItem {
+  status: string;
+  companionStatus: string;
+  submittedAt: Date | null;
+  reviewedAt: Date | null;
+}
+
+export async function listAdminBundles(
+  filters: AdminBundleListFilters,
+): Promise<{ items: AdminBundleListItem[]; nextCursor: string | null }> {
+  const limit = Math.min(filters.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
+
+  const conditions: SQL[] = [];
+
+  if (filters.status?.length) {
+    conditions.push(inArray(bundles.status, filters.status));
+  }
+  if (filters.category) {
+    conditions.push(eq(categories.slug, filters.category));
+  }
+  if (filters.type) {
+    conditions.push(eq(bundles.type, filters.type));
+  }
+  if (filters.designStyle?.length) {
+    conditions.push(
+      sql`${bundles.designStyle} && ${sql.raw(`ARRAY[${filters.designStyle.map((s) => `'${s.replace(/'/g, "''")}'`).join(',')}]::text[]`)}`,
+    );
+  }
+  if (filters.tools?.length) {
+    conditions.push(
+      sql`${bundles.compatibleTools} && ${sql.raw(`ARRAY[${filters.tools.map((s) => `'${s.replace(/'/g, "''")}'`).join(',')}]::text[]`)}`,
+    );
+  }
+  if (filters.q) {
+    const term = `%${filters.q.trim()}%`;
+    const qCond = or(ilike(bundles.title, term), ilike(bundles.description, term));
+    if (qCond) conditions.push(qCond);
+  }
+  if (filters.cursor) {
+    conditions.push(sql`${bundles.id} > ${filters.cursor}`);
+  }
+
+  // Admin sort modes: 'recent' = updatedAt desc, 'submitted' = submittedAt desc,
+  // 'score' = coverageScore desc.
+  let orderBy: SQL[];
+  switch (filters.sort) {
+    case 'top':
+      orderBy = [desc(bundles.coverageScore), desc(bundles.updatedAt)];
+      break;
+    case 'trending':
+      orderBy = [desc(bundles.submittedAt), desc(bundles.updatedAt)];
+      break;
+    case 'recent':
+    default:
+      orderBy = [desc(bundles.updatedAt), desc(bundles.createdAt)];
+      break;
+  }
+
+  const rows = await db
+    .select({
+      id: bundles.id,
+      slug: bundles.slug,
+      title: bundles.title,
+      description: bundles.description,
+      type: bundles.type,
+      status: bundles.status,
+      companionStatus: bundles.companionStatus,
+      coverageScore: bundles.coverageScore,
+      primaryCategorySlug: categories.slug,
+      primaryCategoryName: categories.name,
+      designStyle: bundles.designStyle,
+      compatibleTools: bundles.compatibleTools,
+      paletteColors: bundles.paletteColors,
+      brandInitial: bundles.brandInitial,
+      brandColor: bundles.brandColor,
+      voteCount: bundles.voteCount,
+      positiveVoteRate: bundles.positiveVoteRate,
+      isFeatured: bundles.isFeatured,
+      isCurated: bundles.isCurated,
+      sourceDomain: bundles.sourceDomain,
+      authorName: bundles.authorName,
+      license: bundles.license,
+      submittedAt: bundles.submittedAt,
+      reviewedAt: bundles.reviewedAt,
+      publishedAt: bundles.publishedAt,
+      updatedAt: bundles.updatedAt,
+    })
+    .from(bundles)
+    .leftJoin(categories, eq(bundles.primaryCategoryId, categories.id))
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .orderBy(...orderBy)
+    .limit(limit + 1);
+
+  const hasMore = rows.length > limit;
+  const items = hasMore ? rows.slice(0, limit) : rows;
+  const nextCursor = hasMore ? (items[items.length - 1]?.id ?? null) : null;
+
+  return { items: items as AdminBundleListItem[], nextCursor };
+}
+
 export interface BundleDetail extends BundleListItem {
   designMd: string | null;
   companionPrompt: string;
