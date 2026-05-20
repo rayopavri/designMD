@@ -55,6 +55,14 @@ type PipelineStep = {
   tool: string;
   detail: string;
   durationMs: number;
+  /**
+   * For bundle phases: backend `currentStep` values that mark this phase
+   * as active. A phase is `active` when the polled `currentStep` is in
+   * this list, `done` when stepIdx has advanced past it. Undefined for
+   * non-bundle mock pipelines (skill/agent/mcp), which use timer-based
+   * progression and don't talk to the real worker.
+   */
+  steps?: string[];
 };
 
 const COMPLIANCE_STEP: PipelineStep = {
@@ -65,30 +73,82 @@ const COMPLIANCE_STEP: PipelineStep = {
   durationMs: 900,
 };
 
-/** Bundle pipeline steps — these mirror the backend `currentStep` strings
- * emitted by `lib/generator/scrape-and-extract.ts`. Order must match the
- * worker. `durationMs` is only used as a visual hint when polling is slow. */
+/**
+ * Bundle pipeline phases (URL mode). 4 visible phases that each group
+ * one or more backend `currentStep` values from
+ * `lib/generator/scrape-and-extract.ts`. Each phase contains at least
+ * one slow operation (Firecrawl, Gemini, or Sonnet) so the elapsed
+ * timer always shows meaningful real time — never "0.0s".
+ */
 const BUNDLE_STEPS_URL: PipelineStep[] = [
-  { id: "scraping", label: "Page collection", tool: "Firecrawl", detail: "Crawling source + screenshot", durationMs: 8000 },
-  { id: "parsing-computed", label: "Computed-style parse", tool: "node-html-parser", detail: "CSS variables · dominant hexes · fonts", durationMs: 1500 },
-  { id: "extracting", label: "Brand extraction", tool: "Gemini 2.5 Flash", detail: "Multi-modal: text + computed + screenshot", durationMs: 12000 },
-  { id: "resolving-orphans", label: "Orphan resolution", tool: "Deterministic pass", detail: "Wire every token to a component", durationMs: 600 },
-  { id: "persisting", label: "Draft persisted", tool: "Postgres", detail: "Bundle row created", durationMs: 500 },
-  { id: "writing-design-md", label: "Design.md authored", tool: "Claude Sonnet 4.6", detail: "Canonical Google DESIGN.md spec", durationMs: 18000 },
-  { id: "linting", label: "Lint + WCAG check", tool: "@google/design.md", detail: "Contrast · orphans · section coverage", durationMs: 1500 },
-  { id: "scoring", label: "Coverage scoring", tool: "Linter model", detail: "Section weights + WCAG factor", durationMs: 400 },
+  {
+    id: "collect",
+    label: "Page collection",
+    tool: "Firecrawl",
+    detail: "Crawl + screenshot + computed-style parse",
+    durationMs: 10000,
+    steps: ["scraping", "parsing-computed"],
+  },
+  {
+    id: "extract",
+    label: "Brand extraction",
+    tool: "Gemini 2.5 Flash",
+    detail: "Multi-modal token extraction + token wiring",
+    durationMs: 13000,
+    steps: ["extracting", "resolving-orphans"],
+  },
+  {
+    id: "author",
+    label: "Design.md authored",
+    tool: "Claude Sonnet 4.6",
+    detail: "Persist draft + write canonical DESIGN.md",
+    durationMs: 19000,
+    steps: ["persisting", "writing-design-md"],
+  },
+  {
+    id: "validate",
+    label: "Validate & score",
+    tool: "@google/design.md",
+    detail: "Lint, WCAG check, coverage scoring",
+    durationMs: 2000,
+    steps: ["linting", "scoring"],
+  },
 ];
 
-/** Upload variant — replaces the first three URL-pipeline steps
- * (scraping, parsing-computed, extracting) with a single image-only path. */
+/** Upload variant — same 4-phase shape, image-only first phase. */
 const BUNDLE_STEPS_UPLOAD: PipelineStep[] = [
-  { id: "processing-image", label: "Image processing", tool: "Hashing + decoding", detail: "Computing SHA-256 + preparing for Gemini", durationMs: 800 },
-  { id: "extracting", label: "Brand extraction", tool: "Gemini 2.5 Flash", detail: "Vision-only: reading tokens from screenshot", durationMs: 14000 },
-  { id: "resolving-orphans", label: "Orphan resolution", tool: "Deterministic pass", detail: "Wire every token to a component", durationMs: 600 },
-  { id: "persisting", label: "Draft persisted", tool: "Postgres", detail: "Bundle row created", durationMs: 500 },
-  { id: "writing-design-md", label: "Design.md authored", tool: "Claude Sonnet 4.6", detail: "Canonical Google DESIGN.md spec", durationMs: 18000 },
-  { id: "linting", label: "Lint + WCAG check", tool: "@google/design.md", detail: "Contrast · orphans · section coverage", durationMs: 1500 },
-  { id: "scoring", label: "Coverage scoring", tool: "Linter model", detail: "Section weights + WCAG factor", durationMs: 400 },
+  {
+    id: "process",
+    label: "Image processing",
+    tool: "Decode + validate",
+    detail: "SHA-256, mime check, base64 ready for Gemini",
+    durationMs: 1500,
+    steps: ["processing-image"],
+  },
+  {
+    id: "extract",
+    label: "Brand extraction",
+    tool: "Gemini 2.5 Flash",
+    detail: "Vision-only token extraction + token wiring",
+    durationMs: 15000,
+    steps: ["extracting", "resolving-orphans"],
+  },
+  {
+    id: "author",
+    label: "Design.md authored",
+    tool: "Claude Sonnet 4.6",
+    detail: "Persist draft + write canonical DESIGN.md",
+    durationMs: 19000,
+    steps: ["persisting", "writing-design-md"],
+  },
+  {
+    id: "validate",
+    label: "Validate & score",
+    tool: "@google/design.md",
+    detail: "Lint, WCAG check, coverage scoring",
+    durationMs: 2000,
+    steps: ["linting", "scoring"],
+  },
 ];
 
 
@@ -552,7 +612,11 @@ function GenerateContent() {
       setStepIdx(bundleSteps.length);
       return;
     }
-    const idx = bundleSteps.findIndex((s) => s.id === step);
+    // Each phase declares which backend step IDs it owns via `steps[]`.
+    // Find the phase whose list contains the currently-active backend step.
+    const idx = bundleSteps.findIndex((phase) =>
+      phase.steps ? phase.steps.includes(step) : phase.id === step,
+    );
     if (idx >= 0) setStepIdx(idx);
   }
 
