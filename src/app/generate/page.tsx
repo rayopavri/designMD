@@ -494,6 +494,16 @@ function GenerateContent() {
         setStepIdx(bundleSteps.length);
         return;
       }
+      if (res.status === 429) {
+        const body = await res.json().catch(() => ({} as Record<string, unknown>));
+        setErrorMsg(
+          typeof body.message === "string"
+            ? body.message
+            : "You've hit the generation rate limit. Try again later.",
+        );
+        setStatus("failed");
+        return;
+      }
       if (!res.ok) {
         const body = await res.json().catch(() => ({ error: res.statusText }));
         setErrorMsg(body.error || `Failed to start (${res.status})`);
@@ -515,6 +525,16 @@ function GenerateContent() {
       fd.append("image", file);
       fd.append("brandName", name);
       const res = await fetch("/api/generate", { method: "POST", body: fd });
+      if (res.status === 429) {
+        const body = await res.json().catch(() => ({} as Record<string, unknown>));
+        setErrorMsg(
+          typeof body.message === "string"
+            ? body.message
+            : "You've hit the generation rate limit. Try again later.",
+        );
+        setStatus("failed");
+        return;
+      }
       if (!res.ok) {
         const body = await res.json().catch(() => ({ error: res.statusText }));
         setErrorMsg(body.error || `Failed to start (${res.status})`);

@@ -29,6 +29,7 @@ import { bundles, generationJobs } from '@/lib/db/schema';
 import { getCurrentUser } from '@/lib/auth/session';
 import { normalizeUrl } from '@/lib/generator/url';
 import { enqueueTask } from '@/lib/queue';
+import { rateLimitGenerate } from '@/lib/rate-limit';
 
 export const runtime = 'nodejs';
 
@@ -45,6 +46,31 @@ export async function POST(req: NextRequest) {
   // (created_by = user.id); anonymous gets null.
   const user = await getCurrentUser();
   const userId = user?.id ?? null;
+  const isEditor = user?.isEditor ?? false;
+
+  // Rate-limit gate. Editors are unmetered, signed-in get 10/hour by
+  // userId, anonymous get 3/hour by IP. Returns 429 if exceeded.
+  const rl = await rateLimitGenerate({ req, userId, isEditor });
+  if (!rl.ok) {
+    return NextResponse.json(
+      {
+        error: 'rate_limited',
+        message: `You've hit the generation limit (${rl.limit} per hour). Try again in ~${Math.ceil(rl.retryAfter / 60)}m${userId ? '' : ' — or sign in for higher limits.'}`,
+        retryAfter: rl.retryAfter,
+        limit: rl.limit,
+        remaining: rl.remaining,
+        tier: rl.tier,
+      },
+      {
+        status: 429,
+        headers: {
+          'Retry-After': String(rl.retryAfter),
+          'X-RateLimit-Limit': String(rl.limit),
+          'X-RateLimit-Remaining': String(rl.remaining),
+        },
+      },
+    );
+  }
 
   const contentType = req.headers.get('content-type') ?? '';
   if (contentType.startsWith('multipart/form-data')) {
