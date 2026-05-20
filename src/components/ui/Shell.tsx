@@ -91,7 +91,7 @@ export function Header() {
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6 lg:px-8">
         <div className="flex items-center gap-9">
           <Link href="/" className="flex items-baseline gap-2 text-[14px] font-medium tracking-tight" style={{ color: INK }}>
-            UIUXofAi
+            UIUXskills
             <span className="text-[10px]" style={{ fontFamily: MONO, color: MUTED }}>/ 042</span>
           </Link>
           <nav className="hidden md:flex items-center gap-7 text-[12.5px]" style={{ fontFamily: SANS, color: SUB }}>
@@ -159,7 +159,7 @@ export function Footer() {
         style={{ color: MUTED, fontFamily: MONO }}
       >
         <div className="flex items-center gap-4 flex-wrap">
-          <span style={{ color: INK, fontFamily: SANS }}>UIUXofAi</span>
+          <span style={{ color: INK, fontFamily: SANS }}>UIUXskills</span>
           <span>v0.42 · 2026 · uiuxskills.com</span>
           <span className="inline-flex items-center gap-1.5">
             <span className="h-1.5 w-1.5 rounded-full" style={{ background: LIME }} />

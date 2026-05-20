@@ -15,7 +15,7 @@ export async function downloadBundleZip(args: {
   const steps = INSTALL_STEPS[tool];
 
   const readme = [
-    `# ${name} — UIUXofAi design system (v${version})`,
+    `# ${name} — UIUXskills design system (v${version})`,
     ``,
     `## What's in this folder`,
     ``,
@@ -29,7 +29,7 @@ export async function downloadBundleZip(args: {
     ``,
     `## Source`,
     ``,
-    `Curated by UIUXofAi · uiuxskills.com`,
+    `Curated by UIUXskills · uiuxskills.com`,
     ``,
   ].join("\n");
 

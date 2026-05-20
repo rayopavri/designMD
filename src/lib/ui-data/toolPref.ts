@@ -7,7 +7,7 @@
  * to server components without breaking SSR).
  */
 
-export const TOOL_PREF_KEY = "uiuxofai:vote:tool";
+export const TOOL_PREF_KEY = "uiuxskills:vote:tool";
 
 export type ToolId = "claude" | "cursor" | "lovable" | "figma";
 

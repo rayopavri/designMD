@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { BORDER, INK, LIME, MONO, MUTED, SUB, SURFACE } from "@/lib/ui-data/tokens";
 
-const KEY = "uiuxofai:pulse";
+const KEY = "uiuxskills:pulse";
 const REASONS = ["Colors", "Typography", "Spacing", "Components", "Generic"] as const;
 type Reason = (typeof REASONS)[number];
 

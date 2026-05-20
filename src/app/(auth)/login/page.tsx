@@ -29,7 +29,7 @@ function Login() {
             className="text-[10.5px] uppercase tracking-[0.22em] mb-5"
             style={{ fontFamily: MONO, color: MUTED }}
           >
-            UIUXofAi · the catalog for designers shipping with AI
+            UIUXskills · the catalog for designers shipping with AI
           </div>
           <h1
             className="text-[56px] leading-[1.02] font-medium tracking-[-0.022em] mb-8"

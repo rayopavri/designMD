@@ -16,9 +16,9 @@ import { TOOLS } from "@/lib/ui-data/toolPref";
 import { INSTALL_STEPS } from "@/lib/ui-data/installSteps";
 
 const COMMANDS: { cmd: string; what: string }[] = [
-  { cmd: "npx uiuxofai add <id>", what: "Drop a bundle, skill, agent, or MCP into your project at the right per-tool path." },
-  { cmd: "npx uiuxofai list", what: "Print the catalogue of bundles, skills, agents, and MCPs." },
-  { cmd: "npx uiuxofai verify", what: "Check that an installed bundle's tokens are wired up." },
+  { cmd: "npx uiuxskills add <id>", what: "Drop a bundle, skill, agent, or MCP into your project at the right per-tool path." },
+  { cmd: "npx uiuxskills list", what: "Print the catalogue of bundles, skills, agents, and MCPs." },
+  { cmd: "npx uiuxskills verify", what: "Check that an installed bundle's tokens are wired up." },
 ];
 
 function CliDocs() {
@@ -33,7 +33,7 @@ function CliDocs() {
             <span style={{ color: SUB }}>any bundle, any tool.</span>
           </h1>
           <p className="mt-6 text-[15px] leading-[1.65]" style={{ color: SUB }}>
-            The UIUXofAi CLI installs anything from the library directly into your project. Pick a
+            The UIUXskills CLI installs anything from the library directly into your project. Pick a
             bundle on its detail page, copy the install command, paste it in your terminal.
           </p>
         </div>
@@ -64,7 +64,7 @@ function CliDocs() {
                 fontFamily: MONO,
               }}
             >
-              npx uiuxofai@latest add linear
+              npx uiuxskills@latest add linear
             </div>
             <div className="text-[11.5px] mt-3" style={{ color: SUB }}>
               Requires Node 18+. No account, no auth — the package fetches files from this site.

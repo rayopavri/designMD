@@ -13,7 +13,7 @@ export type QueuedSubmission = {
 };
 
 const queue: QueuedSubmission[] = [];
-const KEY = "uiuxofai:submissions";
+const KEY = "uiuxskills:submissions";
 
 function persist() {
   if (typeof window === "undefined") return;

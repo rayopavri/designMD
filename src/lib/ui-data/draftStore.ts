@@ -12,7 +12,7 @@ export type GeneratedDraft = {
 };
 
 const memory = new Map<string, GeneratedDraft>();
-const KEY_PREFIX = "uiuxofai:draft:";
+const KEY_PREFIX = "uiuxskills:draft:";
 
 function readSession(id: string): GeneratedDraft | undefined {
   if (typeof window === "undefined") return undefined;

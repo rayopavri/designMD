@@ -53,7 +53,7 @@ export function HomeHero() {
                 style={{ background: LIME, boxShadow: `0 0 8px ${LIME}88` }}
                 aria-hidden
               />
-              <span style={{ color: SUB }}>UIUXofAi</span>
+              <span style={{ color: SUB }}>UIUXskills</span>
               <span className="h-px w-5" style={{ background: "#26262A" }} aria-hidden />
               <span>The catalog for designers shipping with AI</span>
             </div>
@@ -124,7 +124,7 @@ export function HomeHero() {
                 >
                   Install via CLI
                 </Link>
-                <span style={{ color: SUB }}>{" "}— npx uiuxofai add &lt;id&gt;.</span>
+                <span style={{ color: SUB }}>{" "}— npx uiuxskills add &lt;id&gt;.</span>
               </li>
             </ul>
           </div>
@@ -143,7 +143,7 @@ export function HomeHero() {
             >
               <AuthCard
                 variant="compact"
-                title="Sign in to UIUXofAi"
+                title="Sign in to UIUXskills"
                 intent="Save your generations. Pin favorites. Submit bundles under your byline. And get 10 generations per hour instead of 3. You can keep using the generator without signing in."
                 onSuccess={() => {
                   // Stay on the homepage; the aside re-renders into the

@@ -478,7 +478,7 @@ function BundleView({ item }: { item: BundleItem }) {
                   </button>
                   {/* TODO: wire to real CLI */}
                   <button
-                    onClick={() => copyText(`npx uiuxofai add ${bundle.id}`, "cli")}
+                    onClick={() => copyText(`npx uiuxskills add ${bundle.id}`, "cli")}
                     className="rounded-xl border p-5 text-left transition-colors"
                     style={{ borderColor: copiedCli ? `${LIME}88` : BORDER, background: SURFACE }}
                   >
@@ -499,7 +499,7 @@ function BundleView({ item }: { item: BundleItem }) {
                       className="text-[13px] font-medium truncate"
                       style={{ color: INK, fontFamily: MONO }}
                     >
-                      {copiedCli ? "Copied ✓" : `npx uiuxofai add ${bundle.id}`}
+                      {copiedCli ? "Copied ✓" : `npx uiuxskills add ${bundle.id}`}
                     </div>
                     <div className="text-[11.5px] mt-1" style={{ color: SUB }}>
                       writes the same files to your {toolLabel(tool)} project, one command

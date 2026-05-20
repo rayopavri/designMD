@@ -31,7 +31,7 @@ export type AuthCardProps = {
    * buttons. Used by the modal to let users dismiss the prompt and
    * continue anonymously. */
   onSkip?: () => void;
-  /** Override the default heading. Defaults to "Sign in to UIUXofAi"
+  /** Override the default heading. Defaults to "Sign in to UIUXskills"
    * (variant=full) or "Sign in" (variant=compact). */
   title?: string;
 };
@@ -118,7 +118,7 @@ export function AuthCard({ variant = "compact", onSuccess, intent, onSkip, title
         </div>
         <h2 className={`${titleSize} leading-[1.08] font-medium tracking-[-0.018em]`} style={{ color: INK }}>
           {step === "providers" &&
-            (title ?? (variant === "full" ? "Sign in to UIUXofAi" : "Sign in"))}
+            (title ?? (variant === "full" ? "Sign in to UIUXskills" : "Sign in"))}
           {step === "email" && "Continue with email"}
           {step === "sent" && "Check your inbox"}
         </h2>

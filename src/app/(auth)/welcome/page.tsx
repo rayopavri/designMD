@@ -128,7 +128,7 @@ function Welcome() {
               className="text-[10.5px] uppercase tracking-[0.22em] block mb-2 inline-flex items-center gap-2"
               style={{ fontFamily: MONO, color: MUTED }}
             >
-              Handle <span style={{ color: SUB }}>· uiuxofai.com/@</span>
+              Handle <span style={{ color: SUB }}>· uiuxskills.com/@</span>
             </span>
             <input
               type="text"

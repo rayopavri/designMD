@@ -319,7 +319,7 @@ You translate Figma frames into typed React components that consume design.md to
 5. Return a coverage report: declared / inferred / unmapped.
 
 # DEPENDENCIES
-- Pairs naturally with the Figma Dev Mode MCP and any UIUXofAi design system.
+- Pairs naturally with the Figma Dev Mode MCP and any UIUXskills design system.
 `;
 
 const SKILLS: Omit<SkillItem, "category">[] = [
@@ -330,7 +330,7 @@ const SKILLS: Omit<SkillItem, "category">[] = [
     name: "Design System Architect",
     tagline: "Turns brand references into a design.md spec",
     description:
-      "A Claude Skill that takes URLs, screenshots, or Figma frames and produces a strict, tokenized design.md ready to drop into any UIUXofAi design system.",
+      "A Claude Skill that takes URLs, screenshots, or Figma frames and produces a strict, tokenized design.md ready to drop into any UIUXskills design system.",
     tags: ["Claude Skill", "Tokens", "Architecture"],
     tools: ["Claude"],
     relatedIds: ["linear", "vercel", "mcp-figma-dev-mode", "skill-figma-to-react"],

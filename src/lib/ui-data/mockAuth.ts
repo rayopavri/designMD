@@ -50,8 +50,8 @@ interface State {
   };
 }
 
-const WELCOME_KEY_PREFIX = 'uiuxofai.welcomeSeen:';
-const EMAIL_LINK_STORAGE_KEY = 'uiuxofai.emailForSignIn';
+const WELCOME_KEY_PREFIX = 'uiuxskills.welcomeSeen:';
+const EMAIL_LINK_STORAGE_KEY = 'uiuxskills.emailForSignIn';
 
 function welcomeKey(userId: string): string {
   return `${WELCOME_KEY_PREFIX}${userId}`;
