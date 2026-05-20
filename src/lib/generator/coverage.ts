@@ -72,11 +72,14 @@ export function scoreFromLint(lintSummary: LintSummary, rawMd: string): Coverage
   const sectionAvg =
     (colors + typography + layout + elevation + shapes + components + dosDonts) / 7;
 
+  // WCAG failures are a property of the SOURCE brand, not our extraction.
+  // We surface them to users as an accessibility advisory but don't
+  // penalize the bundle's coverage score — our job is faithful extraction,
+  // not fixing other people's contrast ratios.
   const wcagPass = lintSummary.contrastFailures.length === 0;
-  const wcagFactor = wcagPass ? 1 : 0.6;
   const sectionFactor = 0.6 + (sectionCoverage / 100) * 0.4; // 0.6..1.0
 
-  const overall = clamp(Math.round(sectionAvg * wcagFactor * sectionFactor));
+  const overall = clamp(Math.round(sectionAvg * sectionFactor));
 
   return {
     colors,

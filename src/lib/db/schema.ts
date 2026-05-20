@@ -253,6 +253,10 @@ export const bundles = pgTable(
     reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
     reviewNotes: text('review_notes'),
 
+    // Accessibility advisory — surfaced to consumers, not a quality penalty.
+    // Populated when the source brand has WCAG-failing contrast pairs.
+    accessibilityNotes: text('accessibility_notes'),
+
     // Metadata
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

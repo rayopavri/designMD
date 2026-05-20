@@ -155,6 +155,7 @@ export interface BundleDetail extends BundleListItem {
   attributionStatement: string | null;
   authorUrl: string | null;
   sourceUrl: string | null;
+  accessibilityNotes: string | null;
 }
 
 export interface OwnerBundleDetail extends BundleDetail {
@@ -201,6 +202,7 @@ const bundleDetailColumns = {
   authorUrl: bundles.authorUrl,
   license: bundles.license,
   attributionStatement: bundles.attributionStatement,
+  accessibilityNotes: bundles.accessibilityNotes,
   publishedAt: bundles.publishedAt,
   updatedAt: bundles.updatedAt,
 } as const;
@@ -271,6 +273,7 @@ export async function getPublishedBundleBySlug(slug: string): Promise<BundleDeta
       authorUrl: bundles.authorUrl,
       license: bundles.license,
       attributionStatement: bundles.attributionStatement,
+      accessibilityNotes: bundles.accessibilityNotes,
       publishedAt: bundles.publishedAt,
       updatedAt: bundles.updatedAt,
     })

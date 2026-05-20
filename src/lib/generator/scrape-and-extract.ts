@@ -29,7 +29,12 @@ import {
   extractComputedStyles,
   type ComputedStyleSnapshot,
 } from '@/lib/generator/extract-computed-styles';
-import { lintDesignMd, renderLintSummary, type LintSummary } from '@/lib/generator/lint-design-md';
+import {
+  lintDesignMd,
+  renderAccessibilityAdvisory,
+  renderLintSummary,
+  type LintSummary,
+} from '@/lib/generator/lint-design-md';
 import { resolveOrphans } from '@/lib/generator/resolve-orphans';
 import { extractDomain } from '@/lib/generator/url';
 import { uniqueBundleSlug } from '@/lib/generator/slug';
@@ -214,6 +219,7 @@ export async function runScrapeAndExtract(payload: ScrapeAndExtractPayload): Pro
         coverageComponents: coverage.components,
         coverageDosDonts: coverage.dosDonts,
         reviewNotes: renderLintSummary(lintSummary),
+        accessibilityNotes: renderAccessibilityAdvisory(lintSummary),
         status: shouldPromote ? 'pending_review' : 'personal',
         submittedAt: shouldPromote ? new Date() : null,
         updatedAt: new Date(),
