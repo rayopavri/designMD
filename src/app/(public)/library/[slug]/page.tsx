@@ -20,6 +20,7 @@ import {
   LIME,
   MONO,
   MUTED,
+  PEACH,
   SUB,
   SURFACE,
   SURFACE_2,
@@ -554,20 +555,25 @@ function BundleView({ item }: { item: BundleItem }) {
               </div>
 
               {tab === "design.md" ? (
-                <CodePanel
-                  title={`${bundle.name.toLowerCase()} / design.md`}
-                  language="yaml"
-                  source={bundle.designMd}
-                  rightMeta={
-                    <>
-                      <span>{bundle.tokens.toLocaleString()} tokens</span>
-                      <span className="inline-flex items-center gap-1.5" style={{ color: INK }}>
-                        <span className="h-1.5 w-1.5 rounded-full" style={{ background: LIME }} />
-                        {bundle.coverage}% coverage
-                      </span>
-                    </>
-                  }
-                />
+                <>
+                  {bundle.accessibilityNotes ? (
+                    <AccessibilityNote notes={bundle.accessibilityNotes} />
+                  ) : null}
+                  <CodePanel
+                    title={`${bundle.name.toLowerCase()} / design.md`}
+                    language="yaml"
+                    source={bundle.designMd}
+                    rightMeta={
+                      <>
+                        <span>{bundle.tokens.toLocaleString()} tokens</span>
+                        <span className="inline-flex items-center gap-1.5" style={{ color: INK }}>
+                          <span className="h-1.5 w-1.5 rounded-full" style={{ background: LIME }} />
+                          {bundle.coverage}% coverage
+                        </span>
+                      </>
+                    }
+                  />
+                </>
               ) : tab === "companion" ? (
                 <CodePanel
                   title={`${bundle.name.toLowerCase()} / companion.md`}
@@ -590,6 +596,47 @@ function BundleView({ item }: { item: BundleItem }) {
 
       <WorksWellWith itemId={item.id} sectionNum={showInstall ? "04" : "03"} />
     </>
+  );
+}
+
+function AccessibilityNote({ notes }: { notes: string }) {
+  const [head, ...pairs] = notes.split("\n");
+  const [open, setOpen] = useState(false);
+  return (
+    <div
+      className="mb-3 rounded-md border px-3 py-2 text-[12px]"
+      style={{ borderColor: BORDER, background: SURFACE_2 }}
+    >
+      <div className="flex items-center gap-2">
+        <span
+          className="h-1.5 w-1.5 rounded-full shrink-0"
+          style={{ background: PEACH }}
+          aria-hidden
+        />
+        <span style={{ color: INK }}>{head}</span>
+        {pairs.length > 0 ? (
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            className="ml-auto text-[11px] underline underline-offset-4"
+            style={{ color: SUB, fontFamily: MONO }}
+            aria-expanded={open}
+          >
+            {open ? "hide pairs" : `${pairs.length} pair${pairs.length === 1 ? "" : "s"}`}
+          </button>
+        ) : null}
+      </div>
+      {open && pairs.length > 0 ? (
+        <ul
+          className="mt-2 pl-4 text-[11px] leading-[1.6] list-disc"
+          style={{ color: SUB, fontFamily: MONO }}
+        >
+          {pairs.map((p, i) => (
+            <li key={i}>{p}</li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
   );
 }
 

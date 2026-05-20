@@ -104,21 +104,17 @@ export async function lintDesignMd(content: string): Promise<LintSummary> {
 }
 
 /**
- * Render a public-facing accessibility advisory. Returns null when the
- * brand has no contrast issues. Markdown so the bundle detail page can
- * render it directly as a callout.
+ * Render a short public-facing accessibility note. Returns null when the
+ * brand has no contrast issues. Kept terse — designers can dig deeper if
+ * they care. Format: "<count> color combinations don't meet WCAG AA"
+ * followed by the raw pair list as plain text (no markdown bold).
  */
 export function renderAccessibilityAdvisory(s: LintSummary): string | null {
   if (s.contrastFailures.length === 0) return null;
-  const lines: string[] = [
-    "This brand's design system contains color combinations that don't meet WCAG AA contrast guidelines. The bundle faithfully reflects the source — if you ship these tokens as-is, the same combinations will fail accessibility audits in your product. Consider darker shades for the affected pairs.",
-    '',
-    '**Failing pairs:**',
-  ];
-  for (const cf of s.contrastFailures) {
-    lines.push(`- ${cf.message}`);
-  }
-  return lines.join('\n');
+  const count = s.contrastFailures.length;
+  const head = `${count} color combination${count === 1 ? '' : 's'} don't meet WCAG AA. Verify before shipping.`;
+  const pairs = s.contrastFailures.map((cf) => `${cf.componentPath}: ${cf.message}`);
+  return [head, ...pairs].join('\n');
 }
 
 /** Convenience: render a one-page reviewer summary. */

@@ -56,6 +56,7 @@ interface ApiBundleDetail {
   authorUrl: string | null;
   license: string | null;
   attributionStatement: string | null;
+  accessibilityNotes: string | null;
   publishedAt: string | null;
   updatedAt: string;
 }
@@ -212,6 +213,7 @@ function detailToBundleItem(row: ApiBundleDetail): BundleItem {
     designMd: row.designMd ?? '',
     companionPrompt: row.companionPrompt,
     scores: [],
+    accessibilityNotes: row.accessibilityNotes ?? undefined,
   };
 
   return {

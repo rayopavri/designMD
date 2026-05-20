@@ -34,6 +34,10 @@ export type Bundle = {
   designMd: string;
   companionPrompt: string;
   scores: { label: string; score: number }[];
+  /** Optional advisory shown on bundle detail when the source brand has
+   * WCAG-failing contrast pairs. Format: one-line summary followed by
+   * `componentPath: message` lines. Populated by the generator pipeline. */
+  accessibilityNotes?: string;
 };
 
 const linear = `---
