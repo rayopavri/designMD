@@ -125,6 +125,9 @@ importers:
       '@upstash/redis':
         specifier: ^1.34.3
         version: 1.38.0
+      '@vercel/analytics':
+        specifier: ^2.0.1
+        version: 2.0.1(next@15.5.9(@opentelemetry/api@1.9.1)(react-dom@19.0.0(react@19.0.0))(react@19.0.0))(react@19.0.0)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -2422,6 +2425,35 @@ packages:
 
   '@upstash/redis@1.38.0':
     resolution: {integrity: sha512-wu+dZBptlLy0+MCUEoHmzrY/TnmgDey3+c7EbIGwrLqAvkP8yi5MWZHYGIFtAygmL4Bkz2TdFu+eU0vFPncIcg==}
+
+  '@vercel/analytics@2.0.1':
+    resolution: {integrity: sha512-MTQG6V9qQrt1tsDeF+2Uoo5aPjqbVPys1xvnIftXSJYG2SrwXRHnqEvVoYID7BTruDz4lCd2Z7rM1BdkUehk2g==}
+    peerDependencies:
+      '@remix-run/react': ^2
+      '@sveltejs/kit': ^1 || ^2
+      next: '>= 13'
+      nuxt: '>= 3'
+      react: ^18 || ^19 || ^19.0.0-rc
+      svelte: '>= 4'
+      vue: ^3
+      vue-router: ^4
+    peerDependenciesMeta:
+      '@remix-run/react':
+        optional: true
+      '@sveltejs/kit':
+        optional: true
+      next:
+        optional: true
+      nuxt:
+        optional: true
+      react:
+        optional: true
+      svelte:
+        optional: true
+      vue:
+        optional: true
+      vue-router:
+        optional: true
 
   abort-controller@3.0.0:
     resolution: {integrity: sha512-h8lQ8tacZYnR3vNQTgibj+tODHI5/+l06Au2Pcriv/Gmet0eaj4TwWH41sO9wnHDiQsEj19q0drzdWdeAHtweg==}
@@ -5643,7 +5675,7 @@ snapshots:
   '@google/design.md@0.1.1(@types/react@19.2.15)':
     dependencies:
       '@json-render/core': 0.16.0(zod@3.25.76)
-      '@json-render/ink': 0.16.0(ink@7.0.3(@types/react@19.2.15)(react@19.2.6))(react@19.2.6)(zod@3.25.76)
+      '@json-render/ink': 0.16.0(ink@7.0.3(@types/react@19.2.15)(react@19.0.0))(react@19.2.6)(zod@3.25.76)
       citty: 0.1.6
       ink: 7.0.3(@types/react@19.2.15)(react@19.2.6)
       mdast: 3.0.0
@@ -5831,7 +5863,7 @@ snapshots:
     dependencies:
       zod: 3.25.76
 
-  '@json-render/ink@0.16.0(ink@7.0.3(@types/react@19.2.15)(react@19.2.6))(react@19.2.6)(zod@3.25.76)':
+  '@json-render/ink@0.16.0(ink@7.0.3(@types/react@19.2.15)(react@19.0.0))(react@19.2.6)(zod@3.25.76)':
     dependencies:
       '@json-render/core': 0.16.0(zod@3.25.76)
       ink: 7.0.3(@types/react@19.2.15)(react@19.2.6)
@@ -6972,6 +7004,11 @@ snapshots:
   '@upstash/redis@1.38.0':
     dependencies:
       uncrypto: 0.1.3
+
+  '@vercel/analytics@2.0.1(next@15.5.9(@opentelemetry/api@1.9.1)(react-dom@19.0.0(react@19.0.0))(react@19.0.0))(react@19.0.0)':
+    optionalDependencies:
+      next: 15.5.9(@opentelemetry/api@1.9.1)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
+      react: 19.0.0
 
   abort-controller@3.0.0:
     dependencies:

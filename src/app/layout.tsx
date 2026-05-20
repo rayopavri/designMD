@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { Shell } from '@/components/ui/Shell';
+import { Analytics } from '@vercel/analytics/next';
 
 export const metadata: Metadata = {
   title: 'designmd — design systems for AI tools',
@@ -15,6 +16,7 @@ export default function RootLayout({
     <html lang="en" className="h-full antialiased">
       <body className="min-h-full">
         <Shell>{children}</Shell>
+        <Analytics />
       </body>
     </html>
   );
