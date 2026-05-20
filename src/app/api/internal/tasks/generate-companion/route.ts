@@ -5,11 +5,12 @@
  * Vercel function comfortably under the 60s Hobby cap by splitting the
  * pipeline in two.
  *
- * Auth: requires x-internal-task-token header.
+ * Auth: assertTaskAuth handles both QStash signature (production) and
+ * x-internal-task-token (local dev).
  */
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
-import { assertInternalTaskAuth } from '@/lib/queue';
+import { assertTaskAuth } from '@/lib/queue';
 import { runGenerateCompanion } from '@/lib/generator/generate-companion-task';
 
 export const runtime = 'nodejs';
@@ -20,8 +21,9 @@ const PayloadSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  let rawPayload: unknown;
   try {
-    assertInternalTaskAuth(req);
+    rawPayload = await assertTaskAuth(req);
   } catch (res) {
     if (res instanceof Response) return res;
     throw res;
@@ -29,8 +31,7 @@ export async function POST(req: NextRequest) {
 
   let parsed: z.infer<typeof PayloadSchema>;
   try {
-    const json = await req.json();
-    parsed = PayloadSchema.parse(json);
+    parsed = PayloadSchema.parse(rawPayload);
   } catch (err) {
     return NextResponse.json(
       { error: 'Invalid payload', details: err instanceof Error ? err.message : String(err) },

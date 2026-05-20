@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-05-20**
+> Last updated: **2026-05-20** (post-QStash)
 > Current state: **Live in production** at https://uiuxskills.com (and design-md-chi.vercel.app)
 
 ---
@@ -24,6 +24,21 @@ Things to confirm now that `UIUXofAi → UIUXskills` shipped (`d030690`).
 - [ ] **`NEXT_PUBLIC_APP_URL` env var** in Vercel points to `https://uiuxskills.com` (was likely pointing at the `.vercel.app` URL)
 - [ ] **Firebase Auth → Authorized domains** includes `uiuxskills.com` (Google sign-in will fail silently if not)
 - [ ] **Vercel project rename** (optional cosmetic) — `design-md` → `uiuxskills` in Project Settings → General
+
+## 🔥 QStash setup (required for post-QStash deploy to actually work)
+
+The fire-and-forget task pattern that lost the Lando Norris companion prompt is now replaced with Upstash QStash. To activate it:
+
+- [ ] **Open Upstash Console** at https://console.upstash.com/
+- [ ] **Click the "QStash" tab** in the left sidebar (NOT Redis — that's already set up)
+- [ ] **Copy three values** from the dashboard:
+  - `QSTASH_TOKEN` (top of the page)
+  - `QSTASH_CURRENT_SIGNING_KEY` (under "Signing Keys")
+  - `QSTASH_NEXT_SIGNING_KEY` (under "Signing Keys")
+- [ ] **In Vercel** → Project Settings → Environment Variables, add all three (Production + Preview + Development scopes)
+- [ ] **Redeploy** (Vercel will redeploy automatically on next push, or hit "Redeploy" on the latest deployment)
+- [ ] **Recover Lando Norris bundle** — once deployed, go to `/admin/bundles`, search "lando norris", click "Re-run companion" (new cyan button visible whenever `companionStatus !== ready`)
+- [ ] **Test a new generation** — generate any bundle on `/generate`. Companion should land as `ready` within ~15s of design.md being persisted (no more stuck pending bundles).
 
 ---
 
@@ -226,6 +241,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-05-20** · QStash replaces fragile fire-and-forget task dispatch. Adds admin "Re-run companion" button for stuck bundles. Idempotent worker auth via signature verification (production) + token (local dev).
 - [x] **2026-05-20** · Rebrand UIUXofAi → UIUXskills across UI copy, CLI command, handle domain, localStorage key prefixes (`d030690`)
 - [x] **2026-05-20** · Custom domain `uiuxskills.com` attached to Vercel project
 - [x] Rate limit `/api/generate` via Upstash Redis (3/hr anon, 10/hr user, unmetered editor) — `931929c`

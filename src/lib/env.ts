@@ -32,6 +32,11 @@ const EnvSchema = z.object({
   UPSTASH_REDIS_REST_URL: z.string().url().optional(),
   UPSTASH_REDIS_REST_TOKEN: z.string().min(1).optional(),
 
+  // QStash (durable task queue — replaces fragile fire-and-forget on Vercel)
+  QSTASH_TOKEN: z.string().min(1).optional(),
+  QSTASH_CURRENT_SIGNING_KEY: z.string().min(1).optional(),
+  QSTASH_NEXT_SIGNING_KEY: z.string().min(1).optional(),
+
   // Security
   RATE_LIMIT_SECRET: z.string().min(32).optional(),
   TAKEDOWN_SECRET: z.string().min(32).optional(),

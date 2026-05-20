@@ -123,7 +123,8 @@ type ActionState =
   | "archiving"
   | "restoring"
   | "publishing"
-  | "rejecting";
+  | "rejecting"
+  | "regenerating-companion";
 
 const DESIGN_STYLES = [
   "dark-mode",
@@ -496,6 +497,28 @@ export default function AdminBundlesPage() {
     }
   };
 
+  const onRegenerateCompanion = async () => {
+    if (!detail) return;
+    setActionState("regenerating-companion");
+    setActionError(null);
+    try {
+      const res = await fetch(
+        `/api/admin/bundles/${encodeURIComponent(detail.slug)}/regenerate-companion`,
+        { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" },
+      );
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({ error: res.statusText }));
+        setActionError(body.error || `Regenerate failed (${res.status})`);
+        return;
+      }
+      await loadDetail(detail.slug);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Network error");
+    } finally {
+      setActionState("idle");
+    }
+  };
+
   // ─── Render states ─────────────────────────────────────────
 
   if (loadState === "loading") {
@@ -769,6 +792,7 @@ export default function AdminBundlesPage() {
               onArchive={onArchive}
               onRestore={onRestore}
               onPublish={onPublish}
+              onRegenerateCompanion={onRegenerateCompanion}
             />
           )}
         </div>
@@ -791,6 +815,7 @@ interface DetailEditorProps {
   onArchive: () => void | Promise<void>;
   onRestore: (target: "published" | "pending_review") => void | Promise<void>;
   onPublish: () => void | Promise<void>;
+  onRegenerateCompanion: () => void | Promise<void>;
 }
 
 function DetailEditor(props: DetailEditorProps) {
@@ -1080,6 +1105,24 @@ function DetailEditor(props: DetailEditorProps) {
                 <Check className="h-3.5 w-3.5" style={{ color: LIME }} />
               )}
               Publish
+            </button>
+          ) : null}
+
+          {detail.designMd && detail.companionStatus !== "ready" ? (
+            <button
+              type="button"
+              onClick={() => void props.onRegenerateCompanion()}
+              disabled={busy}
+              title={`Re-run companion prompt worker (current status: ${detail.companionStatus})`}
+              className="h-9 rounded-full px-4 text-[12.5px] inline-flex items-center gap-2"
+              style={{ background: SURFACE_2, color: INK, border: `1px solid ${CYAN}66` }}
+            >
+              {actionState === "regenerating-companion" ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <RefreshCw className="h-3.5 w-3.5" style={{ color: CYAN }} />
+              )}
+              Re-run companion
             </button>
           ) : null}
 

@@ -1,12 +1,12 @@
 /**
  * Internal worker endpoint for the scrape-and-extract pipeline.
  *
- * Auth: requires x-internal-task-token header to match env.INTERNAL_TASK_TOKEN.
- * Cloud Tasks (prod) and INLINE_TASKS dispatch (dev) both call here.
+ * Auth: assertTaskAuth handles both QStash signature (production) and
+ * x-internal-task-token (local dev).
  */
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
-import { assertInternalTaskAuth } from '@/lib/queue';
+import { assertTaskAuth } from '@/lib/queue';
 import { runScrapeAndExtract } from '@/lib/generator/scrape-and-extract';
 
 // This route makes outbound HTTP calls (Firecrawl, Gemini) and writes
@@ -19,8 +19,9 @@ const PayloadSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  let rawPayload: unknown;
   try {
-    assertInternalTaskAuth(req);
+    rawPayload = await assertTaskAuth(req);
   } catch (res) {
     if (res instanceof Response) return res;
     throw res;
@@ -28,8 +29,7 @@ export async function POST(req: NextRequest) {
 
   let parsed: z.infer<typeof PayloadSchema>;
   try {
-    const json = await req.json();
-    parsed = PayloadSchema.parse(json);
+    parsed = PayloadSchema.parse(rawPayload);
   } catch (err) {
     return NextResponse.json(
       { error: 'Invalid payload', details: err instanceof Error ? err.message : String(err) },
