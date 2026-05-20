@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { LibraryFilterPanel } from "@/components/ui/LibraryFilterPanel";
 import {
   matchesCategory,
@@ -447,4 +447,10 @@ function SortSelect({ value, onChange }: { value: Sort; onChange: (s: Sort) => v
   );
 }
 
-export default Library;
+export default function LibraryPage() {
+  return (
+    <Suspense fallback={null}>
+      <Library />
+    </Suspense>
+  );
+}

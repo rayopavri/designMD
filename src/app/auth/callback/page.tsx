@@ -7,7 +7,7 @@
  */
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { isSignInWithEmailLink, signInWithEmailLink } from 'firebase/auth';
 import { clientAuth } from '@/lib/auth/firebase-client';
@@ -17,6 +17,14 @@ import {
 } from '@/lib/ui-data/mockAuth';
 
 export default function AuthCallbackPage() {
+  return (
+    <Suspense fallback={null}>
+      <AuthCallbackContent />
+    </Suspense>
+  );
+}
+
+function AuthCallbackContent() {
   const router = useRouter();
   const params = useSearchParams();
   const returnTo = params.get('returnTo');

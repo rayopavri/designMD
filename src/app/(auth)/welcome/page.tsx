@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { ArrowRight, Check } from "lucide-react";
 import {
@@ -28,7 +28,7 @@ const TOOLS = [
   { id: "v0", label: "v0" },
 ];
 
-export function Welcome() {
+function Welcome() {
   const _router = useRouter();
   const navigate = (path: string) => _router.push(path);
   const search = useSearchParams().toString();
@@ -214,4 +214,10 @@ export function Welcome() {
   );
 }
 
-export default Welcome;
+export default function WelcomePage() {
+  return (
+    <Suspense fallback={null}>
+      <Welcome />
+    </Suspense>
+  );
+}

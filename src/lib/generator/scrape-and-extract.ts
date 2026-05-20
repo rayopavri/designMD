@@ -16,7 +16,11 @@
 import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db/client';
 import { bundles, categories, generationJobs } from '@/lib/db/schema';
-import { extractBrandFromMarkdown, type ExtractedBrand } from '@/lib/ai/gemini';
+import {
+  extractBrandFromImage,
+  extractBrandFromMarkdown,
+  type ExtractedBrand,
+} from '@/lib/ai/gemini';
 import { scrapeUrl, type ScrapeResult } from '@/lib/ai/firecrawl';
 import { generateDesignMd } from '@/lib/ai/generate-design-md';
 import { generateCompanionPrompt } from '@/lib/ai/generate-companion-prompt';
@@ -45,38 +49,78 @@ export async function runScrapeAndExtract(payload: ScrapeAndExtractPayload): Pro
   if (!job) throw new Error(`generation job ${jobId} not found`);
   if (job.status !== 'queued' && job.status !== 'running') return;
 
-  // ─── 1. Scrape ─────────────────────────────────────────
-  await setJobStep(jobId, 'scraping');
+  const isUpload = job.sourceType === 'upload';
+
   let scrape: ScrapeResult;
-  try {
-    scrape = await scrapeUrl(job.url);
-  } catch (err) {
-    return failJob(jobId, 'scraping', err);
-  }
-
-  // ─── 2. Parse computed styles ─────────────────────────
-  await setJobStep(jobId, 'parsing-computed');
-  let computed: ComputedStyleSnapshot;
-  try {
-    computed = extractComputedStyles(scrape.html ?? '');
-  } catch (err) {
-    return failJob(jobId, 'parsing-computed', err);
-  }
-
-  // ─── 3. Gemini extraction ─────────────────────────────
-  await setJobStep(jobId, 'extracting');
   let brand: ExtractedBrand;
-  try {
-    brand = await extractBrandFromMarkdown({
+
+  if (isUpload) {
+    // ─── 1u. Process uploaded image ────────────────────
+    await setJobStep(jobId, 'processing-image');
+    if (!job.imageData || !job.imageMimeType || !job.brandName) {
+      return failJob(
+        jobId,
+        'processing-image',
+        new Error('Upload job missing imageData / imageMimeType / brandName'),
+      );
+    }
+    // Synthesise a scrape-shaped object so the rest of the pipeline
+    // (writeDraftBundle, designMd context) doesn't need an upload branch.
+    scrape = {
       url: job.url,
-      title: scrape.title,
-      description: scrape.description,
-      markdown: scrape.markdown,
-      screenshotUrl: scrape.screenshotUrl,
-      computed,
-    });
-  } catch (err) {
-    return failJob(jobId, 'extracting', err);
+      title: job.brandName,
+      description: '',
+      markdown: '',
+      html: null,
+      screenshotUrl: null,
+      ogImageUrl: null,
+      language: null,
+      statusCode: null,
+    };
+
+    // ─── 2u. Gemini image-only extraction ──────────────
+    await setJobStep(jobId, 'extracting');
+    try {
+      brand = await extractBrandFromImage({
+        brandName: job.brandName,
+        imageBase64: job.imageData,
+        imageMimeType: job.imageMimeType,
+      });
+    } catch (err) {
+      return failJob(jobId, 'extracting', err);
+    }
+  } else {
+    // ─── 1. Scrape ───────────────────────────────────
+    await setJobStep(jobId, 'scraping');
+    try {
+      scrape = await scrapeUrl(job.url);
+    } catch (err) {
+      return failJob(jobId, 'scraping', err);
+    }
+
+    // ─── 2. Parse computed styles ────────────────────
+    await setJobStep(jobId, 'parsing-computed');
+    let computed: ComputedStyleSnapshot;
+    try {
+      computed = extractComputedStyles(scrape.html ?? '');
+    } catch (err) {
+      return failJob(jobId, 'parsing-computed', err);
+    }
+
+    // ─── 3. Gemini extraction ────────────────────────
+    await setJobStep(jobId, 'extracting');
+    try {
+      brand = await extractBrandFromMarkdown({
+        url: job.url,
+        title: scrape.title,
+        description: scrape.description,
+        markdown: scrape.markdown,
+        screenshotUrl: scrape.screenshotUrl,
+        computed,
+      });
+    } catch (err) {
+      return failJob(jobId, 'extracting', err);
+    }
   }
 
   // ─── 3b. Deterministic orphan resolution ─────────────
@@ -218,6 +262,9 @@ export async function runScrapeAndExtract(payload: ScrapeAndExtractPayload): Pro
       status: 'completed',
       currentStep: shouldPromote ? 'ready_for_review' : 'held_as_draft',
       resultBundleId: bundleId,
+      // Drop the base64 payload once the bundle is persisted — we don't need
+      // to keep the original image around (per design spec).
+      imageData: null,
       updatedAt: new Date(),
     })
     .where(eq(generationJobs.id, jobId));
@@ -252,8 +299,12 @@ async function writeDraftBundle(input: {
   brand: ExtractedBrand;
 }): Promise<string> {
   const { job, scrape, brand } = input;
-  const domain = extractDomain(job.url);
-  const slug = await uniqueBundleSlug(brand.name || domain);
+  const isUpload = job.sourceType === 'upload';
+  // Upload jobs have no real URL — extractDomain would return the image hash,
+  // which is meaningless to users. Fall back to the brand name as the slug
+  // seed and leave sourceDomain/sourceUrl null on the bundle.
+  const domain = isUpload ? '' : extractDomain(job.url);
+  const slug = await uniqueBundleSlug(brand.name || domain || 'upload');
 
   let primaryCategoryId: string | null = null;
   if (brand.category) {
@@ -299,9 +350,10 @@ Source: ${job.url}
       isCurated: false,
       isFeatured: false,
       createdBy: job.userId,
-      sourceUrl: scrape.url,
-      sourceUrlNormalized: job.normalizedUrl,
-      sourceDomain: domain,
+      // Uploads have no canonical source URL — leave attribution fields null.
+      sourceUrl: isUpload ? null : scrape.url,
+      sourceUrlNormalized: isUpload ? null : job.normalizedUrl,
+      sourceDomain: isUpload ? null : domain,
       authorName: brand.name,
       paletteColors: palette,
       brandInitial: brand.name ? brand.name.charAt(0).toUpperCase() : null,

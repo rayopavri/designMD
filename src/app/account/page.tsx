@@ -5,7 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { BG, BORDER_SOFT, INK, MONO, MUTED, SUB } from "@/lib/ui-data/tokens";
 import { useAuth } from "@/lib/ui-data/mockAuth";
 
-export function Account() {
+function Account() {
   const { user } = useAuth();
   const _router = useRouter();
   const location = usePathname();

@@ -366,6 +366,83 @@ export async function extractBrandFromMarkdown(
   return sanitize(parsed);
 }
 
+const IMAGE_SYSTEM_PROMPT = `You are a design system researcher. Given ONLY a screenshot of a brand's
+interface (no source HTML, no scraped text), reverse-engineer the brand's visual identity into the
+provided schema.
+
+The output will be used to generate a canonical Google DESIGN.md file. Provide BOTH structured
+tokens AND prose rationale for each canonical section.
+
+You are working from a single image. Be especially careful to:
+- Read color hex values from the image directly (sample backgrounds, surfaces, primary CTAs, body
+  text). When the image is small or compressed, prefer the dominant flat colors over
+  anti-aliased edges.
+- Infer the type system from observable contrasts: display, headline, body, label sizes. If you
+  cannot confidently distinguish a level, omit it rather than fabricate.
+- Identify component patterns you can see: buttons, cards, inputs, badges, links, navigation.
+  Do not invent components that are not visible in the screenshot.
+- Note prohibitions and constraints implied by what is consistently absent.
+
+Apply the same token conventions as the URL-based extractor (role-based color names, semantic
+typography levels, kebab-case keys, "#RRGGBB" uppercase hex, dimension strings with units).
+
+If the screenshot does not contain enough signal to identify a token group with confidence,
+return an empty array for that group rather than guessing.`;
+
+export interface ImageExtractionInput {
+  brandName: string;
+  imageBase64: string;
+  imageMimeType: string;
+}
+
+/**
+ * Image-only Gemini extraction. Used by the upload-source pipeline where
+ * we have a screenshot but no scraped HTML / computed CSS / markdown.
+ */
+export async function extractBrandFromImage(
+  input: ImageExtractionInput,
+): Promise<ExtractedBrand> {
+  const model = client().getGenerativeModel({
+    model: MODEL,
+    systemInstruction: IMAGE_SYSTEM_PROMPT,
+    generationConfig: {
+      responseMimeType: 'application/json',
+      responseSchema: EXTRACTION_SCHEMA,
+      temperature: 0.2,
+    },
+  });
+
+  const textPrompt = [
+    `Brand: ${input.brandName}`,
+    '',
+    'Extract the design system you can see in this screenshot. Only return tokens you can',
+    'observe directly. Empty arrays are better than guesses.',
+  ].join('\n');
+
+  const parts: Part[] = [
+    { inlineData: { mimeType: input.imageMimeType, data: input.imageBase64 } },
+    { text: textPrompt },
+  ];
+
+  const result = await model.generateContent({
+    contents: [{ role: 'user', parts }],
+  });
+
+  const text = result.response.text();
+  let parsed: ExtractedBrand;
+  try {
+    parsed = JSON.parse(text) as ExtractedBrand;
+  } catch (err) {
+    throw new Error(
+      `Gemini returned non-JSON: ${err instanceof Error ? err.message : String(err)}\nRaw: ${text.slice(0, 300)}`,
+    );
+  }
+
+  // Backfill the brand name so downstream slugging and titling have it.
+  if (!parsed.name) parsed.name = input.brandName;
+  return sanitize(parsed);
+}
+
 async function fetchImageAsPart(url: string): Promise<Part | null> {
   const res = await fetch(url);
   if (!res.ok) return null;

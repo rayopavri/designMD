@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { saveDraft } from "@/lib/ui-data/draftStore";
 import { queueSubmission } from "@/lib/ui-data/submissionStore";
-import { Check, ChevronDown, Copy, Globe, Loader2, Lock, RefreshCw, Send, ShieldCheck } from "lucide-react";
+import { Check, ChevronDown, Copy, Globe, Image as ImageIcon, Loader2, Lock, RefreshCw, Send, ShieldCheck, Upload, X as XIcon } from "lucide-react";
 import { SectionLabel } from "@/components/ui/Shell";
 import { CodePanel } from "@/components/ui/CodePanel";
 import { openAuthModal, useAuth } from "@/lib/ui-data/mockAuth";
@@ -68,10 +68,23 @@ const COMPLIANCE_STEP: PipelineStep = {
 /** Bundle pipeline steps — these mirror the backend `currentStep` strings
  * emitted by `lib/generator/scrape-and-extract.ts`. Order must match the
  * worker. `durationMs` is only used as a visual hint when polling is slow. */
-const BUNDLE_STEPS: PipelineStep[] = [
+const BUNDLE_STEPS_URL: PipelineStep[] = [
   { id: "scraping", label: "Page collection", tool: "Firecrawl", detail: "Crawling source + screenshot", durationMs: 8000 },
   { id: "parsing-computed", label: "Computed-style parse", tool: "node-html-parser", detail: "CSS variables · dominant hexes · fonts", durationMs: 1500 },
   { id: "extracting", label: "Brand extraction", tool: "Gemini 2.5 Flash", detail: "Multi-modal: text + computed + screenshot", durationMs: 12000 },
+  { id: "resolving-orphans", label: "Orphan resolution", tool: "Deterministic pass", detail: "Wire every token to a component", durationMs: 600 },
+  { id: "persisting", label: "Draft persisted", tool: "Postgres", detail: "Bundle row created", durationMs: 500 },
+  { id: "writing-design-md", label: "Design.md authored", tool: "Claude Sonnet 4.6", detail: "Canonical Google DESIGN.md spec", durationMs: 18000 },
+  { id: "linting", label: "Lint + WCAG check", tool: "@google/design.md", detail: "Contrast · orphans · section coverage", durationMs: 1500 },
+  { id: "writing-companion", label: "Companion prompt", tool: "Claude Sonnet 4.6", detail: "Tool-agnostic system prompt", durationMs: 12000 },
+  { id: "scoring", label: "Coverage scoring", tool: "Linter model", detail: "Section weights + WCAG factor", durationMs: 400 },
+];
+
+/** Upload variant — replaces the first three URL-pipeline steps
+ * (scraping, parsing-computed, extracting) with a single image-only path. */
+const BUNDLE_STEPS_UPLOAD: PipelineStep[] = [
+  { id: "processing-image", label: "Image processing", tool: "Hashing + decoding", detail: "Computing SHA-256 + preparing for Gemini", durationMs: 800 },
+  { id: "extracting", label: "Brand extraction", tool: "Gemini 2.5 Flash", detail: "Vision-only: reading tokens from screenshot", durationMs: 14000 },
   { id: "resolving-orphans", label: "Orphan resolution", tool: "Deterministic pass", detail: "Wire every token to a component", durationMs: 600 },
   { id: "persisting", label: "Draft persisted", tool: "Postgres", detail: "Bundle row created", durationMs: 500 },
   { id: "writing-design-md", label: "Design.md authored", tool: "Claude Sonnet 4.6", detail: "Canonical Google DESIGN.md spec", durationMs: 18000 },
@@ -118,7 +131,7 @@ const MCP_STEPS: PipelineStep[] = [
 ];
 
 const STEPS_FOR: Record<ItemType, PipelineStep[]> = {
-  bundle: BUNDLE_STEPS,
+  bundle: BUNDLE_STEPS_URL,
   skill: SKILL_STEPS,
   agent: AGENT_STEPS,
   mcp: MCP_STEPS,
@@ -289,7 +302,11 @@ function presetMcpDraft(host: string): string {
  * component (no signed-out branch with different hook count) means hook
  * order stays stable across the signed-out → signed-in transition. */
 function Generate() {
-  return <GenerateContent />;
+  return (
+    <Suspense fallback={null}>
+      <GenerateContent />
+    </Suspense>
+  );
 }
 
 function GenerateContent() {
@@ -320,24 +337,27 @@ function GenerateContent() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [didHeal, setDidHeal] = useState(false);
   const pollRef = useRef<number | null>(null);
+  // Bundle source mode — only meaningful when activeType === "bundle".
+  // 'url' uses the existing scrape pipeline; 'upload' takes a screenshot.
+  const [bundleMode, setBundleMode] = useState<"url" | "upload">("url");
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadPreview, setUploadPreview] = useState<string | null>(null);
+  const [brandName, setBrandName] = useState("");
 
   const detection = useMemo(() => detectType(url), [url]);
   const typeResolved: boolean = !!override || !!detection;
   const activeType: ItemType = override ?? detection?.type ?? "bundle";
-  // Steps for the visual pipeline. Bundle inserts an optional heal step when
-  // the backend reported `healing-orphans` during the run.
+  // Steps for the visual pipeline. Bundle picks URL vs upload variant and
+  // inserts an optional heal step when the backend reported `healing-orphans`.
   const steps = useMemo(() => {
     if (activeType !== "bundle") return STEPS_FOR[activeType];
-    if (!didHeal) return BUNDLE_STEPS;
-    // Insert heal step right after linting (index 6).
-    const lintIdx = BUNDLE_STEPS.findIndex((s) => s.id === "linting");
-    return [
-      ...BUNDLE_STEPS.slice(0, lintIdx + 1),
-      BUNDLE_HEAL_STEP,
-      ...BUNDLE_STEPS.slice(lintIdx + 1),
-    ];
-  }, [activeType, didHeal]);
+    const base = bundleMode === "upload" ? BUNDLE_STEPS_UPLOAD : BUNDLE_STEPS_URL;
+    if (!didHeal) return base;
+    const lintIdx = base.findIndex((s) => s.id === "linting");
+    return [...base.slice(0, lintIdx + 1), BUNDLE_HEAL_STEP, ...base.slice(lintIdx + 1)];
+  }, [activeType, bundleMode, didHeal]);
   const meta = TYPE_META[activeType];
+  const bundleSteps = bundleMode === "upload" ? BUNDLE_STEPS_UPLOAD : BUNDLE_STEPS_URL;
 
   const host = (() => {
     try {
@@ -351,6 +371,38 @@ function GenerateContent() {
 
   function start() {
     setValidation(null);
+
+    // Auth gate first — applies to both URL and upload bundle flows.
+    if (gated && activeType === "bundle") {
+      openAuthModal("/generate");
+      return;
+    }
+
+    // ─── Upload mode (bundle only) ────────────────────────
+    if (activeType === "bundle" && bundleMode === "upload") {
+      if (!uploadFile) {
+        setValidation("Pick a screenshot to upload.");
+        return;
+      }
+      if (!brandName.trim()) {
+        setValidation("Give the brand a name so we can title the bundle.");
+        return;
+      }
+      clearTimers();
+      stopPolling();
+      setStatus("running");
+      setStepIdx(0);
+      setPalette([]);
+      setRealBundle(null);
+      setExistingSlug(null);
+      setErrorMsg(null);
+      setDidHeal(false);
+      setSubmitState("idle");
+      void startBundleUpload(uploadFile, brandName.trim());
+      return;
+    }
+
+    // ─── URL mode ─────────────────────────────────────────
     const raw = url.trim();
     if (!raw) {
       setValidation("Paste a URL to begin.");
@@ -371,12 +423,6 @@ function GenerateContent() {
     if (!detection && !override) {
       setValidation("That URL pattern isn't recognised — pick a type below to submit anyway.");
       setOverrideOpen(true);
-      return;
-    }
-    // Real flow gates on auth — only published bundles can be generated without
-    // signing in, so kick the auth modal early instead of failing at the API.
-    if (gated && activeType === "bundle") {
-      openAuthModal("/generate");
       return;
     }
 
@@ -423,7 +469,7 @@ function GenerateContent() {
         const body = (await res.json()) as { existingBundleSlug?: string };
         setExistingSlug(body.existingBundleSlug ?? null);
         setStatus("done");
-        setStepIdx(BUNDLE_STEPS.length);
+        setStepIdx(bundleSteps.length);
         return;
       }
       if (!res.ok) {
@@ -433,6 +479,27 @@ function GenerateContent() {
         return;
       }
       const body = (await res.json()) as { jobId: string; currentStep: string | null };
+      setJobId(body.jobId);
+      pollJob(body.jobId);
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : "Network error");
+      setStatus("failed");
+    }
+  }
+
+  async function startBundleUpload(file: File, name: string) {
+    try {
+      const fd = new FormData();
+      fd.append("image", file);
+      fd.append("brandName", name);
+      const res = await fetch("/api/generate", { method: "POST", body: fd });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({ error: res.statusText }));
+        setErrorMsg(body.error || `Failed to start (${res.status})`);
+        setStatus("failed");
+        return;
+      }
+      const body = (await res.json()) as { jobId: string };
       setJobId(body.jobId);
       pollJob(body.jobId);
     } catch (err) {
@@ -497,10 +564,10 @@ function GenerateContent() {
       return;
     }
     if (step === "ready_for_review" || step === "held_as_draft") {
-      setStepIdx(BUNDLE_STEPS.length);
+      setStepIdx(bundleSteps.length);
       return;
     }
-    const idx = BUNDLE_STEPS.findIndex((s) => s.id === step);
+    const idx = bundleSteps.findIndex((s) => s.id === step);
     if (idx >= 0) setStepIdx(idx);
   }
 
@@ -529,6 +596,8 @@ function GenerateContent() {
     setExistingSlug(null);
     setErrorMsg(null);
     setDidHeal(false);
+    // Keep bundleMode + uploadFile + brandName so a "Try another" doesn't
+    // wipe what the user just configured; they can clear manually.
   }
 
   function clearTimers() {
@@ -622,39 +691,125 @@ function GenerateContent() {
             check first, and produce a draft you can use or submit for editor review.
           </p>
 
+          {activeType === "bundle" ? (
+            <div className="mt-10 mx-auto inline-flex items-center gap-1 rounded-full border p-1" style={{ borderColor: BORDER, background: SURFACE_2 }}>
+              {(["url", "upload"] as const).map((m) => {
+                const active = bundleMode === m;
+                return (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => {
+                      if (status === "running") return;
+                      setBundleMode(m);
+                      setValidation(null);
+                    }}
+                    disabled={status === "running"}
+                    className="inline-flex items-center gap-2 h-8 rounded-full px-4 text-[12px] disabled:opacity-50"
+                    style={{
+                      background: active ? INK : "transparent",
+                      color: active ? INK_ON_LIGHT : SUB,
+                      fontWeight: active ? 600 : 400,
+                    }}
+                  >
+                    {m === "url" ? <Globe className="h-3.5 w-3.5" /> : <ImageIcon className="h-3.5 w-3.5" />}
+                    {m === "url" ? "URL" : "Upload image"}
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
+
           <form
-            className="mt-10 mx-auto max-w-2xl flex items-center gap-2 rounded-full border p-1.5"
-            style={{ borderColor: BORDER, background: SURFACE }}
+            className={
+              activeType === "bundle" && bundleMode === "upload"
+                ? "mt-5 mx-auto max-w-2xl flex flex-col gap-3"
+                : "mt-10 mx-auto max-w-2xl flex items-center gap-2 rounded-full border p-1.5"
+            }
+            style={
+              activeType === "bundle" && bundleMode === "upload"
+                ? undefined
+                : { borderColor: BORDER, background: SURFACE }
+            }
             onSubmit={(e) => {
               e.preventDefault();
               start();
             }}
           >
-            <Globe className="h-4 w-4 ml-3" style={{ color: MUTED }} />
-            <input
-              type="url"
-              value={url}
-              onChange={(e) => {
-                setUrl(e.target.value);
-                // Preserve manual / prefill override; only clear auto-fallbacks.
-                if (!overrideTouched) setOverride(null);
-                setValidation(null);
-              }}
-              placeholder="https://linear.app  ·  github.com/owner/skill  ·  figma.com/mcp"
-              className="flex-1 h-9 bg-transparent text-[13.5px] px-1 min-w-0"
-              style={{ color: INK, fontFamily: MONO }}
-              disabled={status === "running"}
-            />
-            {status === "idle" ? (
-              <button
-                type="submit"
-                disabled={!url.trim()}
-                className="h-9 rounded-full px-5 text-[12.5px] font-medium inline-flex items-center gap-2 disabled:opacity-50"
-                style={{ background: INK, color: INK_ON_LIGHT }}
-              >
-                Generate <span style={{ fontFamily: MONO, color: MUTED }}>⏎</span>
-              </button>
-            ) : status === "running" ? (
+            {activeType === "bundle" && bundleMode === "upload" ? (
+              <UploadFields
+                file={uploadFile}
+                preview={uploadPreview}
+                onFile={(f) => {
+                  setUploadFile(f);
+                  setValidation(null);
+                  if (uploadPreview) URL.revokeObjectURL(uploadPreview);
+                  setUploadPreview(f ? URL.createObjectURL(f) : null);
+                }}
+                brandName={brandName}
+                onBrandName={(v) => {
+                  setBrandName(v);
+                  setValidation(null);
+                }}
+                status={status}
+                onSubmitButton={
+                  status === "idle" ? (
+                    <button
+                      type="submit"
+                      disabled={!uploadFile || !brandName.trim()}
+                      className="h-10 rounded-full px-5 text-[12.5px] font-medium inline-flex items-center justify-center gap-2 disabled:opacity-50"
+                      style={{ background: INK, color: INK_ON_LIGHT }}
+                    >
+                      Generate from image
+                    </button>
+                  ) : status === "running" ? (
+                    <button
+                      type="button"
+                      disabled
+                      className="h-10 rounded-full px-5 text-[12.5px] font-medium inline-flex items-center justify-center gap-2"
+                      style={{ background: INK, color: INK_ON_LIGHT }}
+                    >
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Generating
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={reset}
+                      className="h-10 rounded-full px-5 text-[12.5px] font-medium inline-flex items-center justify-center gap-2"
+                      style={{ background: INK, color: INK_ON_LIGHT }}
+                    >
+                      <RefreshCw className="h-3.5 w-3.5" /> Try another
+                    </button>
+                  )
+                }
+              />
+            ) : (
+              <>
+                <Globe className="h-4 w-4 ml-3" style={{ color: MUTED }} />
+                <input
+                  type="url"
+                  value={url}
+                  onChange={(e) => {
+                    setUrl(e.target.value);
+                    if (!overrideTouched) setOverride(null);
+                    setValidation(null);
+                  }}
+                  placeholder="https://linear.app  ·  github.com/owner/skill  ·  figma.com/mcp"
+                  className="flex-1 h-9 bg-transparent text-[13.5px] px-1 min-w-0"
+                  style={{ color: INK, fontFamily: MONO }}
+                  disabled={status === "running"}
+                />
+                {status === "idle" ? (
+                  <button
+                    type="submit"
+                    disabled={!url.trim()}
+                    className="h-9 rounded-full px-5 text-[12.5px] font-medium inline-flex items-center gap-2 disabled:opacity-50"
+                    style={{ background: INK, color: INK_ON_LIGHT }}
+                  >
+                    Generate <span style={{ fontFamily: MONO, color: MUTED }}>⏎</span>
+                  </button>
+                ) : status === "running" ? (
               <div className="inline-flex items-center gap-2">
                 <button
                   type="button"
@@ -685,9 +840,13 @@ function GenerateContent() {
                 <RefreshCw className="h-3.5 w-3.5" /> Try another
               </button>
             )}
+              </>
+            )}
           </form>
 
-          {/* Detection / override row */}
+          {/* Detection / override row — only meaningful in URL mode (uploads
+              are always bundle-type and have no URL pattern to inspect). */}
+          {activeType === "bundle" && bundleMode === "upload" ? null : (
           <div className="mt-5 flex items-center justify-center gap-3 flex-wrap">
             <span className="text-[11px]" style={{ fontFamily: MONO, color: MUTED }}>
               submitting as
@@ -760,6 +919,7 @@ function GenerateContent() {
               </span>
             ) : null}
           </div>
+          )}
 
           {detection?.type === "skill" && host && host.includes("github.com") && !override ? (
             <div className="mt-3 text-[11px]" style={{ fontFamily: MONO, color: MUTED }}>
@@ -1225,6 +1385,132 @@ function GenerateContent() {
       </section>
 
     </>
+  );
+}
+
+function UploadFields(props: {
+  file: File | null;
+  preview: string | null;
+  onFile: (f: File | null) => void;
+  brandName: string;
+  onBrandName: (v: string) => void;
+  status: "idle" | "running" | "done" | "failed";
+  onSubmitButton: React.ReactNode;
+}) {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const [dragOver, setDragOver] = useState(false);
+  const disabled = props.status === "running";
+
+  const accept = "image/png,image/jpeg,image/webp";
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div
+        onDragOver={(e) => {
+          if (disabled) return;
+          e.preventDefault();
+          setDragOver(true);
+        }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => {
+          if (disabled) return;
+          e.preventDefault();
+          setDragOver(false);
+          const f = e.dataTransfer.files?.[0];
+          if (f) props.onFile(f);
+        }}
+        onClick={() => !disabled && inputRef.current?.click()}
+        role="button"
+        aria-label="Upload screenshot"
+        tabIndex={disabled ? -1 : 0}
+        onKeyDown={(e) => {
+          if (disabled) return;
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            inputRef.current?.click();
+          }
+        }}
+        className="rounded-xl border-2 border-dashed px-6 py-8 flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors"
+        style={{
+          borderColor: dragOver ? INK : BORDER,
+          background: dragOver ? SURFACE_2 : SURFACE,
+          opacity: disabled ? 0.6 : 1,
+        }}
+      >
+        <input
+          ref={inputRef}
+          type="file"
+          accept={accept}
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0] ?? null;
+            props.onFile(f);
+          }}
+          disabled={disabled}
+        />
+        {props.file && props.preview ? (
+          <div className="flex items-center gap-4 w-full">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={props.preview}
+              alt={props.file.name}
+              className="rounded-md border"
+              style={{ borderColor: BORDER, maxHeight: 96, maxWidth: 160, objectFit: "cover" }}
+            />
+            <div className="flex-1 min-w-0">
+              <div className="text-[12.5px] truncate" style={{ color: INK }}>
+                {props.file.name}
+              </div>
+              <div className="text-[10.5px]" style={{ color: MUTED, fontFamily: MONO }}>
+                {(props.file.size / 1024).toFixed(0)} KB · {props.file.type}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                props.onFile(null);
+              }}
+              className="h-7 w-7 rounded-full inline-flex items-center justify-center"
+              style={{ background: SURFACE_2, color: SUB, border: `1px solid ${BORDER}` }}
+              aria-label="Remove image"
+              disabled={disabled}
+            >
+              <XIcon className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        ) : (
+          <>
+            <span
+              className="inline-flex h-9 w-9 rounded-full items-center justify-center"
+              style={{ background: SURFACE_2, color: INK, border: `1px solid ${BORDER_SOFT}` }}
+            >
+              <Upload className="h-4 w-4" />
+            </span>
+            <div className="text-[13.5px]" style={{ color: INK }}>
+              Drop a screenshot or click to browse
+            </div>
+            <div className="text-[11px]" style={{ color: MUTED, fontFamily: MONO }}>
+              PNG, JPEG, WebP · up to 6 MB
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-3 items-stretch">
+        <input
+          type="text"
+          value={props.brandName}
+          onChange={(e) => props.onBrandName(e.target.value)}
+          placeholder="Brand name (e.g. Acme Design)"
+          maxLength={120}
+          className="flex-1 h-10 rounded-full border px-4 text-[13px] bg-transparent"
+          style={{ color: INK, borderColor: BORDER, background: SURFACE }}
+          disabled={disabled}
+        />
+        {props.onSubmitButton}
+      </div>
+    </div>
   );
 }
 

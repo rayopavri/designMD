@@ -21,7 +21,7 @@ const COMMANDS: { cmd: string; what: string }[] = [
   { cmd: "npx uiuxofai verify", what: "Check that an installed bundle's tokens are wired up." },
 ];
 
-export function CliDocs() {
+function CliDocs() {
   return (
     <>
       <section className="border-b" style={{ borderColor: BORDER_SOFT }}>

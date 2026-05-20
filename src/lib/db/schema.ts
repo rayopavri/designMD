@@ -383,10 +383,21 @@ export const generationJobs = pgTable(
   'generation_jobs',
   {
     id: uuid('id').primaryKey().defaultRandom(),
+    // url-source jobs: the submitted URL. upload-source jobs: an
+    // upload://<hash> identifier so the source key is never null.
     url: text('url').notNull(),
-    normalizedUrl: text('normalized_url').notNull(),
+    // Null for upload jobs (no URL to normalize).
+    normalizedUrl: text('normalized_url'),
     status: generationStatus('status').notNull().default('queued'),
     currentStep: text('current_step'),
+
+    // Source mode — 'url' (default, backwards compatible) or 'upload'.
+    sourceType: text('source_type').notNull().default('url'),
+    // For upload jobs: base64 image bytes, mime type, sha-256, brand name.
+    imageData: text('image_data'),
+    imageMimeType: text('image_mime_type'),
+    imageHash: text('image_hash'),
+    brandName: text('brand_name'),
 
     // Ownership
     userId: uuid('user_id').notNull().references(() => users.id),
@@ -412,6 +423,7 @@ export const generationJobs = pgTable(
   (table) => [
     index('idx_jobs_user').on(table.userId, table.createdAt),
     index('idx_jobs_normalized_url').on(table.normalizedUrl),
+    index('idx_jobs_image_hash').on(table.imageHash, table.userId),
   ],
 );
 

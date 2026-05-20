@@ -23,7 +23,7 @@ import { getItem, TYPE_META } from "@/lib/ui-data/items";
 import { CodePanel } from "@/components/ui/CodePanel";
 import { getDraft, isDraftId } from "@/lib/ui-data/draftStore";
 
-export function CopySuccess() {
+function CopySuccess() {
   const params = useParams<Record<string,string>>();
   const router = useRouter();
   const paramId = params?.id ?? "";

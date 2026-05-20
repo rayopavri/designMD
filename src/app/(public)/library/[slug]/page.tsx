@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useSearchParams, useParams } from "next/navigation";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { ArrowUpRight, Check, ChevronRight, Copy, GitFork } from "lucide-react";
 import { SectionLabel } from "@/components/ui/Shell";
 import { CodePanel } from "@/components/ui/CodePanel";
@@ -34,7 +34,8 @@ import {
   type McpItem,
   type SkillItem,
 } from "@/lib/ui-data/items";
-import { TOOLS, toolLabel, useToolPref, type ToolId } from "@/lib/ui-data/toolPref";
+import { TOOLS, toolLabel, type ToolId } from "@/lib/ui-data/toolPref";
+import { useToolPref } from "@/lib/ui-data/useToolPref";
 import { INSTALL_STEPS } from "@/lib/ui-data/installSteps";
 import { downloadBundleZip } from "@/lib/ui-data/bundleZip";
 import { useBundleDetail } from "@/hooks/useBundleDetail";
@@ -1130,4 +1131,10 @@ function PreviewPane({ bundle }: { bundle: BundleItem["bundle"] }) {
   );
 }
 
-export default BundleDetail;
+export default function BundleDetailPage() {
+  return (
+    <Suspense fallback={null}>
+      <BundleDetail />
+    </Suspense>
+  );
+}
