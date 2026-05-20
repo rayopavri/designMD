@@ -350,7 +350,15 @@ function GenerateContent() {
     const v = new URLSearchParams(search).get("type");
     return v && (["bundle", "skill", "agent", "mcp"] as string[]).includes(v) ? (v as ItemType) : null;
   }, [search]);
-  const [url, setUrl] = useState("");
+  const prefillUrl = useMemo(() => {
+    const raw = new URLSearchParams(search).get("url");
+    if (!raw) return "";
+    // Reject obviously-invalid prefills so a bad inbound link doesn't
+    // wedge the input. /generate's own validation surfaces detail.
+    if (raw.length > 2000) return "";
+    return raw;
+  }, [search]);
+  const [url, setUrl] = useState(prefillUrl);
   const [override, setOverride] = useState<ItemType | null>(prefillType);
   const [overrideTouched, setOverrideTouched] = useState<boolean>(!!prefillType);
   const [overrideOpen, setOverrideOpen] = useState(false);

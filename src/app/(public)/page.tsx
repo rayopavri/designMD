@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowUpRight, Check } from "lucide-react";
+import { HomeHero } from "./HomeHero";
 import {
   BG,
   BORDER,
@@ -82,98 +83,8 @@ function Home() {
 
   return (
     <>
-      {/* Act 1 — What this is */}
-      <section className="border-b" style={{ borderColor: BORDER_SOFT }}>
-        <div className="mx-auto max-w-3xl px-6 lg:px-8 pt-24 pb-20 text-center">
-          <div
-            className="inline-flex items-center gap-2.5 mb-7 text-[10.5px] uppercase tracking-[0.22em]"
-            style={{ fontFamily: MONO, color: MUTED }}
-          >
-            <span className="inline-flex items-center gap-1.5">
-              <span
-                className="h-1.5 w-1.5 rounded-full"
-                style={{ background: LIME, boxShadow: `0 0 8px ${LIME}88` }}
-              />
-              <span style={{ color: SUB }}>free, no install</span>
-            </span>
-            <span className="h-px w-6" style={{ background: "#26262A" }} />
-            <span>made for designers</span>
-          </div>
-          <h1 className="text-[44px] sm:text-[60px] leading-[1.02] font-medium tracking-[-0.022em]" style={{ color: INK }}>
-            The one-stop library
-            <br />
-            <span style={{ color: SUB }}>to stop your AI from</span>{" "}
-            <span style={{ color: INK }}>making sloppy UI.</span>
-          </h1>
-          <p
-            className="mx-auto mt-7 max-w-[36rem] text-[15.5px] leading-[1.65]"
-            style={{ color: SUB }}
-          >
-            UIUXofAi is a curated catalog of skills, agents, and MCPs — including real brand
-            design systems — you can drop into Claude, Cursor, Lovable, or Figma Make. Pick what
-            you need, paste it in, and your tool starts shipping UI that actually looks designed.
-          </p>
-          <p
-            className="mx-auto mt-4 max-w-[34rem] text-[13.5px] leading-[1.6]"
-            style={{ color: MUTED }}
-          >
-            For designers shipping with AI — and developers who want their output to look like a designer made it.
-          </p>
-          <div className="mt-9 flex items-center justify-center gap-3 flex-wrap">
-            <Link
-              href="/library"
-              className="h-10 rounded-full px-5 text-[12.5px] font-medium inline-flex items-center gap-2"
-              style={{
-                background: INK,
-                color: INK_ON_LIGHT,
-                boxShadow: `0 0 0 1px ${VIOLET}66, 0 10px 36px -10px ${VIOLET}88`,
-              }}
-            >
-              Browse the library
-              <span style={{ fontFamily: MONO, color: MUTED }}>⏎</span>
-            </Link>
-            <Link
-              href="/generate"
-
-              className="h-10 rounded-full px-5 text-[12.5px] font-medium inline-flex items-center gap-2"
-              style={{
-                background: INK,
-                color: INK_ON_LIGHT,
-                boxShadow: `0 0 0 1px ${LIME}66, 0 10px 36px -10px ${LIME}88`,
-              }}
-            >
-              Generate from a URL
-              <span style={{ fontFamily: MONO, color: MUTED }}>↗</span>
-            </Link>
-          </div>
-
-          <div className="mt-8 flex items-center justify-center gap-1.5 flex-wrap">
-            <span
-              className="text-[10px] uppercase tracking-[0.22em] mr-1.5"
-              style={{ fontFamily: MONO, color: MUTED }}
-            >
-              Browse by category
-            </span>
-            {CATEGORY_BADGES.map((t) => (
-              <Link
-                key={t.slug}
-                href={`/library?category=${t.slug}`}
-                aria-label={`Browse items in the ${t.label} category`}
-                className="inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full border transition-colors hover:bg-[#101013]"
-                style={{
-                  fontFamily: MONO,
-                  color: INK,
-                  borderColor: `${LIME}55`,
-                  background: `${LIME}10`,
-                }}
-              >
-                <Check className="h-2.5 w-2.5" style={{ color: LIME }} strokeWidth={3} />
-                {t.label}
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* Hero — split layout with sample design.md card + try-it-now form */}
+      <HomeHero />
 
       {/* How it works — three steps, no jargon */}
       <section className="border-b" style={{ borderColor: BORDER_SOFT }}>
@@ -375,54 +286,6 @@ function Home() {
                 </Link>
               );
             })}
-          </div>
-        </div>
-      </section>
-
-      {/* Closing CTA */}
-      <section>
-        <div className="mx-auto max-w-3xl px-6 lg:px-8 py-24 text-center">
-          <div
-            className="text-[10.5px] uppercase tracking-[0.22em] mb-4"
-            style={{ fontFamily: MONO, color: MUTED }}
-          >
-            Get started
-          </div>
-          <h2 className="text-[40px] sm:text-[46px] leading-[1.02] font-medium tracking-[-0.022em]">
-            Stop fighting the
-            <br />
-            <span style={{ color: SUB }}>model's defaults.</span>
-          </h2>
-          <p className="mt-6 text-[15.5px] leading-[1.65] max-w-[34rem] mx-auto" style={{ color: SUB }}>
-            Browse the three shelves, install one thing, see your AI tool start producing UI you'd
-            actually ship.
-          </p>
-          <div className="mt-9 flex items-center justify-center gap-3 flex-wrap">
-            <Link
-              href="/library"
-              className="h-10 rounded-full px-5 text-[12.5px] font-medium inline-flex items-center gap-2"
-              style={{
-                background: INK,
-                color: INK_ON_LIGHT,
-                boxShadow: `0 0 0 1px ${VIOLET}66, 0 10px 36px -10px ${VIOLET}88`,
-              }}
-            >
-              Browse the library
-              <span style={{ fontFamily: MONO, color: MUTED }}>⏎</span>
-            </Link>
-            <Link
-              href="/generate"
-
-              className="h-10 rounded-full px-5 text-[12.5px] font-medium inline-flex items-center gap-2"
-              style={{
-                background: SURFACE,
-                color: INK,
-                border: `1px solid ${BORDER}`,
-              }}
-            >
-              Generate from a URL
-              <span style={{ fontFamily: MONO, color: MUTED }}>↗</span>
-            </Link>
           </div>
         </div>
       </section>
