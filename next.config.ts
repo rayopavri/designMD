@@ -4,6 +4,12 @@ import type { NextConfig } from 'next';
 const nextConfig: NextConfig = {
   // Pin workspace root so Next.js doesn't get confused by lockfiles further up the tree
   outputFileTracingRoot: path.join(__dirname),
+  images: {
+    remotePatterns: [
+      // Vercel Blob — bundle screenshots live here.
+      { protocol: 'https', hostname: '*.public.blob.vercel-storage.com' },
+    ],
+  },
   eslint: {
     // The migrated Vite codebase has many cosmetic lint violations
     // (unescaped quotes, unused imports, occasional `any`) that don't

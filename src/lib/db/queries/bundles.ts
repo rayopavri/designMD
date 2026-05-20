@@ -33,6 +33,7 @@ export interface BundleListItem {
   paletteColors: string[];
   brandInitial: string | null;
   brandColor: string | null;
+  screenshotUrl: string | null;
   voteCount: number;
   positiveVoteRate: string;
   isFeatured: boolean;
@@ -114,6 +115,7 @@ export async function listPublishedBundles(
       paletteColors: bundles.paletteColors,
       brandInitial: bundles.brandInitial,
       brandColor: bundles.brandColor,
+      screenshotUrl: bundles.screenshotUrl,
       voteCount: bundles.voteCount,
       positiveVoteRate: bundles.positiveVoteRate,
       isFeatured: bundles.isFeatured,

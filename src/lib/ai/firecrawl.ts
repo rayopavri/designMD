@@ -35,7 +35,9 @@ const MAX_MARKDOWN_CHARS = 80_000; // ~20k tokens; Gemini Flash handles plenty m
 
 export async function scrapeUrl(url: string): Promise<ScrapeResult> {
   const res = await client().scrapeUrl(url, {
-    formats: ['markdown', 'html', 'screenshot'],
+    // `screenshot@fullPage` captures the entire scroll height — required
+    // by the home gallery's Framer-style hover-scroll animation.
+    formats: ['markdown', 'html', 'screenshot@fullPage'],
     onlyMainContent: true,
     waitFor: 1500,
     timeout: 30_000,

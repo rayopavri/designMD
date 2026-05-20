@@ -233,6 +233,7 @@ export const bundles = pgTable(
     brandLogoUrl: text('brand_logo_url'),
     brandInitial: text('brand_initial'),
     brandColor: text('brand_color'),
+    screenshotUrl: text('screenshot_url'),
 
     // Quality signals (maintained by trigger)
     voteCount: integer('vote_count').notNull().default(0),

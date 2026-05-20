@@ -443,13 +443,55 @@ export async function extractBrandFromImage(
   return sanitize(parsed);
 }
 
+// Full-page screenshots can be 10,000+ px tall. Gemini downscales aggressively
+// past ~3MP, which turns text/components into mush and tanks extraction
+// quality. Clamp dimensions before sending — we keep the original full-page
+// version in Vercel Blob for the home gallery hover-scroll.
+const MAX_EXTRACTION_WIDTH = 1600;
+const MAX_EXTRACTION_HEIGHT = 4000;
+const EXTRACTION_JPEG_QUALITY = 88;
+
 async function fetchImageAsPart(url: string): Promise<Part | null> {
   const res = await fetch(url);
   if (!res.ok) return null;
-  const mimeType = res.headers.get('content-type')?.split(';')[0] || 'image/png';
-  const buf = Buffer.from(await res.arrayBuffer());
-  if (buf.length === 0) return null;
-  return { inlineData: { mimeType, data: buf.toString('base64') } };
+  const original = Buffer.from(await res.arrayBuffer());
+  if (original.length === 0) return null;
+
+  try {
+    const sharpMod = (await import('sharp')).default;
+    const meta = await sharpMod(original).metadata();
+    const width = meta.width ?? 0;
+    const height = meta.height ?? 0;
+
+    const needsResize = width > MAX_EXTRACTION_WIDTH;
+    const needsCrop = (needsResize ? Math.round((MAX_EXTRACTION_WIDTH / width) * height) : height) > MAX_EXTRACTION_HEIGHT;
+
+    if (!needsResize && !needsCrop && width > 0 && height > 0) {
+      const mimeType = res.headers.get('content-type')?.split(';')[0] || 'image/png';
+      return { inlineData: { mimeType, data: original.toString('base64') } };
+    }
+
+    let pipeline = sharpMod(original);
+    if (needsResize) {
+      pipeline = pipeline.resize({ width: MAX_EXTRACTION_WIDTH, withoutEnlargement: true });
+    }
+    if (needsCrop) {
+      // Crop from the top — hero + initial sections carry the strongest
+      // design signal. Stopping at MAX_EXTRACTION_HEIGHT loses footer, which
+      // matters less for token extraction than legibility of the rest.
+      const targetW = needsResize ? MAX_EXTRACTION_WIDTH : width;
+      pipeline = pipeline.extract({ left: 0, top: 0, width: targetW, height: MAX_EXTRACTION_HEIGHT });
+    }
+    const out = await pipeline.jpeg({ quality: EXTRACTION_JPEG_QUALITY }).toBuffer();
+    return { inlineData: { mimeType: 'image/jpeg', data: out.toString('base64') } };
+  } catch (err) {
+    console.warn(
+      '[gemini] sharp pipeline failed, sending original:',
+      err instanceof Error ? err.message : err,
+    );
+    const mimeType = res.headers.get('content-type')?.split(';')[0] || 'image/png';
+    return { inlineData: { mimeType, data: original.toString('base64') } };
+  }
 }
 
 function sanitize(parsed: ExtractedBrand): ExtractedBrand {
