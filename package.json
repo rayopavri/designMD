@@ -68,7 +68,7 @@
     "jszip": "^3.10.1",
     "lucide-react": "^0.468.0",
     "nanoid": "^5.0.9",
-    "next": "15.5.4",
+    "next": "15.5.9",
     "node-html-parser": "^7.1.0",
     "postgres": "^3.4.5",
     "react": "19.0.0",
