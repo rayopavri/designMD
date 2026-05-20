@@ -142,7 +142,7 @@ importers:
         version: 4.2.1
       drizzle-orm:
         specifier: ^0.36.4
-        version: 0.36.4(@opentelemetry/api@1.9.1)(@types/react@19.2.15)(postgres@3.4.9)(react@19.0.0)
+        version: 0.36.4(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@types/react@19.2.15)(postgres@3.4.9)(react@19.0.0)
       firebase:
         specifier: ^11.1.0
         version: 11.10.0
@@ -204,6 +204,9 @@ importers:
       '@eslint/eslintrc':
         specifier: ^3.3.5
         version: 3.3.5
+      '@neondatabase/serverless':
+        specifier: ^1.1.0
+        version: 1.1.0
       '@tailwindcss/postcss':
         specifier: ^4.0.0
         version: 4.3.0
@@ -1256,6 +1259,10 @@ packages:
     peerDependencies:
       '@emnapi/core': ^1.7.1
       '@emnapi/runtime': ^1.7.1
+
+  '@neondatabase/serverless@1.1.0':
+    resolution: {integrity: sha512-r3ZZhRjEcfEdKIZnoB1RusNgvHuaBRqfCzV4Gi+5A9yUX0S4HTws/ASWqt13wL4y4I+0rqsWGdA2w7EQXHi3+Q==}
+    engines: {node: '>=19.0.0'}
 
   '@next/env@15.5.9':
     resolution: {integrity: sha512-4GlTZ+EJM7WaW2HEZcyU317tIQDjkQIyENDLxYJfSWlfqguN+dHkZgyQTV/7ykvobU7yEH5gKvreNrH4B6QgIg==}
@@ -5621,7 +5628,7 @@ snapshots:
   '@google/design.md@0.1.1(@types/react@19.2.15)':
     dependencies:
       '@json-render/core': 0.16.0(zod@3.25.76)
-      '@json-render/ink': 0.16.0(ink@7.0.3(@types/react@19.2.15)(react@19.2.6))(react@19.2.6)(zod@3.25.76)
+      '@json-render/ink': 0.16.0(ink@7.0.3(@types/react@19.2.15)(react@19.0.0))(react@19.2.6)(zod@3.25.76)
       citty: 0.1.6
       ink: 7.0.3(@types/react@19.2.15)(react@19.2.6)
       mdast: 3.0.0
@@ -5809,7 +5816,7 @@ snapshots:
     dependencies:
       zod: 3.25.76
 
-  '@json-render/ink@0.16.0(ink@7.0.3(@types/react@19.2.15)(react@19.2.6))(react@19.2.6)(zod@3.25.76)':
+  '@json-render/ink@0.16.0(ink@7.0.3(@types/react@19.2.15)(react@19.0.0))(react@19.2.6)(zod@3.25.76)':
     dependencies:
       '@json-render/core': 0.16.0(zod@3.25.76)
       ink: 7.0.3(@types/react@19.2.15)(react@19.2.6)
@@ -5834,6 +5841,8 @@ snapshots:
       '@emnapi/runtime': 1.10.0
       '@tybys/wasm-util': 0.10.2
     optional: true
+
+  '@neondatabase/serverless@1.1.0': {}
 
   '@next/env@15.5.9': {}
 
@@ -7359,8 +7368,9 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  drizzle-orm@0.36.4(@opentelemetry/api@1.9.1)(@types/react@19.2.15)(postgres@3.4.9)(react@19.0.0):
+  drizzle-orm@0.36.4(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@types/react@19.2.15)(postgres@3.4.9)(react@19.0.0):
     optionalDependencies:
+      '@neondatabase/serverless': 1.1.0
       '@opentelemetry/api': 1.9.1
       '@types/react': 19.2.15
       postgres: 3.4.9

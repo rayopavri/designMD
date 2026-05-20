@@ -99,12 +99,16 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 - **Priority:** LOW (admin convenience)
 - **Effort:** ~2 hr
-- **Status:** `[ ]`
+- **Status:** `[x]` — shipped 2026-05-20
 - **Why:** When a brand redesigns, the existing bundle gets stale. Today only path is delete + regenerate.
-- **Acceptance criteria:**
-  - Button on `/admin/bundles` row: "Re-run pipeline"
-  - Spawns a new `generation_jobs` row with `parent_bundle_id` set
-  - On completion, new bundle replaces old (or is linked as a version) — decide which during build
+- **Delivered:**
+  - Cyan **Re-run pipeline** button on `/admin/bundles` detail panel, visible for URL-sourced bundles only
+  - New `generation_jobs.target_bundle_id` column tells the worker to UPDATE the existing bundle in place (preserving slug, votes, editor edits) instead of INSERTing a new one
+  - Editor-managed fields preserved: `title`, `description`, `license`, `attributionStatement`, `isFeatured`, `isCurated`, `primaryCategoryId`
+  - System fields overwritten: `designMd`, `companionPrompt`, palette, all coverage scores, accessibility notes, brand color/initial
+  - Published bundles stay published during the re-run; status/quality gate is skipped
+  - In-flight dedup: 409 if a re-run is already queued/running for that bundle
+  - UI polls the detail panel every 3s until `companionStatus` flips to `ready`/`failed` (90s timeout)
 
 ### P1-7 · Search index (Orama)
 
@@ -231,6 +235,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-05-20** · P1-6 done: admin "Re-run pipeline" button. Full extraction pipeline re-runs against existing source URL, overwrites system fields in place, preserves editor edits + slug + votes.
 - [x] **2026-05-20** · QStash replaces fragile fire-and-forget task dispatch. Adds admin "Re-run companion" button for stuck bundles. Idempotent worker auth via signature verification (production) + token (local dev).
 - [x] **2026-05-20** · Rebrand UIUXofAi → UIUXskills across UI copy, CLI command, handle domain, localStorage key prefixes (`d030690`)
 - [x] **2026-05-20** · Custom domain `uiuxskills.com` attached to Vercel project

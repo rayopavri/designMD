@@ -212,6 +212,11 @@ export async function runScrapeAndExtract(payload: ScrapeAndExtractPayload): Pro
   // Gate: bundles with errors OR overall score < 40 stay personal so the
   // editor queue isn't polluted with low-quality drafts. The user can
   // still find them in their /account drafts.
+  //
+  // Re-run mode: skip the quality gate. The editor already curated this
+  // bundle and explicitly asked for a refresh — don't demote a published
+  // bundle to personal just because the new lint output dipped below 40.
+  const isRerun = Boolean(job.targetBundleId);
   const shouldPromote =
     lintSummary.counts.errors === 0 &&
     coverage.overall >= 40;
@@ -231,8 +236,13 @@ export async function runScrapeAndExtract(payload: ScrapeAndExtractPayload): Pro
         coverageDosDonts: coverage.dosDonts,
         reviewNotes: renderLintSummary(lintSummary),
         accessibilityNotes: renderAccessibilityAdvisory(lintSummary),
-        status: shouldPromote ? 'pending_review' : 'personal',
-        submittedAt: shouldPromote ? new Date() : null,
+        // On re-run, leave existing status/submittedAt alone.
+        ...(isRerun
+          ? {}
+          : {
+              status: shouldPromote ? ('pending_review' as const) : ('personal' as const),
+              submittedAt: shouldPromote ? new Date() : null,
+            }),
         updatedAt: new Date(),
       })
       .where(eq(bundles.id, bundleId));
@@ -244,7 +254,11 @@ export async function runScrapeAndExtract(payload: ScrapeAndExtractPayload): Pro
     .update(generationJobs)
     .set({
       status: 'completed',
-      currentStep: shouldPromote ? 'ready_for_review' : 'held_as_draft',
+      currentStep: isRerun
+        ? 'rerun_complete'
+        : shouldPromote
+          ? 'ready_for_review'
+          : 'held_as_draft',
       resultBundleId: bundleId,
       // Drop the base64 payload once the bundle is persisted — we don't need
       // to keep the original image around (per design spec).
@@ -288,7 +302,6 @@ async function writeDraftBundle(input: {
   // which is meaningless to users. Fall back to the brand name as the slug
   // seed and leave sourceDomain/sourceUrl null on the bundle.
   const domain = isUpload ? '' : extractDomain(job.url);
-  const slug = await uniqueBundleSlug(brand.name || domain || 'upload');
 
   let primaryCategoryId: string | null = null;
   if (brand.category) {
@@ -316,6 +329,35 @@ canonical DESIGN.md is written.
 Brand: ${brand.name}
 Source: ${job.url}
 `;
+
+  // Re-run mode: UPDATE the existing bundle in place, preserving
+  // editor-managed fields (title, description, license, attribution,
+  // featured/curated, primaryCategoryId). Pipeline-managed fields are
+  // overwritten with fresh extraction output.
+  if (job.targetBundleId) {
+    await db
+      .update(bundles)
+      .set({
+        designMd: null,
+        companionPrompt: placeholderCompanion,
+        companionPromptVersion: 0,
+        companionStatus: 'pending',
+        designStyle: brand.designStyles,
+        compatibleTools,
+        sourceUrl: scrape.url,
+        sourceUrlNormalized: job.normalizedUrl,
+        sourceDomain: domain,
+        authorName: brand.name,
+        paletteColors: palette,
+        brandInitial: brand.name ? brand.name.charAt(0).toUpperCase() : null,
+        brandColor: primary,
+        updatedAt: new Date(),
+      })
+      .where(eq(bundles.id, job.targetBundleId));
+    return job.targetBundleId;
+  }
+
+  const slug = await uniqueBundleSlug(brand.name || domain || 'upload');
 
   const [row] = await db
     .insert(bundles)

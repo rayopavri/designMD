@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Archive,
   ArrowUpRight,
@@ -124,7 +124,8 @@ type ActionState =
   | "restoring"
   | "publishing"
   | "rejecting"
-  | "regenerating-companion";
+  | "regenerating-companion"
+  | "rerunning-pipeline";
 
 const DESIGN_STYLES = [
   "dark-mode",
@@ -216,6 +217,13 @@ export default function AdminBundlesPage() {
   const [actionState, setActionState] = useState<ActionState>("idle");
   const [actionError, setActionError] = useState<string | null>(null);
   const [form, setForm] = useState<EditFormState | null>(null);
+
+  // Ref mirror of `detail` so polling loops inside setInterval closures
+  // can read the latest value without stale captures.
+  const currentDetailRef = useRef<DetailRow | null>(null);
+  useEffect(() => {
+    currentDetailRef.current = detail;
+  }, [detail]);
 
   const buildListUrl = useCallback(
     (cursor?: string | null) => {
@@ -519,6 +527,67 @@ export default function AdminBundlesPage() {
     }
   };
 
+  const onRerunPipeline = async () => {
+    if (!detail) return;
+    const confirmed = window.confirm(
+      `Re-run the full pipeline for "${detail.title}"?\n\n` +
+        "Editor metadata (title, description, license, attribution, featured, curated) " +
+        "will be preserved.\n\n" +
+        "design.md, companion prompt, palette, accessibility notes, and coverage scores " +
+        "will be overwritten with fresh extraction output.",
+    );
+    if (!confirmed) return;
+
+    setActionState("rerunning-pipeline");
+    setActionError(null);
+
+    try {
+      const res = await fetch(
+        `/api/admin/bundles/${encodeURIComponent(detail.slug)}/rerun-pipeline`,
+        { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" },
+      );
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({ error: res.statusText }));
+        setActionError(body.error || `Re-run failed (${res.status})`);
+        setActionState("idle");
+        return;
+      }
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Network error");
+      setActionState("idle");
+      return;
+    }
+
+    // Pipeline kicked off. Poll the detail panel every 3s until the
+    // companion worker flips status to 'ready' or 'failed', or we time
+    // out after 90s. The detail row's updatedAt also moves as the
+    // pipeline writes intermediate stages.
+    const slug = detail.slug;
+    const startedAt = Date.now();
+    const TIMEOUT_MS = 90_000;
+    const handle = window.setInterval(async () => {
+      try {
+        await loadDetail(slug);
+      } catch {
+        // swallow polling errors; keep trying until timeout
+      }
+      const refreshed = currentDetailRef.current;
+      const done =
+        refreshed?.companionStatus === "ready" ||
+        refreshed?.companionStatus === "failed";
+      const timedOut = Date.now() - startedAt > TIMEOUT_MS;
+      if (done || timedOut) {
+        window.clearInterval(handle);
+        setActionState("idle");
+        if (timedOut && !done) {
+          setActionError(
+            "Re-run still running after 90s — refresh manually to check status.",
+          );
+        }
+      }
+    }, 3000);
+  };
+
   // ─── Render states ─────────────────────────────────────────
 
   if (loadState === "loading") {
@@ -793,6 +862,7 @@ export default function AdminBundlesPage() {
               onRestore={onRestore}
               onPublish={onPublish}
               onRegenerateCompanion={onRegenerateCompanion}
+              onRerunPipeline={onRerunPipeline}
             />
           )}
         </div>
@@ -816,6 +886,7 @@ interface DetailEditorProps {
   onRestore: (target: "published" | "pending_review") => void | Promise<void>;
   onPublish: () => void | Promise<void>;
   onRegenerateCompanion: () => void | Promise<void>;
+  onRerunPipeline: () => void | Promise<void>;
 }
 
 function DetailEditor(props: DetailEditorProps) {
@@ -1123,6 +1194,24 @@ function DetailEditor(props: DetailEditorProps) {
                 <RefreshCw className="h-3.5 w-3.5" style={{ color: CYAN }} />
               )}
               Re-run companion
+            </button>
+          ) : null}
+
+          {detail.sourceUrl && !detail.sourceUrl.startsWith("upload://") ? (
+            <button
+              type="button"
+              onClick={() => void props.onRerunPipeline()}
+              disabled={busy}
+              title="Re-run the full extraction pipeline (scrape + brand + design.md + companion)"
+              className="h-9 rounded-full px-4 text-[12.5px] inline-flex items-center gap-2"
+              style={{ background: SURFACE_2, color: INK, border: `1px solid ${CYAN}66` }}
+            >
+              {actionState === "rerunning-pipeline" ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <RotateCw className="h-3.5 w-3.5" style={{ color: CYAN }} />
+              )}
+              Re-run pipeline
             </button>
           ) : null}
 

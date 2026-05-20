@@ -414,6 +414,11 @@ export const generationJobs = pgTable(
     existingBundleId: uuid('existing_bundle_id').references(() => bundles.id),
     isUpdateRequested: boolean('is_update_requested').notNull().default(false),
 
+    // Admin re-run target: when set, the worker UPDATEs this bundle in
+    // place instead of INSERTing a new row. Editor-managed fields
+    // (title, description, license, etc.) are preserved.
+    targetBundleId: uuid('target_bundle_id').references(() => bundles.id),
+
     // Result
     resultBundleId: uuid('result_bundle_id').references(() => bundles.id),
 
