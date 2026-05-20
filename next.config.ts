@@ -11,6 +11,20 @@ const nextConfig: NextConfig = {
     // production builds on style issues.
     ignoreDuringBuilds: true,
   },
+  // @google/design.md ships non-JS data files (.yaml, .md) inside its
+  // dist folder that its linter reads at runtime. Next's serverless
+  // tracing only bundles .js by default, which causes ENOENT in Vercel.
+  // Explicitly include those files for any route that touches the linter.
+  outputFileTracingIncludes: {
+    '/api/internal/tasks/scrape-and-extract': [
+      './node_modules/@google/design.md/dist/**/*.yaml',
+      './node_modules/@google/design.md/dist/**/*.md',
+    ],
+    '/api/bundles/[slug]/export': [
+      './node_modules/@google/design.md/dist/**/*.yaml',
+      './node_modules/@google/design.md/dist/**/*.md',
+    ],
+  },
 };
 
 export default nextConfig;
