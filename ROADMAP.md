@@ -15,30 +15,20 @@
 
 ---
 
-## 🔥 Immediate verification (post-rebrand, 2026-05-20)
+## ✅ Done 2026-05-20 — rebrand + QStash recovery
 
-Things to confirm now that `UIUXofAi → UIUXskills` shipped (`d030690`).
+- [x] Vercel deploy of QStash + Next.js 15.5.9 succeeded (`d7b54b5`)
+- [x] Domain shows UIUXskills brand end-to-end
+- [x] Firebase Auth authorized domains include `uiuxskills.com` + `www.uiuxskills.com`
+- [x] QStash credentials in Vercel (`QSTASH_TOKEN`, `QSTASH_CURRENT_SIGNING_KEY`, `QSTASH_NEXT_SIGNING_KEY`)
+- [x] Lando Norris bundle recovered (companionStatus: pending → ready, 3130 chars of real Sonnet output)
+- [x] QStash dispatch verified end-to-end on production
 
-- [ ] **Vercel deploy succeeded** — check Deployments tab, look for commit `d030690`, status `Ready`
-- [ ] **Domain shows new brand** — open https://uiuxskills.com and confirm header reads "UIUXskills" and sign-in card says "Sign in to UIUXskills"
-- [ ] **`NEXT_PUBLIC_APP_URL` env var** in Vercel points to `https://uiuxskills.com` (was likely pointing at the `.vercel.app` URL)
-- [ ] **Firebase Auth → Authorized domains** includes `uiuxskills.com` (Google sign-in will fail silently if not)
+## 🔁 Remaining housekeeping
+
+- [ ] **Rotate QStash credentials** — the original token + signing keys were pasted into chat. On Upstash QStash US Region page, click **Reset Token** + **Roll Signing Key**, then update the three Vercel env vars with the new values and redeploy.
+- [ ] **Confirm `NEXT_PUBLIC_APP_URL` env var** in Vercel points to `https://uiuxskills.com`
 - [ ] **Vercel project rename** (optional cosmetic) — `design-md` → `uiuxskills` in Project Settings → General
-
-## 🔥 QStash setup (required for post-QStash deploy to actually work)
-
-The fire-and-forget task pattern that lost the Lando Norris companion prompt is now replaced with Upstash QStash. To activate it:
-
-- [ ] **Open Upstash Console** at https://console.upstash.com/
-- [ ] **Click the "QStash" tab** in the left sidebar (NOT Redis — that's already set up)
-- [ ] **Copy three values** from the dashboard:
-  - `QSTASH_TOKEN` (top of the page)
-  - `QSTASH_CURRENT_SIGNING_KEY` (under "Signing Keys")
-  - `QSTASH_NEXT_SIGNING_KEY` (under "Signing Keys")
-- [ ] **In Vercel** → Project Settings → Environment Variables, add all three (Production + Preview + Development scopes)
-- [ ] **Redeploy** (Vercel will redeploy automatically on next push, or hit "Redeploy" on the latest deployment)
-- [ ] **Recover Lando Norris bundle** — once deployed, go to `/admin/bundles`, search "lando norris", click "Re-run companion" (new cyan button visible whenever `companionStatus !== ready`)
-- [ ] **Test a new generation** — generate any bundle on `/generate`. Companion should land as `ready` within ~15s of design.md being persisted (no more stuck pending bundles).
 
 ---
 
