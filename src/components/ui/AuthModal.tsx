@@ -64,9 +64,10 @@ export function AuthModal() {
 
   if (!isOpen) return null;
 
-  const intent = returnTo?.startsWith("/generate")
-    ? "Generating a design.md from a URL needs an account. Browsing the library doesn't."
-    : null;
+  // Intent copy is now generic — the AuthCard's default mentions the
+  // upcoming track-history and favorites features. Anonymous generation
+  // is permitted, so we no longer say "requires an account."
+  const intent = null;
 
   return (
     <div
@@ -101,6 +102,7 @@ export function AuthModal() {
         <AuthCard
           variant="compact"
           intent={intent}
+          onSkip={() => closeAuthModal()}
           onSuccess={(_user) => {
             // Auth store closes the modal automatically; route now.
             // postAuthDestination reads the fresh user from the store at call time.

@@ -24,6 +24,7 @@ interface ApiBundleDetail {
   title: string;
   description: string;
   type: string;
+  status: string;
   designMd: string | null;
   companionPrompt: string;
   companionPromptVersion: number;
@@ -219,6 +220,14 @@ function detailToBundleItem(row: ApiBundleDetail): BundleItem {
       row.companionStatus === 'pending' || row.companionStatus === 'failed'
         ? row.companionStatus
         : 'ready',
+    lifecycleStatus:
+      row.status === 'personal' ||
+      row.status === 'pending_review' ||
+      row.status === 'published' ||
+      row.status === 'flagged' ||
+      row.status === 'rejected'
+        ? row.status
+        : 'published',
   };
 
   return {

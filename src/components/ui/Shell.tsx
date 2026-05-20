@@ -20,7 +20,7 @@ import {
   SURFACE,
   VIOLET,
 } from "@/lib/ui-data/tokens";
-import { useAuth, useAuthStorageSync } from "@/lib/ui-data/mockAuth";
+import { openAuthModal, useAuth, useAuthStorageSync } from "@/lib/ui-data/mockAuth";
 import { AuthModal } from "./AuthModal";
 import { UserMenu } from "./UserMenu";
 
@@ -135,14 +135,15 @@ export function Header() {
               <UserMenu />
             </>
           ) : (
-            <Link
-              href="/generate"
-              title="Paste a URL and generate a draft — sign in to view it"
+            <button
+              type="button"
+              onClick={() => openAuthModal(null)}
+              title="Sign in to track URLs you've generated and save favorites"
               className="h-8 rounded-full px-4 text-[12.5px] font-medium inline-flex items-center gap-1.5"
               style={{ background: INK, color: INK_ON_LIGHT }}
             >
-              Generate
-            </Link>
+              Sign in
+            </button>
           )}
         </div>
       </div>

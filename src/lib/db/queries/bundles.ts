@@ -4,7 +4,7 @@
  * Centralised so route handlers stay slim and we can reuse the same
  * filter/sort logic from the upcoming search index build and admin views.
  */
-import { and, desc, eq, ilike, inArray, or, sql, type SQL } from 'drizzle-orm';
+import { and, desc, eq, ilike, inArray, ne, or, sql, type SQL } from 'drizzle-orm';
 import { db } from '@/lib/db/client';
 import { bundles, categories } from '@/lib/db/schema';
 
@@ -257,6 +257,7 @@ export async function listAdminBundles(
 }
 
 export interface BundleDetail extends BundleListItem {
+  status: string;
   designMd: string | null;
   companionPrompt: string;
   companionPromptVersion: number;
@@ -354,7 +355,15 @@ export async function getOwnerBundleById(
   return (row as OwnerBundleDetail | undefined) ?? null;
 }
 
-export async function getPublishedBundleBySlug(slug: string): Promise<BundleDetail | null> {
+/**
+ * Returns the bundle by slug as long as it isn't archived. Used by
+ * the public detail page (`/library/[slug]`) so freshly-generated
+ * bundles (status='pending_review' or 'personal') can be linked
+ * directly by their slug. The listing page still filters to
+ * status='published' separately, so non-published bundles only appear
+ * if you know the slug.
+ */
+export async function getVisibleBundleBySlug(slug: string): Promise<BundleDetail | null> {
   const [row] = await db
     .select({
       id: bundles.id,
@@ -362,6 +371,7 @@ export async function getPublishedBundleBySlug(slug: string): Promise<BundleDeta
       title: bundles.title,
       description: bundles.description,
       type: bundles.type,
+      status: bundles.status,
       designMd: bundles.designMd,
       companionPrompt: bundles.companionPrompt,
       companionPromptVersion: bundles.companionPromptVersion,
@@ -401,7 +411,12 @@ export async function getPublishedBundleBySlug(slug: string): Promise<BundleDeta
     })
     .from(bundles)
     .leftJoin(categories, eq(bundles.primaryCategoryId, categories.id))
-    .where(and(eq(bundles.slug, slug), eq(bundles.status, 'published')))
+    .where(and(eq(bundles.slug, slug), ne(bundles.status, 'archived')))
     .limit(1);
   return (row as BundleDetail | undefined) ?? null;
 }
+
+/** @deprecated use getVisibleBundleBySlug. Kept as an alias for any
+ * callers we haven't migrated yet — same query path now returns
+ * non-archived too. */
+export const getPublishedBundleBySlug = getVisibleBundleBySlug;

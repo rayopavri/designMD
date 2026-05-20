@@ -208,8 +208,9 @@ export const bundles = pgTable(
     isCurated: boolean('is_curated').notNull().default(false),
     isFeatured: boolean('is_featured').notNull().default(false),
 
-    // Ownership (login required for generation)
-    createdBy: uuid('created_by').notNull().references(() => users.id),
+    // Ownership — nullable to support anonymous generation. Signed-in
+    // users still get attribution; anonymous bundles have created_by=null.
+    createdBy: uuid('created_by').references(() => users.id),
 
     // Attribution
     sourceUrl: text('source_url'),
@@ -406,8 +407,8 @@ export const generationJobs = pgTable(
     imageHash: text('image_hash'),
     brandName: text('brand_name'),
 
-    // Ownership
-    userId: uuid('user_id').notNull().references(() => users.id),
+    // Ownership — nullable to support anonymous generation.
+    userId: uuid('user_id').references(() => users.id),
 
     // Duplicate detection
     existingBundleId: uuid('existing_bundle_id').references(() => bundles.id),

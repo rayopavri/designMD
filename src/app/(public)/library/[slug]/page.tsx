@@ -553,6 +553,10 @@ function BundleView({ item }: { item: BundleItem }) {
                 })}
               </div>
 
+              {bundle.lifecycleStatus && bundle.lifecycleStatus !== "published" ? (
+                <StatusBanner status={bundle.lifecycleStatus} />
+              ) : null}
+
               {tab === "design.md" ? (
                 <CodePanel
                   title={`${bundle.name.toLowerCase()} / design.md`}
@@ -596,6 +600,50 @@ function BundleView({ item }: { item: BundleItem }) {
 
       <WorksWellWith itemId={item.id} sectionNum={showInstall ? "04" : "03"} />
     </>
+  );
+}
+
+function StatusBanner({
+  status,
+}: {
+  status: "personal" | "pending_review" | "flagged" | "rejected";
+}) {
+  const COPY: Record<typeof status, { label: string; detail: string }> = {
+    pending_review: {
+      label: "Draft",
+      detail: "Awaiting editorial review. The library only lists published bundles.",
+    },
+    personal: {
+      label: "Personal draft",
+      detail: "Held below the quality bar for the public library — usable, but not editor-approved.",
+    },
+    rejected: {
+      label: "Rejected",
+      detail: "An editor reviewed this and asked for changes before it can go to the library.",
+    },
+    flagged: {
+      label: "Flagged",
+      detail: "This bundle has been flagged by community votes and is under re-review.",
+    },
+  };
+  const { label, detail } = COPY[status];
+  return (
+    <div
+      className="mb-3 rounded-md border px-3 py-2 text-[12px] flex items-center gap-3"
+      style={{ borderColor: BORDER, background: SURFACE_2 }}
+    >
+      <span
+        className="h-1.5 w-1.5 rounded-full shrink-0"
+        style={{ background: SUB }}
+        aria-hidden
+      />
+      <div className="min-w-0">
+        <span style={{ color: INK }}>{label}</span>
+        <span className="ml-2" style={{ color: SUB }}>
+          {detail}
+        </span>
+      </div>
+    </div>
   );
 }
 

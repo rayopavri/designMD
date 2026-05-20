@@ -1,14 +1,15 @@
 /**
  * GET /api/generate/[id]
  *
- * Poll a generator job's status. Returns 404 if the job doesn't exist
- * or belongs to another user.
+ * Poll a generator job's status. No auth — the UUID jobId is the access
+ * token. IDs are not enumerable and are only known to the requester
+ * (the response of POST /api/generate). This lets anonymous users poll
+ * their own job through to completion.
  */
 import { NextResponse, type NextRequest } from 'next/server';
-import { and, eq } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db/client';
 import { bundles, generationJobs } from '@/lib/db/schema';
-import { requireAuth } from '@/lib/auth/session';
 
 export const runtime = 'nodejs';
 
@@ -19,14 +20,6 @@ interface RouteContext {
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function GET(_req: NextRequest, ctx: RouteContext) {
-  let user;
-  try {
-    user = await requireAuth();
-  } catch (res) {
-    if (res instanceof Response) return res;
-    throw res;
-  }
-
   const { id } = await ctx.params;
   if (!UUID_RE.test(id)) {
     return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
@@ -35,7 +28,7 @@ export async function GET(_req: NextRequest, ctx: RouteContext) {
   const [job] = await db
     .select()
     .from(generationJobs)
-    .where(and(eq(generationJobs.id, id), eq(generationJobs.userId, user.id)))
+    .where(eq(generationJobs.id, id))
     .limit(1);
 
   if (!job) {

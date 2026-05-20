@@ -26,7 +26,7 @@ import { and, eq, inArray } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '@/lib/db/client';
 import { bundles, generationJobs } from '@/lib/db/schema';
-import { requireAuth } from '@/lib/auth/session';
+import { getCurrentUser } from '@/lib/auth/session';
 import { normalizeUrl } from '@/lib/generator/url';
 import { enqueueTask } from '@/lib/queue';
 
@@ -41,22 +41,19 @@ const ALLOWED_MIME = new Set(['image/png', 'image/jpeg', 'image/webp']);
 const BRAND_NAME_MAX = 120;
 
 export async function POST(req: NextRequest) {
-  let user;
-  try {
-    user = await requireAuth();
-  } catch (res) {
-    if (res instanceof Response) return res;
-    throw res;
-  }
+  // Sign-in is optional now. Signed-in users still get attribution
+  // (created_by = user.id); anonymous gets null.
+  const user = await getCurrentUser();
+  const userId = user?.id ?? null;
 
   const contentType = req.headers.get('content-type') ?? '';
   if (contentType.startsWith('multipart/form-data')) {
-    return handleUpload(req, user.id);
+    return handleUpload(req, userId);
   }
-  return handleUrl(req, user.id);
+  return handleUrl(req, userId);
 }
 
-async function handleUrl(req: NextRequest, userId: string) {
+async function handleUrl(req: NextRequest, userId: string | null) {
   let body: z.infer<typeof UrlBodySchema>;
   try {
     body = UrlBodySchema.parse(await req.json());
@@ -90,23 +87,27 @@ async function handleUrl(req: NextRequest, userId: string) {
     );
   }
 
-  // Existing in-flight job for this user/url?
-  const [inflight] = await db
-    .select()
-    .from(generationJobs)
-    .where(
-      and(
-        eq(generationJobs.userId, userId),
-        eq(generationJobs.normalizedUrl, normalized),
-        inArray(generationJobs.status, ['queued', 'running']),
-      ),
-    )
-    .limit(1);
-  if (inflight) {
-    return NextResponse.json(
-      { jobId: inflight.id, status: inflight.status, currentStep: inflight.currentStep ?? null },
-      { status: 202 },
-    );
+  // Existing in-flight job for this user/url? Only applies to signed-in
+  // users — anonymous gets a fresh job each time. (Rate limiting will
+  // be the abuse gate; we don't try to dedupe by IP here.)
+  if (userId) {
+    const [inflight] = await db
+      .select()
+      .from(generationJobs)
+      .where(
+        and(
+          eq(generationJobs.userId, userId),
+          eq(generationJobs.normalizedUrl, normalized),
+          inArray(generationJobs.status, ['queued', 'running']),
+        ),
+      )
+      .limit(1);
+    if (inflight) {
+      return NextResponse.json(
+        { jobId: inflight.id, status: inflight.status, currentStep: inflight.currentStep ?? null },
+        { status: 202 },
+      );
+    }
   }
 
   const [job] = await db
@@ -132,7 +133,7 @@ async function handleUrl(req: NextRequest, userId: string) {
   );
 }
 
-async function handleUpload(req: NextRequest, userId: string) {
+async function handleUpload(req: NextRequest, userId: string | null) {
   let form: FormData;
   try {
     form = await req.formData();
@@ -172,23 +173,25 @@ async function handleUpload(req: NextRequest, userId: string) {
   const base64 = buf.toString('base64');
   const sourceKey = `upload://${hash}`;
 
-  // Dedupe in-flight upload jobs by user+hash.
-  const [inflight] = await db
-    .select()
-    .from(generationJobs)
-    .where(
-      and(
-        eq(generationJobs.userId, userId),
-        eq(generationJobs.imageHash, hash),
-        inArray(generationJobs.status, ['queued', 'running']),
-      ),
-    )
-    .limit(1);
-  if (inflight) {
-    return NextResponse.json(
-      { jobId: inflight.id, status: inflight.status, currentStep: inflight.currentStep ?? null },
-      { status: 202 },
-    );
+  // Dedupe in-flight upload jobs by user+hash (signed-in users only).
+  if (userId) {
+    const [inflight] = await db
+      .select()
+      .from(generationJobs)
+      .where(
+        and(
+          eq(generationJobs.userId, userId),
+          eq(generationJobs.imageHash, hash),
+          inArray(generationJobs.status, ['queued', 'running']),
+        ),
+      )
+      .limit(1);
+    if (inflight) {
+      return NextResponse.json(
+        { jobId: inflight.id, status: inflight.status, currentStep: inflight.currentStep ?? null },
+        { status: 202 },
+      );
+    }
   }
 
   const [job] = await db

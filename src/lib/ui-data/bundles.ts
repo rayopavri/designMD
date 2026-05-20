@@ -42,6 +42,11 @@ export type Bundle = {
    * finished yet, 'ready' when usable, 'failed' on error. Curated/seed
    * bundles default to 'ready'. */
   companionStatus?: 'pending' | 'ready' | 'failed';
+  /** Bundle lifecycle status — 'published' is the default for curated
+   * seed bundles; anonymous + freshly-generated bundles arrive as
+   * 'pending_review' or 'personal'. The detail page renders a small
+   * banner for non-published statuses. */
+  lifecycleStatus?: 'personal' | 'pending_review' | 'published' | 'flagged' | 'rejected';
 };
 
 const linear = `---

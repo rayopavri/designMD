@@ -2,12 +2,9 @@
 
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { saveDraft } from "@/lib/ui-data/draftStore";
-import { queueSubmission } from "@/lib/ui-data/submissionStore";
 import { Check, ChevronDown, Copy, Globe, Image as ImageIcon, Loader2, Lock, RefreshCw, Send, ShieldCheck, Upload, X as XIcon } from "lucide-react";
 import { SectionLabel } from "@/components/ui/Shell";
 import { CodePanel } from "@/components/ui/CodePanel";
-import { openAuthModal, useAuth } from "@/lib/ui-data/mockAuth";
 import {
   BG,
   BORDER,
@@ -26,19 +23,6 @@ import {
 import { TYPE_META, type ItemType } from "@/lib/ui-data/items";
 
 type Status = "idle" | "running" | "done" | "failed";
-type SubmitState = "idle" | "submitting" | "submitted";
-
-interface RealBundle {
-  id: string;
-  slug: string;
-  designMd: string | null;
-  companionPrompt: string;
-  paletteColors: string[];
-  coverageScore: number | null;
-  status: string;
-  reviewNotes: string | null;
-}
-
 interface JobPollResult {
   jobId: string;
   status: "queued" | "running" | "completed" | "failed";
@@ -359,8 +343,6 @@ function Generate() {
 }
 
 function GenerateContent() {
-  const { user } = useAuth();
-  const gated = !user;
   const _router = useRouter();
   const navigate = (path: string) => _router.push(path);
   const search = useSearchParams().toString();
@@ -375,13 +357,10 @@ function GenerateContent() {
   const [status, setStatus] = useState<Status>("idle");
   const [stepIdx, setStepIdx] = useState(-1);
   const [palette, setPalette] = useState<string[]>([]);
-  const [submitState, setSubmitState] = useState<SubmitState>("idle");
   const [validation, setValidation] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
   const timersRef = useRef<number[]>([]);
   // Real-pipeline state (bundle type only)
   const [jobId, setJobId] = useState<string | null>(null);
-  const [realBundle, setRealBundle] = useState<RealBundle | null>(null);
   const [existingSlug, setExistingSlug] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const pollRef = useRef<number | null>(null);
@@ -423,11 +402,9 @@ function GenerateContent() {
   function start() {
     setValidation(null);
 
-    // Auth gate first — applies to both URL and upload bundle flows.
-    if (gated && activeType === "bundle") {
-      openAuthModal("/generate");
-      return;
-    }
+    // No auth gate — anonymous users can generate. Sign-in is now an
+    // upsell for upcoming history/favorites features, surfaced in the
+    // header rather than blocking the generator.
 
     // ─── Upload mode (bundle only) ────────────────────────
     if (activeType === "bundle" && bundleMode === "upload") {
@@ -444,10 +421,8 @@ function GenerateContent() {
       setStatus("running");
       setStepIdx(0);
       setPalette([]);
-      setRealBundle(null);
       setExistingSlug(null);
       setErrorMsg(null);
-      setSubmitState("idle");
       void startBundleUpload(uploadFile, brandName.trim());
       return;
     }
@@ -481,10 +456,8 @@ function GenerateContent() {
     setStatus("running");
     setStepIdx(0);
     setPalette([]);
-    setRealBundle(null);
     setExistingSlug(null);
     setErrorMsg(null);
-    setSubmitState("idle");
 
     if (activeType === "bundle") {
       void startBundleJob(parsedUrl.toString());
@@ -574,10 +547,17 @@ function GenerateContent() {
         const job = (await res.json()) as JobPollResult;
         applyJobUpdate(job);
         if (job.status === "completed") {
-          if (job.resultBundleId) {
-            await loadBundle(job.resultBundleId);
-          }
           setStatus("done");
+          // Redirect straight to the bundle's library detail page. The
+          // library page loads its own data and handles all statuses
+          // (pending_review, personal, published) with the appropriate
+          // banner. Brief delay lets the user see the "Done" state.
+          if (job.resultBundleSlug) {
+            const slug = job.resultBundleSlug;
+            window.setTimeout(() => {
+              navigate(`/library/${slug}`);
+            }, 600);
+          }
           return;
         }
         if (job.status === "failed") {
@@ -620,17 +600,6 @@ function GenerateContent() {
     if (idx >= 0) setStepIdx(idx);
   }
 
-  async function loadBundle(bundleId: string) {
-    try {
-      const res = await fetch(`/api/me/bundles/${bundleId}`);
-      if (!res.ok) return;
-      const body = (await res.json()) as { data: RealBundle };
-      setRealBundle(body.data);
-      if (body.data.paletteColors?.length) setPalette(body.data.paletteColors);
-    } catch {
-      // Soft failure — preview just won't render; the bundle still exists.
-    }
-  }
 
   function reset() {
     clearTimers();
@@ -638,10 +607,8 @@ function GenerateContent() {
     setStatus("idle");
     setStepIdx(-1);
     setPalette([]);
-    setSubmitState("idle");
     setValidation(null);
     setJobId(null);
-    setRealBundle(null);
     setExistingSlug(null);
     setErrorMsg(null);
     // Keep bundleMode + uploadFile + brandName so a "Try another" doesn't
@@ -691,61 +658,7 @@ function GenerateContent() {
     return () => clearInterval(id);
   }, [status]);
 
-  function submitForReview() {
-    if (gated) {
-      openAuthModal("/generate");
-      return;
-    }
-    setSubmitState("submitting");
-    const filename =
-      activeType === "bundle"
-        ? "design.md"
-        : activeType === "mcp"
-        ? "mcp.json"
-        : `${activeType}.md`;
-    const language: "yaml" | "md" | "json" =
-      activeType === "bundle" ? "yaml" : activeType === "mcp" ? "json" : "md";
-    queueSubmission({
-      type: activeType,
-      source: host ? `https://${host}` : "draft.local",
-      host: host || "draft.local",
-      filename,
-      language,
-      body: draftSource,
-    });
-    window.setTimeout(() => setSubmitState("submitted"), 700);
-  }
 
-  async function copyDraft() {
-    if (gated) {
-      openAuthModal("/generate");
-      return;
-    }
-    // Best-effort clipboard write, then hand off to CopySuccess with the draft payload
-    try {
-      await navigator.clipboard.writeText(draftSource);
-    } catch {
-      // clipboard may be restricted in iframe — CopySuccess offers re-copy buttons
-    }
-    setCopied(true);
-    const filename =
-      activeType === "bundle"
-        ? "design.md"
-        : activeType === "mcp"
-        ? "mcp.json"
-        : `${activeType}.md`;
-    const language: "yaml" | "md" | "json" =
-      activeType === "bundle" ? "yaml" : activeType === "mcp" ? "json" : "md";
-    const draft = saveDraft({
-      type: activeType,
-      source: host ? `https://${host}` : "draft.local",
-      host: host || "draft.local",
-      filename,
-      language,
-      body: draftSource,
-    });
-    navigate(`/copy/${draft.id}`);
-  }
 
   // Total real elapsed across all steps so far (live for active step).
   const elapsedMs = (() => {
@@ -758,17 +671,6 @@ function GenerateContent() {
     return Math.max(0, lastEnd - first);
   })();
   const total = steps.reduce((s, x) => s + x.durationMs, 0);
-
-  const draftSource =
-    activeType === "bundle"
-      ? realBundle?.designMd
-        ? realBundle.designMd
-        : presetBundleSpec(host || "draft.local", palette.length > 0 ? palette : generatePalette(host || "demo"))
-      : activeType === "skill"
-      ? presetSkillDraft(host || "draft.local")
-      : activeType === "agent"
-      ? presetAgentDraft(host || "draft.local")
-      : presetMcpDraft(host || "draft.local");
 
   return (
     <>
@@ -1074,9 +976,7 @@ function GenerateContent() {
                 : `${(elapsedMs / 1000).toFixed(1)}s elapsed of ~${(total / 1000).toFixed(0)}s`
               : status === "failed"
               ? "pipeline failed — try another URL or refresh"
-              : activeType === "bundle" && realBundle
-              ? `generated ${realBundle.slug} · ${(elapsedMs / 1000).toFixed(1)}s · status: ${realBundle.status} · coverage: ${realBundle.coverageScore ?? "—"}`
-              : `generated from ${host} · ${(elapsedMs / 1000).toFixed(1)}s`}
+              : `done · ${(elapsedMs / 1000).toFixed(1)}s · opening bundle…`}
           </div>
         </div>
       </section>
@@ -1228,254 +1128,6 @@ function GenerateContent() {
           </div>
         </div>
 
-        {/* Draft preview + dual CTAs */}
-        {status === "done" ? (
-          <div className="mx-auto max-w-6xl px-6 lg:px-8 pb-20">
-            <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6">
-              <div className="relative">
-                <CodePanel
-                  title={`${host}/${
-                    activeType === "bundle" ? "design.md" : activeType === "mcp" ? "mcp.json" : `${activeType}.md`
-                  }`}
-                  language={activeType === "bundle" ? "yaml" : activeType === "mcp" ? "json" : "md"}
-                  source={draftSource}
-                  onCopyOverride={gated ? () => openAuthModal("/generate") : undefined}
-                  rightMeta={
-                    <span className="inline-flex items-center gap-1.5" style={{ color: INK }}>
-                      <span className="h-1.5 w-1.5 rounded-full" style={{ background: PEACH }} />
-                      draft · review before shipping
-                    </span>
-                  }
-                />
-                {gated ? (
-                  // Overlay is positioned to cover only the code body — the
-                  // CodePanel header (~42px) and footer (~34px) stay crisp.
-                  // backdrop-filter blurs the body text behind this layer
-                  // while leaving the chrome untouched.
-                  <div
-                    className="absolute left-0 right-0 flex items-center justify-center p-6"
-                    style={{
-                      top: 42,
-                      bottom: 34,
-                      backdropFilter: "blur(7px)",
-                      WebkitBackdropFilter: "blur(7px)",
-                      background: "rgba(10, 10, 12, 0.55)",
-                      userSelect: "none",
-                    }}
-                    role="region"
-                    aria-label="Sign in to view your draft"
-                  >
-                    <div
-                      className="w-full max-w-[360px] rounded-xl border p-6 text-center shadow-2xl"
-                      style={{ background: SURFACE, borderColor: BORDER }}
-                    >
-                      <span
-                        className="inline-flex items-center justify-center h-9 w-9 rounded-full mb-3"
-                        style={{ background: SURFACE_2, color: INK, border: `1px solid ${BORDER_SOFT}` }}
-                      >
-                        <Lock className="h-4 w-4" />
-                      </span>
-                      <h3
-                        className="text-[17px] leading-[1.2] font-medium tracking-[-0.012em]"
-                        style={{ color: INK }}
-                      >
-                        Sign in to view your draft
-                      </h3>
-                      <p className="mt-2 text-[12.5px] leading-[1.55]" style={{ color: SUB }}>
-                        Your {activeType === "mcp" ? "mcp.json" : `${activeType === "bundle" ? "design" : activeType}.md`} for {host} is ready — sign in to view, copy, or submit it.
-                      </p>
-                      <div className="mt-4 flex flex-col items-stretch gap-2">
-                        <button
-                          type="button"
-                          onClick={() => openAuthModal("/generate")}
-                          className="h-9 rounded-full px-4 text-[12.5px] font-medium"
-                          style={{ background: INK, color: INK_ON_LIGHT }}
-                        >
-                          Sign in to continue
-                        </button>
-                        <a
-                          href="/login?returnTo=%2Fgenerate"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            openAuthModal("/generate");
-                          }}
-                          className="text-[12.5px] underline underline-offset-4"
-                          style={{ color: SUB }}
-                        >
-                          Create an account
-                        </a>
-                      </div>
-                      <p className="mt-3 text-[10.5px]" style={{ color: MUTED, fontFamily: MONO }}>
-                        free · no credit card · keeps this draft
-                      </p>
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-              <aside
-                className="rounded-xl border p-6 flex flex-col gap-5"
-                style={{ borderColor: BORDER, background: SURFACE }}
-              >
-                <div>
-                  <SectionLabel n="04" t="What's next" />
-                  {activeType === "bundle" && realBundle ? (
-                    <p className="mt-3 text-[13px] leading-[1.6]" style={{ color: SUB }}>
-                      {realBundle.status === "pending_review"
-                        ? "Submitted to the editorial queue automatically. An editor reviews within 48h."
-                        : realBundle.status === "published"
-                        ? "Already published in the public library."
-                        : realBundle.status === "personal"
-                        ? "Held as a personal draft — coverage fell below the quality bar for the public queue."
-                        : "Draft saved."}
-                    </p>
-                  ) : (
-                    <p className="mt-3 text-[13px] leading-[1.6]" style={{ color: SUB }}>
-                      Use the draft yourself right now, or hand it to the editorial desk for inclusion
-                      in the public library.
-                    </p>
-                  )}
-                  {activeType === "bundle" && realBundle?.coverageScore !== null && realBundle?.coverageScore !== undefined ? (
-                    <div className="mt-3 inline-flex items-center gap-2 text-[11px]" style={{ fontFamily: MONO, color: SUB }}>
-                      <span
-                        className="h-1.5 w-1.5 rounded-full"
-                        style={{ background: realBundle.coverageScore >= 70 ? LIME : realBundle.coverageScore >= 40 ? PEACH : MUTED }}
-                      />
-                      coverage {realBundle.coverageScore} / 100
-                    </div>
-                  ) : null}
-                </div>
-
-                {/* Equal-weight CTAs */}
-                <div className="grid grid-cols-1 gap-2.5">
-                  <button
-                    type="button"
-                    onClick={copyDraft}
-                    className="h-10 rounded-full px-4 text-[12.5px] font-medium inline-flex items-center justify-center gap-2"
-                    style={
-                      gated
-                        ? {
-                            background: SURFACE_2,
-                            color: SUB,
-                            border: `1px solid ${BORDER}`,
-                          }
-                        : {
-                            background: INK,
-                            color: INK_ON_LIGHT,
-                            boxShadow: `0 0 0 1px ${meta.accent}55, 0 10px 36px -10px ${meta.accent}88`,
-                          }
-                    }
-                    title={gated ? "Sign in to copy your draft" : undefined}
-                  >
-                    {gated ? (
-                      <>
-                        <Lock className="h-3.5 w-3.5" />
-                        Sign in to copy
-                      </>
-                    ) : copied ? (
-                      <>
-                        <Check className="h-3.5 w-3.5" style={{ color: LIME }} />
-                        Copied to clipboard
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="h-3.5 w-3.5" />
-                        Copy for personal use
-                      </>
-                    )}
-                  </button>
-                  {activeType === "bundle" && realBundle ? (
-                    realBundle.status === "published" ? (
-                      <a
-                        href={`/library/${realBundle.slug}`}
-                        className="h-10 rounded-full px-4 text-[12.5px] font-medium inline-flex items-center justify-center gap-2"
-                        style={{
-                          background: INK,
-                          color: INK_ON_LIGHT,
-                          boxShadow: `0 0 0 1px ${LIME}55, 0 10px 36px -10px ${LIME}88`,
-                        }}
-                      >
-                        <Check className="h-3.5 w-3.5" style={{ color: LIME }} />
-                        View in library
-                      </a>
-                    ) : (
-                      <div
-                        className="h-10 rounded-full px-4 text-[12.5px] font-medium inline-flex items-center justify-center gap-2"
-                        style={{
-                          background: `${realBundle.status === "pending_review" ? LIME : PEACH}1A`,
-                          border: `1px solid ${realBundle.status === "pending_review" ? LIME : PEACH}66`,
-                          color: INK,
-                        }}
-                      >
-                        <Check
-                          className="h-3.5 w-3.5"
-                          style={{ color: realBundle.status === "pending_review" ? LIME : PEACH }}
-                        />
-                        {realBundle.status === "pending_review" ? "Sent to editors" : "Held as draft"}
-                      </div>
-                    )
-                  ) : submitState === "submitted" ? (
-                    <div
-                      className="h-10 rounded-full px-4 text-[12.5px] font-medium inline-flex items-center justify-center gap-2"
-                      style={{
-                        background: `${LIME}1A`,
-                        border: `1px solid ${LIME}66`,
-                        color: INK,
-                      }}
-                    >
-                      <Check className="h-3.5 w-3.5" style={{ color: LIME }} />
-                      Sent to editors
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={submitForReview}
-                      disabled={submitState === "submitting"}
-                      className="h-10 rounded-full px-4 text-[12.5px] font-medium inline-flex items-center justify-center gap-2 disabled:opacity-60"
-                      style={
-                        gated
-                          ? {
-                              background: SURFACE_2,
-                              color: SUB,
-                              border: `1px solid ${BORDER}`,
-                            }
-                          : {
-                              background: INK,
-                              color: INK_ON_LIGHT,
-                              boxShadow: `0 0 0 1px ${VIOLET}55, 0 10px 36px -10px ${VIOLET}88`,
-                            }
-                      }
-                      title={gated ? "Sign in to submit for review" : undefined}
-                    >
-                      {gated ? (
-                        <>
-                          <Lock className="h-3.5 w-3.5" />
-                          Sign in to submit
-                        </>
-                      ) : submitState === "submitting" ? (
-                        <>
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          Sending
-                        </>
-                      ) : (
-                        <>
-                          <Send className="h-3.5 w-3.5" />
-                          Submit for review
-                        </>
-                      )}
-                    </button>
-                  )}
-                </div>
-
-                <div
-                  className="text-[11px] pt-4 border-t leading-[1.6]"
-                  style={{ borderColor: BORDER_SOFT, color: MUTED, fontFamily: MONO }}
-                >
-                  reviewed within 48h · attribution preserved · free, public, MDN-style
-                </div>
-              </aside>
-            </div>
-          </div>
-        ) : null}
       </section>
 
     </>

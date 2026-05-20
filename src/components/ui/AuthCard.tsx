@@ -27,6 +27,10 @@ export type AuthCardProps = {
   onSuccess: (user: AuthUser) => void;
   /** Extra heading copy used in modal to explain *why* the prompt appeared. */
   intent?: string | null;
+  /** When provided, renders a "Skip for now" link below the provider
+   * buttons. Used by the modal to let users dismiss the prompt and
+   * continue anonymously. */
+  onSkip?: () => void;
 };
 
 const GoogleMark = () => (
@@ -38,7 +42,7 @@ const GoogleMark = () => (
   </svg>
 );
 
-export function AuthCard({ variant = "compact", onSuccess, intent }: AuthCardProps) {
+export function AuthCard({ variant = "compact", onSuccess, intent, onSkip }: AuthCardProps) {
   const [step, setStep] = useState<Step>("providers");
   const [email, setEmail] = useState("");
   const [loadingProvider, setLoadingProvider] = useState<"google" | "email" | null>(null);
@@ -116,7 +120,8 @@ export function AuthCard({ variant = "compact", onSuccess, intent }: AuthCardPro
         </h2>
         {step === "providers" && (
           <p className="mt-2 text-[13.5px] leading-[1.55]" style={{ color: SUB }}>
-            {intent ?? "Generating a design.md requires an account. Browsing the library doesn't."}
+            {intent ??
+              "Sign in to track the URLs you've generated and save favorites — both coming soon. You can keep using the generator without signing in."}
           </p>
         )}
         {step === "email" && (
@@ -165,6 +170,17 @@ export function AuthCard({ variant = "compact", onSuccess, intent }: AuthCardPro
               <Mail className="h-4 w-4" style={{ color: SUB }} />
               Continue with email
             </button>
+            {onSkip ? (
+              <button
+                type="button"
+                onClick={onSkip}
+                disabled={loadingProvider !== null}
+                className="w-full mt-2 text-[12.5px] underline underline-offset-4 disabled:opacity-50"
+                style={{ color: SUB, fontFamily: MONO }}
+              >
+                Skip for now
+              </button>
+            ) : null}
           </div>
         )}
 
