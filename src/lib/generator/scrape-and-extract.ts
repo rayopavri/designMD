@@ -1,17 +1,17 @@
 /**
- * Pipeline worker — canonical Google DESIGN.md aligned.
+ * Pipeline worker Phase 1 — scrape + extract + persist draft bundle.
  *
  * Steps:
  *   scraping             → Firecrawl renders the URL
- *   parsing-computed     → pull CSS vars + dominant hexes + tailwind classes from HTML
- *   extracting           → Gemini Flash (vision + computed): structured tokens + prose context
- *   persisting           → write draft bundle (status=personal) for failure isolation
- *   writing-design-md    → Sonnet 4.6: YAML front-matter + canonical markdown body
- *   linting              → @google/design.md linter parses & validates
- *   self-heal (optional) → if WCAG fails, re-prompt Sonnet with derived donts
- *   writing-companion    → Sonnet 4.6: tool-agnostic companion prompt
- *   scoring              → coverage scorer derives 7 section scores from linter model
- *   ready_for_review     → promote bundle status to pending_review
+ *   parsing-computed     → pull CSS vars + dominant hexes + tailwind classes
+ *   extracting           → Gemini Flash (vision + computed): structured tokens
+ *   resolving-orphans    → wire unmounted color/typography tokens
+ *   persisting           → write draft bundle (status=personal)
+ *
+ * Phase 2 (Sonnet design.md + lint + score) lives in author-design-md.ts.
+ * Splitting was forced by Vercel Hobby's 60s function cap — the Sonnet
+ * call alone takes 25-35s. Phase 1 enqueues Phase 2 via QStash and
+ * passes the full brand object + trimmed scrape markdown in the payload.
  */
 import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db/client';
@@ -22,23 +22,21 @@ import {
   type ExtractedBrand,
 } from '@/lib/ai/gemini';
 import { scrapeUrl, type ScrapeResult } from '@/lib/ai/firecrawl';
-import { generateDesignMd } from '@/lib/ai/generate-design-md';
 import { enqueueTask } from '@/lib/queue';
-import { scoreFromLint } from '@/lib/generator/coverage';
 import {
   extractComputedStyles,
   type ComputedStyleSnapshot,
 } from '@/lib/generator/extract-computed-styles';
-import {
-  lintDesignMd,
-  renderAccessibilityAdvisory,
-  renderLintSummary,
-  type LintSummary,
-} from '@/lib/generator/lint-design-md';
 import { resolveOrphans } from '@/lib/generator/resolve-orphans';
 import { extractDomain } from '@/lib/generator/url';
 import { uniqueBundleSlug } from '@/lib/generator/slug';
 import { uploadScreenshotToBlob } from '@/lib/generator/upload-screenshot';
+
+// QStash payloads are capped at 1MB. Trim the scraped markdown before
+// passing to Phase 2 — design.md authoring only needs a representative
+// chunk of the page text. 40k chars ≈ 10k tokens which is plenty for
+// Sonnet's context.
+const PHASE_2_MARKDOWN_CAP = 40_000;
 
 export interface ScrapeAndExtractPayload {
   jobId: string;
@@ -149,124 +147,27 @@ export async function runScrapeAndExtract(payload: ScrapeAndExtractPayload): Pro
     return failJob(jobId, 'persisting', err);
   }
 
-  // ─── 5. Sonnet writes canonical design.md ─────────────
-  await setJobStep(jobId, 'writing-design-md');
-  let designMdContent: string;
+  // ─── 5. Hand off to Phase 2 ────────────────────────────
+  // Sonnet design.md + lint + score run in a separate Vercel function
+  // to stay under the 60s Hobby cap. Pass everything Phase 2 needs in
+  // the QStash payload — brand JSON + trimmed scraped markdown. We
+  // already truncated markdown to 80k in firecrawl.ts; trim again to
+  // 40k for the cross-function hop so the QStash payload stays small.
   try {
-    const generated = await generateDesignMd({
-      brand,
+    await enqueueTask('author-design-md', {
+      jobId,
+      bundleId,
       url: job.url,
-      scrapedMarkdown: scrape.markdown,
+      scrapedMarkdown: scrape.markdown.slice(0, PHASE_2_MARKDOWN_CAP),
+      brand,
+      isRerun: Boolean(job.targetBundleId),
     });
-    designMdContent = generated.content;
   } catch (err) {
-    return failJob(jobId, 'writing-design-md', err);
+    return failJob(jobId, 'enqueueing-author', err);
   }
 
-  // ─── 5b. Persist designMd to DB + fire companion task NOW ────
-  // The companion worker only needs designMd + brand info — it doesn't
-  // wait on lint or scoring. Kicking it off here lets it run in parallel
-  // with the remaining ~3-4s of lint+score+final-persist, cutting
-  // wall-clock time-to-companion-ready by ~10s.
-  try {
-    await db
-      .update(bundles)
-      .set({
-        designMd: designMdContent,
-        companionStatus: 'pending',
-        updatedAt: new Date(),
-      })
-      .where(eq(bundles.id, bundleId));
-  } catch (err) {
-    return failJob(jobId, 'persisting-design-md', err);
-  }
-  try {
-    await enqueueTask('generate-companion', { bundleId });
-  } catch (err) {
-    console.error('[scrape-and-extract] failed to enqueue companion task:', err);
-    // Continue — the bundle has design.md; companion can be retried later.
-  }
-
-  // ─── 6. Lint with official linter ─────────────────────
-  await setJobStep(jobId, 'linting');
-  let lintSummary: LintSummary;
-  try {
-    lintSummary = await lintDesignMd(designMdContent);
-  } catch (err) {
-    return failJob(jobId, 'linting', err);
-  }
-
-  // Self-heal loops (WCAG retry + orphan retry) removed for free-tier
-  // Vercel 60s budget. Lint failures still surface to the editor via
-  // reviewNotes + score penalty (wcagFactor in coverage.ts). The bundle
-  // is held as `personal` instead of being promoted to `pending_review`
-  // when failures exist, so low-quality output doesn't pollute the queue.
-
-  // ─── 7. Score from linter model ──────────────────────
-  // (Companion prompt was previously here; moved to a second worker
-  // function — see /api/internal/tasks/generate-companion. This keeps
-  // the main pipeline under Vercel Hobby's 60s budget.)
-  await setJobStep(jobId, 'scoring');
-  const coverage = scoreFromLint(lintSummary, designMdContent);
-
-  // ─── 8. Persist & quality-gated promotion ─────────────
-  // Gate: bundles with errors OR overall score < 40 stay personal so the
-  // editor queue isn't polluted with low-quality drafts. The user can
-  // still find them in their /account drafts.
-  //
-  // Re-run mode: skip the quality gate. The editor already curated this
-  // bundle and explicitly asked for a refresh — don't demote a published
-  // bundle to personal just because the new lint output dipped below 40.
-  const isRerun = Boolean(job.targetBundleId);
-  const shouldPromote =
-    lintSummary.counts.errors === 0 &&
-    coverage.overall >= 40;
-
-  try {
-    await db
-      .update(bundles)
-      .set({
-        // designMd + companionStatus already written in step 5b above.
-        coverageScore: coverage.overall,
-        coverageColors: coverage.colors,
-        coverageTypography: coverage.typography,
-        coverageLayout: coverage.layout,
-        coverageElevation: coverage.elevation,
-        coverageShapes: coverage.shapes,
-        coverageComponents: coverage.components,
-        coverageDosDonts: coverage.dosDonts,
-        reviewNotes: renderLintSummary(lintSummary),
-        accessibilityNotes: renderAccessibilityAdvisory(lintSummary),
-        // On re-run, leave existing status/submittedAt alone.
-        ...(isRerun
-          ? {}
-          : {
-              status: shouldPromote ? ('pending_review' as const) : ('personal' as const),
-              submittedAt: shouldPromote ? new Date() : null,
-            }),
-        updatedAt: new Date(),
-      })
-      .where(eq(bundles.id, bundleId));
-  } catch (err) {
-    return failJob(jobId, 'scoring', err);
-  }
-
-  await db
-    .update(generationJobs)
-    .set({
-      status: 'completed',
-      currentStep: isRerun
-        ? 'rerun_complete'
-        : shouldPromote
-          ? 'ready_for_review'
-          : 'held_as_draft',
-      resultBundleId: bundleId,
-      // Drop the base64 payload once the bundle is persisted — we don't need
-      // to keep the original image around (per design spec).
-      imageData: null,
-      updatedAt: new Date(),
-    })
-    .where(eq(generationJobs.id, jobId));
+  // Phase 1 ends here. The job stays `running` with currentStep='persisting'
+  // until Phase 2 picks it up and advances to 'writing-design-md'.
 }
 
 // ─── Helpers ─────────────────────────────────────────────────

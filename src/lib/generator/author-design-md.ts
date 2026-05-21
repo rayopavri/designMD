@@ -1,0 +1,160 @@
+/**
+ * Phase 2 of the generation pipeline.
+ *
+ * Steps:
+ *   writing-design-md     → Sonnet 4.6: YAML front-matter + canonical body
+ *   persisting-design-md  → commit design.md + pending companion status,
+ *                           kick off the companion worker in parallel
+ *   linting               → @google/design.md linter parses & validates
+ *   scoring               → coverage scorer derives 7 section scores
+ *   ready_for_review      → promote bundle status (skipped on re-run)
+ *
+ * Split off from scrape-and-extract because the Sonnet call alone can
+ * take 25-35s and was blowing past Vercel Hobby's 60s function cap when
+ * combined with Firecrawl + Gemini in a single worker.
+ *
+ * Phase 1 (scrape-and-extract) passes the full brand object + a trimmed
+ * scraped markdown through the QStash payload so we don't need a sidecar
+ * table.
+ */
+import { eq } from 'drizzle-orm';
+import { db } from '@/lib/db/client';
+import { bundles, generationJobs } from '@/lib/db/schema';
+import type { ExtractedBrand } from '@/lib/ai/gemini';
+import { generateDesignMd } from '@/lib/ai/generate-design-md';
+import { enqueueTask } from '@/lib/queue';
+import { scoreFromLint } from '@/lib/generator/coverage';
+import {
+  lintDesignMd,
+  renderAccessibilityAdvisory,
+  renderLintSummary,
+  type LintSummary,
+} from '@/lib/generator/lint-design-md';
+
+export interface AuthorDesignMdPayload {
+  jobId: string;
+  bundleId: string;
+  url: string;
+  scrapedMarkdown: string;
+  brand: ExtractedBrand;
+  /** True when the parent generation_jobs row is a re-run (preserves status). */
+  isRerun: boolean;
+}
+
+export async function runAuthorDesignMd(payload: AuthorDesignMdPayload): Promise<void> {
+  const { jobId, bundleId, url, scrapedMarkdown, brand, isRerun } = payload;
+
+  await setJobStep(jobId, 'writing-design-md');
+  let designMdContent: string;
+  try {
+    const generated = await generateDesignMd({
+      brand,
+      url,
+      scrapedMarkdown,
+    });
+    designMdContent = generated.content;
+  } catch (err) {
+    return failJob(jobId, 'writing-design-md', err);
+  }
+
+  // Persist design.md immediately + fire companion task so it runs in
+  // parallel with the remaining lint + score steps (~3-4s saved).
+  try {
+    await db
+      .update(bundles)
+      .set({
+        designMd: designMdContent,
+        companionStatus: 'pending',
+        updatedAt: new Date(),
+      })
+      .where(eq(bundles.id, bundleId));
+  } catch (err) {
+    return failJob(jobId, 'persisting-design-md', err);
+  }
+  try {
+    await enqueueTask('generate-companion', { bundleId });
+  } catch (err) {
+    console.error('[author-design-md] failed to enqueue companion task:', err);
+    // Continue — the bundle has design.md; companion can be retried later.
+  }
+
+  await setJobStep(jobId, 'linting');
+  let lintSummary: LintSummary;
+  try {
+    lintSummary = await lintDesignMd(designMdContent);
+  } catch (err) {
+    return failJob(jobId, 'linting', err);
+  }
+
+  await setJobStep(jobId, 'scoring');
+  const coverage = scoreFromLint(lintSummary, designMdContent);
+
+  // Quality-gated promotion. Bundles with errors OR overall score < 40
+  // stay personal so the editor queue isn't polluted with low-quality
+  // drafts. Re-run mode preserves the existing status (the editor
+  // already curated this bundle).
+  const shouldPromote = lintSummary.counts.errors === 0 && coverage.overall >= 40;
+
+  try {
+    await db
+      .update(bundles)
+      .set({
+        coverageScore: coverage.overall,
+        coverageColors: coverage.colors,
+        coverageTypography: coverage.typography,
+        coverageLayout: coverage.layout,
+        coverageElevation: coverage.elevation,
+        coverageShapes: coverage.shapes,
+        coverageComponents: coverage.components,
+        coverageDosDonts: coverage.dosDonts,
+        reviewNotes: renderLintSummary(lintSummary),
+        accessibilityNotes: renderAccessibilityAdvisory(lintSummary),
+        ...(isRerun
+          ? {}
+          : {
+              status: shouldPromote ? ('pending_review' as const) : ('personal' as const),
+              submittedAt: shouldPromote ? new Date() : null,
+            }),
+        updatedAt: new Date(),
+      })
+      .where(eq(bundles.id, bundleId));
+  } catch (err) {
+    return failJob(jobId, 'scoring', err);
+  }
+
+  await db
+    .update(generationJobs)
+    .set({
+      status: 'completed',
+      currentStep: isRerun
+        ? 'rerun_complete'
+        : shouldPromote
+          ? 'ready_for_review'
+          : 'held_as_draft',
+      resultBundleId: bundleId,
+      imageData: null,
+      updatedAt: new Date(),
+    })
+    .where(eq(generationJobs.id, jobId));
+}
+
+async function setJobStep(jobId: string, step: string): Promise<void> {
+  await db
+    .update(generationJobs)
+    .set({ status: 'running', currentStep: step, updatedAt: new Date() })
+    .where(eq(generationJobs.id, jobId));
+}
+
+async function failJob(jobId: string, step: string, err: unknown): Promise<void> {
+  const message = err instanceof Error ? err.message : String(err);
+  console.error(`[author-design-md] job ${jobId} failed at ${step}:`, message);
+  await db
+    .update(generationJobs)
+    .set({
+      status: 'failed',
+      errorStep: step,
+      errorMessage: message.slice(0, 1000),
+      updatedAt: new Date(),
+    })
+    .where(eq(generationJobs.id, jobId));
+}

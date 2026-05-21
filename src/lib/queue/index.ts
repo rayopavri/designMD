@@ -19,7 +19,7 @@
 import { Client, Receiver } from '@upstash/qstash';
 import { env } from '@/lib/env';
 
-export type TaskName = 'scrape-and-extract' | 'generate-companion';
+export type TaskName = 'scrape-and-extract' | 'author-design-md' | 'generate-companion';
 
 export interface EnqueueResult {
   inline: boolean;
