@@ -1522,17 +1522,21 @@ function DetailEditor(props: DetailEditorProps) {
             <button
               type="button"
               onClick={() => void props.onRerunPipeline()}
-              disabled={busy}
-              title="Re-run the full extraction pipeline (scrape + brand + design.md + companion)"
-              className="h-9 rounded-full px-4 text-[12.5px] inline-flex items-center gap-2"
+              disabled={busy || showProgress}
+              title={
+                showProgress
+                  ? "A re-run is already in flight for this bundle"
+                  : "Re-run the full extraction pipeline (scrape + brand + design.md + companion)"
+              }
+              className="h-9 rounded-full px-4 text-[12.5px] inline-flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
               style={{ background: SURFACE_2, color: INK, border: `1px solid ${CYAN}66` }}
             >
-              {actionState === "rerunning-pipeline" ? (
+              {actionState === "rerunning-pipeline" || showProgress ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
               ) : (
                 <RotateCw className="h-3.5 w-3.5" style={{ color: CYAN }} />
               )}
-              Re-run pipeline
+              {showProgress ? "Re-run in progress…" : "Re-run pipeline"}
             </button>
           ) : null}
 
