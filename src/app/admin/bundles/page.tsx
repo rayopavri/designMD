@@ -14,6 +14,7 @@ import {
   Search,
   ShieldCheck,
   Star,
+  Trash2,
   X,
 } from "lucide-react";
 import { SectionLabel } from "@/components/ui/Shell";
@@ -125,7 +126,8 @@ type ActionState =
   | "publishing"
   | "rejecting"
   | "regenerating-companion"
-  | "rerunning-pipeline";
+  | "rerunning-pipeline"
+  | "deleting";
 
 const DESIGN_STYLES = [
   "dark-mode",
@@ -481,6 +483,48 @@ export default function AdminBundlesPage() {
             : r,
         ),
       );
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Network error");
+    } finally {
+      setActionState("idle");
+    }
+  };
+
+  const onDelete = async () => {
+    if (!detail) return;
+    // Two-step confirmation: window.confirm + slug typing. Permanent
+    // delete shouldn't be a single accidental click.
+    const ok = window.confirm(
+      `PERMANENTLY DELETE "${detail.title}"?\n\n` +
+        "This removes the bundle row, its votes, its job history, its " +
+        "screenshot blob, and any collection membership. The slug becomes " +
+        "available for reuse.\n\n" +
+        "Use Archive if you only want to hide it from /library.",
+    );
+    if (!ok) return;
+    const typed = window.prompt(
+      `Type the slug "${detail.slug}" to confirm permanent deletion:`,
+    );
+    if (typed !== detail.slug) {
+      setActionError("Delete cancelled — slug did not match.");
+      return;
+    }
+    setActionState("deleting");
+    setActionError(null);
+    try {
+      const res = await fetch(
+        `/api/admin/bundles/${encodeURIComponent(detail.slug)}/delete`,
+        { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" },
+      );
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({ error: res.statusText }));
+        setActionError(body.error || `Delete failed (${res.status})`);
+        return;
+      }
+      setSelectedSlug(null);
+      setDetail(null);
+      setForm(null);
+      await loadList();
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Network error");
     } finally {
@@ -952,6 +996,7 @@ export default function AdminBundlesPage() {
               onPublish={onPublish}
               onRegenerateCompanion={onRegenerateCompanion}
               onRerunPipeline={onRerunPipeline}
+              onDelete={onDelete}
             />
           )}
         </div>
@@ -978,6 +1023,7 @@ interface DetailEditorProps {
   onPublish: () => void | Promise<void>;
   onRegenerateCompanion: () => void | Promise<void>;
   onRerunPipeline: () => void | Promise<void>;
+  onDelete: () => void | Promise<void>;
 }
 
 // Compact 4-phase progress strip rendered inside the sticky action bar
@@ -1439,6 +1485,22 @@ function DetailEditor(props: DetailEditorProps) {
               Archive
             </button>
           ) : null}
+
+          <button
+            type="button"
+            onClick={() => void props.onDelete()}
+            disabled={busy}
+            title="Permanently delete this bundle (use Archive to soft-delete)"
+            className="h-9 rounded-full px-4 text-[12.5px] inline-flex items-center gap-2"
+            style={{ background: SURFACE_2, color: INK, border: `1px solid #ff5a5a66` }}
+          >
+            {actionState === "deleting" ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Trash2 className="h-3.5 w-3.5" style={{ color: "#ff7070" }} />
+            )}
+            Delete
+          </button>
 
           {status === "published" ? (
             <a
