@@ -427,6 +427,7 @@ export default function AdminBundlesPage() {
 
   useEffect(() => {
     setLatestJob(null);
+    setActionError(null);
     if (selectedSlug) void loadJobStatus(selectedSlug);
   }, [selectedSlug, loadJobStatus]);
 
@@ -716,57 +717,16 @@ export default function AdminBundlesPage() {
       return;
     }
 
-    // Pipeline kicked off. Two parallel polling loops:
-    //   1. Job-status poll (every 2s) — drives the live phase indicator.
-    //   2. Detail reload (every 3s) — refreshes the panel data so editors
-    //      see updated palette/coverage as the pipeline progresses.
-    // Both stop when the bundle's companion worker flips to ready/failed
-    // OR after a 120s timeout (full pipeline + companion ≈ 60-90s).
-    const slug = detail.slug;
-    const startedAt = Date.now();
-    const TIMEOUT_MS = 120_000;
-
-    const jobHandle = jobId
-      ? window.setInterval(async () => {
-          try {
-            const r = await fetch(`/api/generate/${encodeURIComponent(jobId!)}`);
-            if (!r.ok) return;
-            const j = (await r.json()) as {
-              status: "queued" | "running" | "completed" | "failed";
-              currentStep: string | null;
-            };
-            setRerunStatus(j.status);
-            setRerunStep(j.currentStep);
-          } catch {
-            // swallow polling errors; loop continues
-          }
-        }, 2000)
-      : null;
-
-    const detailHandle = window.setInterval(async () => {
-      try {
-        await loadDetail(slug);
-      } catch {
-        // swallow polling errors; keep trying until timeout
-      }
-      const refreshed = currentDetailRef.current;
-      const done =
-        refreshed?.companionStatus === "ready" ||
-        refreshed?.companionStatus === "failed";
-      const timedOut = Date.now() - startedAt > TIMEOUT_MS;
-      if (done || timedOut) {
-        if (jobHandle) window.clearInterval(jobHandle);
-        window.clearInterval(detailHandle);
-        setActionState("idle");
-        setRerunStep(null);
-        setRerunStatus(null);
-        if (timedOut && !done) {
-          setActionError(
-            "Re-run still running after 2 min — refresh manually to check status.",
-          );
-        }
-      }
-    }, 3000);
+    // Pipeline enqueued. From here, the persistent useEffect-driven polling
+    // (loadJobStatus + loadDetail every 3s, gated on latestJob.status) takes
+    // over and runs forever until the server reports `completed` or `failed`.
+    // That gives us a status indicator that survives page reloads — no need
+    // for the old in-session timer + 2-min timeout fallback.
+    void jobId; // discard — server is the source of truth via /job-status
+    setActionState("idle");
+    setRerunStep(null);
+    setRerunStatus(null);
+    await loadJobStatus(detail.slug);
   };
 
   // ─── Render states ─────────────────────────────────────────
@@ -1195,24 +1155,18 @@ function DetailEditor(props: DetailEditorProps) {
               slug: {detail.slug}
             </span>
           </div>
-          <input
-            type="text"
-            value={form.title}
-            onChange={(e) => setForm({ ...form, title: e.target.value })}
-            disabled={busy}
-            maxLength={200}
-            className="mt-3 text-[24px] font-medium tracking-[-0.014em] bg-transparent w-full outline-none"
+          <h1
+            className="mt-3 text-[24px] font-medium tracking-[-0.014em]"
             style={{ color: INK }}
-          />
-          <textarea
-            value={form.description}
-            onChange={(e) => setForm({ ...form, description: e.target.value })}
-            disabled={busy}
-            maxLength={2000}
-            rows={2}
-            className="mt-2 text-[13px] leading-[1.55] bg-transparent w-full outline-none border-b focus:border-b"
-            style={{ color: SUB, borderColor: BORDER_SOFT }}
-          />
+          >
+            {detail.title}
+          </h1>
+          <p
+            className="mt-2 text-[13px] leading-[1.55]"
+            style={{ color: SUB }}
+          >
+            {detail.description}
+          </p>
           {detail.sourceUrl ? (
             <a
               href={detail.sourceUrl}
@@ -1249,85 +1203,6 @@ function DetailEditor(props: DetailEditorProps) {
             </div>
           </div>
         ) : null}
-      </div>
-
-      {/* Editable metadata grid */}
-      <div
-        className="rounded-lg border p-4 grid grid-cols-1 md:grid-cols-2 gap-4"
-        style={{ borderColor: BORDER, background: SURFACE }}
-      >
-        <FieldGroup label="category">
-          <select
-            value={form.primaryCategoryId ?? ""}
-            onChange={(e) => setForm({ ...form, primaryCategoryId: e.target.value || null })}
-            disabled={busy}
-            className="h-9 rounded-md border bg-transparent text-[12.5px] px-2 w-full"
-            style={{ borderColor: BORDER, color: INK, fontFamily: MONO }}
-          >
-            <option value="">(none)</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </FieldGroup>
-        <FieldGroup label="license">
-          <input
-            type="text"
-            value={form.license}
-            onChange={(e) => setForm({ ...form, license: e.target.value })}
-            disabled={busy}
-            maxLength={100}
-            placeholder="MIT, review-required, etc."
-            className="h-9 rounded-md border bg-transparent text-[12.5px] px-2 w-full"
-            style={{ borderColor: BORDER, color: INK, fontFamily: MONO }}
-          />
-        </FieldGroup>
-        <FieldGroup label="design style">
-          <ChipMultiSelect
-            options={DESIGN_STYLES}
-            value={form.designStyle}
-            onChange={(next) => setForm({ ...form, designStyle: next })}
-            disabled={busy}
-          />
-        </FieldGroup>
-        <FieldGroup label="compatible tools">
-          <ChipMultiSelect
-            options={TOOLS}
-            value={form.compatibleTools}
-            onChange={(next) => setForm({ ...form, compatibleTools: next })}
-            disabled={busy}
-          />
-        </FieldGroup>
-        <FieldGroup label="attribution statement (optional)">
-          <textarea
-            value={form.attributionStatement}
-            onChange={(e) => setForm({ ...form, attributionStatement: e.target.value })}
-            disabled={busy}
-            maxLength={2000}
-            rows={2}
-            placeholder="© Brand 2024 · used with permission"
-            className="rounded-md border bg-transparent text-[12.5px] p-2 w-full"
-            style={{ borderColor: BORDER, color: INK, fontFamily: MONO }}
-          />
-        </FieldGroup>
-        <FieldGroup label="flags">
-          <div className="flex items-center gap-4">
-            <ToggleRow
-              checked={form.isFeatured}
-              onChange={(v) => setForm({ ...form, isFeatured: v })}
-              label="featured"
-              disabled={busy}
-            />
-            <ToggleRow
-              checked={form.isCurated}
-              onChange={(v) => setForm({ ...form, isCurated: v })}
-              label="curated"
-              disabled={busy}
-            />
-          </div>
-        </FieldGroup>
       </div>
 
       {/* Palette + source meta */}
@@ -1457,67 +1332,6 @@ function DetailEditor(props: DetailEditorProps) {
           </div>
         ) : null}
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => void props.onSave()}
-            disabled={busy || !isDirty}
-            className="h-9 rounded-full px-4 text-[12.5px] font-medium inline-flex items-center gap-2 disabled:opacity-40"
-            style={{
-              background: INK,
-              color: INK_ON_LIGHT,
-              boxShadow: isDirty ? `0 0 0 1px ${VIOLET}55, 0 10px 28px -12px ${VIOLET}66` : "none",
-            }}
-          >
-            {actionState === "saving" ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Save className="h-3.5 w-3.5" />
-            )}
-            Save edits
-            {isDirty ? (
-              <span className="h-1.5 w-1.5 rounded-full" style={{ background: PEACH }} aria-label="unsaved changes" />
-            ) : null}
-          </button>
-
-          {status === "personal" ? (
-            <button
-              type="button"
-              onClick={() => void props.onPublish()}
-              disabled={busy}
-              className="h-9 rounded-full px-4 text-[12.5px] inline-flex items-center gap-2"
-              style={{
-                background: SURFACE_2,
-                color: INK,
-                border: `1px solid ${LIME}66`,
-              }}
-            >
-              {actionState === "publishing" ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Check className="h-3.5 w-3.5" style={{ color: LIME }} />
-              )}
-              Publish
-            </button>
-          ) : null}
-
-          {detail.designMd && detail.companionStatus !== "ready" ? (
-            <button
-              type="button"
-              onClick={() => void props.onRegenerateCompanion()}
-              disabled={busy}
-              title={`Re-run companion prompt worker (current status: ${detail.companionStatus})`}
-              className="h-9 rounded-full px-4 text-[12.5px] inline-flex items-center gap-2"
-              style={{ background: SURFACE_2, color: INK, border: `1px solid ${CYAN}66` }}
-            >
-              {actionState === "regenerating-companion" ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <RefreshCw className="h-3.5 w-3.5" style={{ color: CYAN }} />
-              )}
-              Re-run companion
-            </button>
-          ) : null}
-
           {detail.sourceUrl && !detail.sourceUrl.startsWith("upload://") ? (
             <button
               type="button"
@@ -1540,52 +1354,6 @@ function DetailEditor(props: DetailEditorProps) {
             </button>
           ) : null}
 
-          {(status === "archived" || status === "rejected") ? (
-            <>
-              <button
-                type="button"
-                onClick={() => void props.onRestore("published")}
-                disabled={busy}
-                className="h-9 rounded-full px-4 text-[12.5px] inline-flex items-center gap-2"
-                style={{ background: SURFACE_2, color: INK, border: `1px solid ${LIME}66` }}
-              >
-                {actionState === "restoring" ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <RotateCw className="h-3.5 w-3.5" style={{ color: LIME }} />
-                )}
-                Restore (publish)
-              </button>
-              <button
-                type="button"
-                onClick={() => void props.onRestore("pending_review")}
-                disabled={busy}
-                className="h-9 rounded-full px-4 text-[12.5px] inline-flex items-center gap-2"
-                style={{ background: SURFACE_2, color: INK, border: `1px solid ${VIOLET}66` }}
-              >
-                <RotateCw className="h-3.5 w-3.5" style={{ color: VIOLET }} />
-                Restore to queue
-              </button>
-            </>
-          ) : null}
-
-          {status !== "archived" ? (
-            <button
-              type="button"
-              onClick={() => void props.onArchive()}
-              disabled={busy}
-              className="h-9 rounded-full px-4 text-[12.5px] inline-flex items-center gap-2"
-              style={{ background: SURFACE_2, color: INK, border: `1px solid ${PEACH}66` }}
-            >
-              {actionState === "archiving" ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Archive className="h-3.5 w-3.5" style={{ color: PEACH }} />
-              )}
-              Archive
-            </button>
-          ) : null}
-
           <button
             type="button"
             onClick={() => void props.onDelete()}
@@ -1602,7 +1370,7 @@ function DetailEditor(props: DetailEditorProps) {
             Delete
           </button>
 
-          {status === "published" ? (
+          {status !== "archived" ? (
             <a
               href={`/library/${detail.slug}`}
               target="_blank"
