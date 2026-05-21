@@ -42,12 +42,25 @@ export function ItemCard({ item }: { item: Item }) {
         </div>
       )}
 
-      <div className="text-[16px] font-medium mb-2" style={{ color: INK }}>
-        {item.name}
-      </div>
-
-      <div className="text-[12.5px] mb-4" style={{ color: SUB }}>
-        {item.tagline}
+      <div className="flex items-start justify-between gap-3 mb-4">
+        <div className="min-w-0 flex-1">
+          <div className="text-[16px] font-medium mb-2" style={{ color: INK }}>
+            {item.name}
+          </div>
+          <div className="text-[12.5px]" style={{ color: SUB }}>
+            {item.tagline}
+          </div>
+        </div>
+        {item.type === "bundle" && (item as BundleItem).bundle.logoDomain && (
+          <img
+            src={`https://logo.clearbit.com/${(item as BundleItem).bundle.logoDomain}`}
+            alt=""
+            width={32}
+            height={32}
+            className="h-8 w-8 rounded shrink-0 object-contain"
+            loading="lazy"
+          />
+        )}
       </div>
 
       <div className="flex items-center justify-between mb-4">
