@@ -1,8 +1,8 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-05-20** (post-cron warmer)
-> Current state: **Live in production** at https://uiuxskills.com (and design-md-chi.vercel.app)
+> Last updated: **2026-05-21** (post-category-migration + 3-worker pipeline + library cards on home)
+> Current state: **Live in production** at https://uiuxskills.com
 
 ---
 
@@ -15,6 +15,26 @@
 
 ---
 
+## ✅ Done 2026-05-21 — categorization + UI polish + pipeline split
+
+- [x] **Categorization works end-to-end.** Replaced the 6 type categories (saas-web-apps, mobile-apps, etc.) with the 9 canonical domain categories used by the UI (Productivity & SaaS, Developer Tools & IDEs, AI & LLM Platforms, Database & DevOps, Design & Creative Tools, Fintech & Crypto, E-commerce & Retail, Media & Consumer Tech, Automotive). Gemini's `category` field is now enum-constrained — schema rejects anything outside the 9 slugs. Both markdown + image prompts include a taxonomy block with one-line descriptions. All 25 existing bundles backfilled. (`2c15be4`)
+- [x] **Home page redesigned** with library-style `<ItemCard>` in a 4-col `gap-px` newspaper grid. Replaces the screenshot-Framer-card experiment. Cards show palette bar + name + tagline + "DESIGN SYSTEM" badge + category tag + tools/updated footer. Chip filters bound to the 9 DB category labels exactly. (`7b9f3a8`)
+- [x] **Screenshot infra fully removed.** Vercel Blob store, `@vercel/blob` package, `bundles.screenshot_url` column, `HomeBundleCard`, `useBundles`, screenshot upload helper — all gone. Firecrawl still captures the screenshot in-memory for Gemini vision; we just don't persist it. (`7b9f3a8`)
+- [x] **Pipeline split into 3 QStash workers.** `scrape-and-extract` (~25-30s) → `author-design-md` (~30-40s) → `generate-companion` (~10-15s). Each function fits the 60s Vercel Hobby cap. Brand + trimmed markdown travel between phases in the QStash payload. (`37f4eb6`)
+- [x] **Admin Re-run pipeline shows live progress.** Sticky action bar renders a 4-phase strip (Page collection / Brand extraction / Design.md authored / Validate & score) that polls `/api/generate/[jobId]` every 2s and animates per-phase as the worker advances. (`939b868`)
+- [x] **Admin permanent Delete button.** Editor-only `/api/admin/bundles/[slug]/delete` clears every FK reference (votes, collection_items, request linkages, generation jobs, discovery candidates) and drops the row. Two-step confirmation (window.confirm + type-the-slug) so it can't fire by accident. (`0066dd6`)
+- [x] **Cron moved Vercel → GitHub Actions** because Vercel Hobby tightened cron to once-per-day. `.github/workflows/warm-db.yml` runs every 5 min, hits `/api/cron/warm-db` (which now also runs a watchdog that marks stuck `running` jobs older than 5 min as failed). (`45e4188`, `09a3272`)
+- [x] **Firecrawl tuned for animated sites.** `screenshot@fullPage` + wait/scroll actions (~6s of actions) so lazy-loaded images and JS-animated content render before capture. `sharp` clamps to 1600×4000 JPEG before Gemini to prevent vision downscaling.
+
+## 🔁 Remaining housekeeping
+
+- [ ] **Reconnect Vercel ↔ GitHub webhook.** Auto-deploy from `main` is broken since ~2026-05-21. Workaround in use: `pnpm dlx vercel --prod` from local checkout. Fix: https://github.com/settings/installations → Vercel → Configure → grant access to `rayopavri/designMD`.
+- [ ] **Rotate QStash credentials** — original token + signing keys pasted in chat 2026-05-20. Upstash QStash → Reset Token + Roll Signing Key → update Vercel env vars → redeploy.
+- [ ] **Remove unused `BLOB_READ_WRITE_TOKEN` env var** in Vercel + delete the `design-md-blob` store on the Storage tab (we ripped out the screenshot path).
+- [ ] **Set `CRON_SECRET` env var in Vercel** (optional). Locks `/api/cron/warm-db` to authenticated callers. Generate a random 32-char string, add to both Vercel env and `.github/workflows/warm-db.yml` as `secrets.CRON_SECRET`.
+- [ ] **Vercel project rename** (optional cosmetic): `design-md` → `uiuxskills` in Project Settings → General.
+- [ ] **Delete duplicate test bundles** (linear-2..linear-7, stripe-2..stripe-5, vercel-2, vercel-3) via the admin Delete button. They survived the test runs and clutter the gallery.
+
 ## ✅ Done 2026-05-20 — rebrand + QStash recovery
 
 - [x] Vercel deploy of QStash + Next.js 15.5.9 succeeded (`d7b54b5`)
@@ -23,14 +43,6 @@
 - [x] QStash credentials in Vercel (`QSTASH_TOKEN`, `QSTASH_CURRENT_SIGNING_KEY`, `QSTASH_NEXT_SIGNING_KEY`)
 - [x] Lando Norris bundle recovered (companionStatus: pending → ready, 3130 chars of real Sonnet output)
 - [x] QStash dispatch verified end-to-end on production
-
-## 🔁 Remaining housekeeping
-
-- [ ] **Rotate QStash credentials** — original token + signing keys were pasted into chat. On Upstash QStash US Region page, click **Reset Token** + **Roll Signing Key**, then update the three Vercel env vars with the new values and redeploy.
-- [ ] **Confirm `NEXT_PUBLIC_APP_URL` env var** in Vercel points to `https://uiuxskills.com`
-- [ ] **Set `CRON_SECRET` env var in Vercel** (optional) — locks the `/api/cron/warm-db` endpoint to Vercel cron invocations only. Generate a random 32-char string, add to Vercel env, redeploy. The endpoint works without it; this just prevents random callers from triggering free DB pings.
-- [ ] **Vercel project rename** (optional cosmetic) — `design-md` → `uiuxskills` in Project Settings → General
-- [ ] **DNS sinkhole on corporate network** — `uiuxskills.com` is currently blocked by Palo Alto DNS filtering on the Deloitte network (newly-registered domain). Resolves fine externally. Wait 24-72h for reputation to build, or request allowlist from Deloitte IT.
 
 ---
 
@@ -237,7 +249,12 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
-- [x] **2026-05-20** · Vercel Cron warms Neon every 4 min (`GET /api/cron/warm-db`) to dodge the 5-min autosuspend on Free tier. Removes cold-start latency for the first visitor in idle windows. (`2adb726`)
+- [x] **2026-05-21** · Auto-categorize bundles into 9 domain categories. Gemini schema enum-constrained, taxonomy migration, backfill of 25 existing bundles. (`2c15be4`)
+- [x] **2026-05-21** · Home page swapped to library-style ItemCard in 4-col grid. Screenshot infra (Vercel Blob, `@vercel/blob`, HomeBundleCard, screenshot_url column) removed. (`7b9f3a8`)
+- [x] **2026-05-21** · Pipeline split into 3 QStash workers to fit 60s Hobby cap. (`37f4eb6`)
+- [x] **2026-05-21** · Admin Re-run pipeline live progress strip + permanent Delete button. (`939b868`, `0066dd6`)
+- [x] **2026-05-21** · Cron warmer moved Vercel → GitHub Actions + stuck-job watchdog. (`45e4188`, `09a3272`)
+- [x] **2026-05-20** · Vercel Cron warms Neon every 4 min (`GET /api/cron/warm-db`) to dodge the 5-min autosuspend on Free tier. Removes cold-start latency for the first visitor in idle windows. (`2adb726`) — *superseded by GitHub Actions cron on 2026-05-21.*
 - [x] **2026-05-20** · P1-6 done: admin "Re-run pipeline" button. Full extraction pipeline re-runs against existing source URL, overwrites system fields in place, preserves editor edits + slug + votes. (`4a1c768`)
 - [x] **2026-05-20** · QStash replaces fragile fire-and-forget task dispatch. Adds admin "Re-run companion" button for stuck bundles. Idempotent worker auth via signature verification (production) + token (local dev).
 - [x] **2026-05-20** · Rebrand UIUXofAi → UIUXskills across UI copy, CLI command, handle domain, localStorage key prefixes (`d030690`)
