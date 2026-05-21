@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { ArrowUpRight } from "lucide-react";
 import { SectionLabel } from "@/components/ui/Shell";
+import { PHASE_2_SHELVES_ENABLED } from "@/lib/ui-data/featureFlags";
 import {
   BORDER,
   BORDER_SOFT,
@@ -22,6 +24,7 @@ const COMMANDS: { cmd: string; what: string }[] = [
 ];
 
 function CliDocs() {
+  if (!PHASE_2_SHELVES_ENABLED) notFound();
   return (
     <>
       <section className="border-b" style={{ borderColor: BORDER_SOFT }}>

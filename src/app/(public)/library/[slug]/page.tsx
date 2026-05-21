@@ -12,6 +12,7 @@ import { WorksWellWith } from "@/components/ui/WorksWellWith";
 import { SectionCoverage } from "@/components/ui/SectionCoverage";
 import { PulseRow } from "@/components/ui/PulseRow";
 import { compatibleTools, nonBundleSteps } from "@/lib/ui-data/nonBundleInstall";
+import { PHASE_2_SHELVES_ENABLED } from "@/lib/ui-data/featureFlags";
 import {
   BORDER,
   BORDER_SOFT,
@@ -425,7 +426,7 @@ function BundleView({ item }: { item: BundleItem }) {
                   ))}
                 </div>
 
-                <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className={`mt-8 grid grid-cols-1 gap-4 ${PHASE_2_SHELVES_ENABLED ? "md:grid-cols-3" : "md:grid-cols-2"}`}>
                   <button
                     onClick={() => copyText(bundle.designMd, "spec")}
                     className="rounded-xl border p-5 text-left transition-colors"
@@ -477,34 +478,36 @@ function BundleView({ item }: { item: BundleItem }) {
                     </div>
                   </button>
                   {/* TODO: wire to real CLI */}
-                  <button
-                    onClick={() => copyText(`npx uiuxskills add ${bundle.id}`, "cli")}
-                    className="rounded-xl border p-5 text-left transition-colors"
-                    style={{ borderColor: copiedCli ? `${LIME}88` : BORDER, background: SURFACE }}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <span
-                        className="text-[10.5px] uppercase tracking-[0.22em]"
-                        style={{ fontFamily: MONO, color: MUTED }}
-                      >
-                        cli
-                      </span>
-                      {copiedCli ? (
-                        <Check className="h-4 w-4" style={{ color: LIME }} />
-                      ) : (
-                        <Copy className="h-4 w-4" style={{ color: SUB }} />
-                      )}
-                    </div>
-                    <div
-                      className="text-[13px] font-medium truncate"
-                      style={{ color: INK, fontFamily: MONO }}
+                  {PHASE_2_SHELVES_ENABLED ? (
+                    <button
+                      onClick={() => copyText(`npx uiuxskills add ${bundle.id}`, "cli")}
+                      className="rounded-xl border p-5 text-left transition-colors"
+                      style={{ borderColor: copiedCli ? `${LIME}88` : BORDER, background: SURFACE }}
                     >
-                      {copiedCli ? "Copied ✓" : `npx uiuxskills add ${bundle.id}`}
-                    </div>
-                    <div className="text-[11.5px] mt-1" style={{ color: SUB }}>
-                      writes the same files to your {toolLabel(tool)} project, one command
-                    </div>
-                  </button>
+                      <div className="flex items-center justify-between mb-2">
+                        <span
+                          className="text-[10.5px] uppercase tracking-[0.22em]"
+                          style={{ fontFamily: MONO, color: MUTED }}
+                        >
+                          cli
+                        </span>
+                        {copiedCli ? (
+                          <Check className="h-4 w-4" style={{ color: LIME }} />
+                        ) : (
+                          <Copy className="h-4 w-4" style={{ color: SUB }} />
+                        )}
+                      </div>
+                      <div
+                        className="text-[13px] font-medium truncate"
+                        style={{ color: INK, fontFamily: MONO }}
+                      >
+                        {copiedCli ? "Copied ✓" : `npx uiuxskills add ${bundle.id}`}
+                      </div>
+                      <div className="text-[11.5px] mt-1" style={{ color: SUB }}>
+                        writes the same files to your {toolLabel(tool)} project, one command
+                      </div>
+                    </button>
+                  ) : null}
                 </div>
                 <PulseRow bundleId={bundle.id} />
               </div>

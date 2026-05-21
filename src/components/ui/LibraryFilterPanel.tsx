@@ -10,6 +10,7 @@ import {
   type Category,
   type ShelfType,
 } from "@/lib/ui-data/libraryFilters";
+import { PHASE_2_SHELVES_ENABLED } from "@/lib/ui-data/featureFlags";
 
 type Props = {
   query: string;
@@ -56,17 +57,19 @@ export function LibraryFilterPanel({ query, onQueryChange, presetType }: Props) 
         </div>
       </Section>
 
-      <Section label="Type">
-        {SHELF_TYPES.map((t) => (
-          <Row
-            key={t}
-            label={SHELF_LABEL[t]}
-            count={typeCounts(t)}
-            checked={activeType === t}
-            onChange={() => setType(t)}
-          />
-        ))}
-      </Section>
+      {PHASE_2_SHELVES_ENABLED ? (
+        <Section label="Type">
+          {SHELF_TYPES.map((t) => (
+            <Row
+              key={t}
+              label={SHELF_LABEL[t]}
+              count={typeCounts(t)}
+              checked={activeType === t}
+              onChange={() => setType(t)}
+            />
+          ))}
+        </Section>
+      ) : null}
 
       <Section label="Category">
         {CATEGORIES.map((c) => (

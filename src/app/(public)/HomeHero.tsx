@@ -19,6 +19,7 @@ import {
   VIOLET,
 } from "@/lib/ui-data/tokens";
 import { useAuth } from "@/lib/ui-data/mockAuth";
+import { PHASE_2_SHELVES_ENABLED } from "@/lib/ui-data/featureFlags";
 
 /**
  * Split hero for the public landing page.
@@ -82,9 +83,9 @@ export function HomeHero() {
               style={{ borderColor: BORDER, background: SURFACE }}
             >
               <div className="text-[11.5px] mb-2" style={{ fontFamily: MONO, color: SUB }}>
-                <span style={{ color: INK }}>~/.claude/skills/linear</span>
+                <span style={{ color: INK }}>design.md</span>
                 <span className="mx-2" style={{ color: MUTED }}>·</span>
-                design.md
+                linear
                 <span className="mx-2" style={{ color: MUTED }}>·</span>
                 <span style={{ color: LIME }}>94% coverage</span>
               </div>
@@ -116,16 +117,18 @@ export function HomeHero() {
                 </Link>
                 <span style={{ color: SUB }}>{" "}— anonymous works, sign in for higher limits.</span>
               </li>
-              <li>
-                <Link
-                  href="/docs/cli"
-                  className="inline-flex items-center gap-1.5 hover:underline underline-offset-4"
-                  style={{ color: INK }}
-                >
-                  Install via CLI
-                </Link>
-                <span style={{ color: SUB }}>{" "}— npx uiuxskills add &lt;id&gt;.</span>
-              </li>
+              {PHASE_2_SHELVES_ENABLED ? (
+                <li>
+                  <Link
+                    href="/docs/cli"
+                    className="inline-flex items-center gap-1.5 hover:underline underline-offset-4"
+                    style={{ color: INK }}
+                  >
+                    Install via CLI
+                  </Link>
+                  <span style={{ color: SUB }}>{" "}— npx uiuxskills add &lt;id&gt;.</span>
+                </li>
+              ) : null}
             </ul>
           </div>
 

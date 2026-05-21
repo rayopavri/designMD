@@ -1,6 +1,6 @@
 # UIUXskills · Tech Stack Report
 
-> Snapshot as of 2026-05-21
+> Snapshot as of 2026-05-21 (Supabase migration + Phase 1 shelf hiding)
 > Production URL: https://uiuxskills.com
 
 ---
@@ -10,7 +10,7 @@
 | Layer | Tool | Plan | Monthly cost |
 |---|---|---|---|
 | Hosting / framework | Vercel | Hobby | $0 |
-| Database | Neon Postgres 17 | Free | $0 |
+| Database | Supabase Postgres 17 (migrated from Neon 2026-05-21) | Free | $0 |
 | Auth | Firebase Auth | Free (Spark) | $0 |
 | Durable task queue | Upstash QStash | Free | $0 |
 | Cache / rate limit | Upstash Redis | Free | $0 |
@@ -45,9 +45,8 @@ Nothing here is on a paid tier. Everything sits inside generous free allowances 
 
 ### Drizzle ORM
 - Type-safe SQL. Schema lives at `src/lib/db/schema.ts` — 15 tables, 7 enums, 9 triggers.
-- Two drivers in use:
-  - `postgres-js` for production runtime (in-app queries).
-  - `@neondatabase/serverless` HTTP driver for one-off migration scripts run from local machines (direct TCP to Neon stateless-compute endpoints is unreliable on some networks).
+- Driver: `postgres-js` against the Supabase transaction pooler (port 6543). `src/lib/db/client.ts` sets `prepare: false` automatically when the URL contains `:6543` because PgBouncer transaction mode forbids prepared statements. SSL is required even in local dev (only skipped for `localhost`/`127.0.0.1`).
+- `@neondatabase/serverless` is no longer used in the runtime; it may still appear in `package.json` until cleaned up.
 
 ### Zod
 - Runtime validation. Used for QStash worker payloads, API query params, and Gemini response narrowing.
@@ -93,11 +92,16 @@ Nothing here is on a paid tier. Everything sits inside generous free allowances 
   - Cron jobs limited to once-per-day (tightened ~2026-05-21). Triggered the migration to GitHub Actions cron.
 - **GitHub auto-deploy currently broken** — pushes to `main` don't fire the webhook. Workaround: `pnpm dlx vercel --prod` from the local checkout. Linked project lives at `~/.vercel/`.
 
-### Neon Postgres (Free plan)
-- Postgres 17, serverless with branching. Single `production` branch.
-- **Autosuspend:** 5 minutes idle → cold-start (~500ms-2s) on next request. Mitigated by the GitHub Actions cron warmer.
-- 15 tables, 9 triggers (vote counting, slug uniqueness, accessibility check).
-- Migrations applied via `pnpm tsx scripts/migrate-*.ts` from local machine using the HTTP driver.
+### Supabase Postgres (Free plan, current)
+- Migrated from Neon on 2026-05-21. Postgres 17, project `uiuxskills` (ref `ppvqdkvpyuntbncdhwtm`, region `us-east-1`).
+- Dashboard: https://supabase.com/dashboard/project/ppvqdkvpyuntbncdhwtm
+- **Connection path used everywhere:** transaction pooler at `aws-1-us-east-1.pooler.supabase.com:6543`, username `postgres.ppvqdkvpyuntbncdhwtm`. Direct host (`db.<ref>.supabase.co:5432`) is IPv6-only on the Free tier and unreachable from most non-IPv6 networks — do not use it for the runtime.
+- **PgBouncer transaction mode** is the only mode that fits the pooler URL. It forbids prepared statements, so `src/lib/db/client.ts` disables them whenever the URL contains `:6543`. Don't remove that toggle.
+- **Autosuspend:** Supabase Free pauses only after **7 days of zero activity**, not minutes. The 5-min GitHub Actions tick keeps activity flowing as a side effect; the cron's main job is now the stuck-`generation_jobs` watchdog.
+- 15 tables, 9 triggers (vote counting, slug uniqueness, accessibility check). All preserved across the migration.
+- Migrations going forward: still `pnpm tsx scripts/migrate-*.ts`, just hitting `DATABASE_URL` (Supabase pooler) instead of Neon.
+- **Network constraint:** Deloitte corporate WiFi blocks outbound 5432/6543. Direct `psql`/`pg_dump` from the work Mac on Deloitte network will time out. Tether to a phone hotspot for any direct DB ops. The Vercel-hosted app is unaffected.
+- Old Neon project (`ep-patient-mode-aqtwblo0.c-8.us-east-1.aws.neon.tech`) is intact but no longer used by any code. Can be deleted after a week of stable Supabase operation.
 
 ### Upstash QStash (Free tier)
 - Durable HTTP task queue. Replaces a previous `void fetch()` fire-and-forget pattern that lost ~1 in N companion jobs.
@@ -119,8 +123,8 @@ Nothing here is on a paid tier. Everything sits inside generous free allowances 
 ### GitHub Actions (Free for public repos)
 - Workflow at `.github/workflows/warm-db.yml`. Runs every 5 minutes.
 - **Two side effects per tick:**
-  1. `SELECT 1` to keep Neon out of autosuspend.
-  2. Marks any `generation_jobs` row in `queued` or `running` for more than 5 minutes as `failed` — watchdog for Vercel-killed pipelines.
+  1. `SELECT 1` — historically kept Neon out of autosuspend; on Supabase this is cosmetic (Free only pauses after 7 days idle).
+  2. Marks any `generation_jobs` row in `queued` or `running` for more than 5 minutes as `failed` — watchdog for Vercel-killed pipelines. **This is the load-bearing reason the cron still runs every 5 min, not every 24h.**
 
 ---
 
@@ -149,6 +153,22 @@ Nothing here is on a paid tier. Everything sits inside generous free allowances 
 
 - **Vercel Blob** + `@vercel/blob` package (removed 2026-05-21). Was storing full-page website screenshots; the home grid now uses palette-bar library cards which don't need them. Gemini still gets the screenshot in-memory from Firecrawl during extraction.
 - **Vercel Cron** for the Neon warmer (replaced by GitHub Actions on 2026-05-21 due to Hobby plan limits).
+- **Neon Postgres** (replaced by Supabase on 2026-05-21 because Neon Free's 5-minute autosuspend kept causing cold-start timeouts in development).
+
+---
+
+## Phase 1 / Phase 2 surface gating (2026-05-21)
+
+Phase 1 ships the design.md generator + bundle library only. Phase 2 will reintroduce skills, agents, MCPs, and the CLI shelves. **No code was deleted** — everything is gated behind a single flag so the work can come back by flipping a boolean.
+
+- **Flag:** `PHASE_2_SHELVES_ENABLED = false` in `src/lib/ui-data/featureFlags.ts`. To restore Phase 2 surfaces: set it to `true`.
+- **Hidden surfaces (still in the repo, not rendered):**
+  - Header + footer "CLI" nav link (`src/components/ui/Shell.tsx`).
+  - Hero "Install via CLI" quick link and `~/.claude/skills/linear` snippet path (`src/app/(public)/HomeHero.tsx`).
+  - Library headline "Four shelves..." copy, the 4-card shelf grid, and the Type filter in the sidebar (`src/app/(public)/library/page.tsx`, `src/components/ui/LibraryFilterPanel.tsx`). The library auto-pins to the `design-systems` shelf on mount.
+  - Bundle detail page "cli" copy card (`src/app/(public)/library/[slug]/page.tsx`). The remaining "spec" + "prompt" cards collapse to a 2-up grid in Phase 1.
+  - The `/docs/cli` route returns `notFound()` (`src/app/(public)/docs/cli/page.tsx`).
+- **Untouched (deliberately):** DB schema, `bundles.type` enum, worker code, admin routes, `/api/generate` pipeline, `src/lib/ui-data/libraryFilters.ts`, mock skill/agent/mcp items in `src/lib/ui-data/items.ts`.
 
 ---
 
@@ -157,7 +177,7 @@ Nothing here is on a paid tier. Everything sits inside generous free allowances 
 At current volume (~5-10 generations/day, no marketing push):
 
 - **Vercel** — $0 (Hobby covers it).
-- **Neon** — $0 (Free covers 191 active hours/month; warmer keeps us in the active window but well under cap).
+- **Supabase** — $0 (Free covers 500 MB database + 5 GB bandwidth/month + 50k MAU; we're using a fraction).
 - **Upstash** — $0 (Free tier covers 500k QStash + 10k Redis commands/day; we use a fraction).
 - **Firebase** — $0 (Spark plan covers 50k MAU; we have ~1).
 - **GitHub Actions** — $0 (8,640 free minutes/month; we use ~150/month for the warmer).
@@ -168,7 +188,7 @@ At current volume (~5-10 generations/day, no marketing push):
 
 Inflection points:
 - ~50 generations/day → Firecrawl free tier may run out, expect ~$20/mo on that line.
-- ~100k page views/month → Vercel Hobby is still fine; Neon Free is fine.
+- ~100k page views/month → Vercel Hobby is still fine; Supabase Free is fine (you only feel it at the 500 MB / 5 GB egress walls).
 - ~500k page views/month → consider Vercel Pro ($20/mo) for better function limits + analytics.
 - ~5,000 signed-in users → Firebase Spark still fine until 50k MAU.
 
@@ -181,7 +201,7 @@ Short answer: **not worth it at this stage.**
 Detailed comparison in earlier session, but summary:
 
 - **Vercel → Cloud Run + Firebase Hosting:** lose Next.js ISR / image optimization / edge caching. Major DIY work.
-- **Neon → Cloud SQL:** ~$10/mo minimum even idle, no serverless / branching / autosuspend.
+- **Supabase → Cloud SQL:** ~$10/mo minimum even idle, no built-in dashboard / auth / pooler / no Free tier equivalent.
 - **Vercel Blob → Cloud Storage:** direct swap (but we don't use Blob anymore).
 - **Upstash Redis → Memorystore:** ~$40/mo minimum, requires VPC setup.
 - **Upstash QStash → Cloud Tasks:** ✅ works, same cost shape.

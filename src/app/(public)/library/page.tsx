@@ -31,6 +31,7 @@ import {
   type Item,
 } from "@/lib/ui-data/items";
 import { useBundleItems } from "@/hooks/useBundleItems";
+import { PHASE_2_SHELVES_ENABLED } from "@/lib/ui-data/featureFlags";
 
 type Sort = "popular" | "coverage" | "recent" | "alpha";
 
@@ -73,6 +74,15 @@ function Library() {
   const [query, setQuery] = useState(initialQ);
   const [sort, setSort] = useState<Sort>("popular");
   const { filters, setType, setCategory, reset, activeCount } = useLibraryFilters();
+
+  // Phase 1: pin the library to the design-systems shelf so skill/agent/mcp
+  // mock items don't leak into the grid while the other shelves are hidden.
+  useEffect(() => {
+    if (!PHASE_2_SHELVES_ENABLED && filters.type !== "design-systems") {
+      setType("design-systems");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Keep the query in sync if the URL ?q= changes (e.g. arriving from 404).
   useEffect(() => {
@@ -186,14 +196,24 @@ function Library() {
                 The library
               </div>
               <h1 className="text-[44px] sm:text-[54px] leading-[1.02] font-medium tracking-[-0.022em]">
-                Pick your shelf.
-                <br />
-                <span style={{ color: SUB }}>Install what fits. Ship.</span>
+                {PHASE_2_SHELVES_ENABLED ? (
+                  <>
+                    Pick your shelf.
+                    <br />
+                    <span style={{ color: SUB }}>Install what fits. Ship.</span>
+                  </>
+                ) : (
+                  <>
+                    Design systems.
+                    <br />
+                    <span style={{ color: SUB }}>Drop one in. Ship on-brand.</span>
+                  </>
+                )}
               </h1>
               <p className="mt-5 max-w-[36rem] text-[14.5px] leading-[1.6]" style={{ color: SUB }}>
-                Four shelves: Design systems, Skills, Agents, and MCPs. Each one slots into
-                Claude, Cursor, Lovable, or Figma Make. Open a shelf to see what's inside — or
-                use the grid below to search across everything.
+                {PHASE_2_SHELVES_ENABLED
+                  ? "Four shelves: Design systems, Skills, Agents, and MCPs. Each one slots into Claude, Cursor, Lovable, or Figma Make. Open a shelf to see what's inside — or use the grid below to search across everything."
+                  : "design.md files for real brands and design systems — drop one in and your AI tool ships on-brand UI. Use the grid below to search across the library."}
               </p>
             </div>
             <div className="col-span-12 lg:col-span-5">
@@ -217,6 +237,7 @@ function Library() {
             </div>
           </div>
 
+          {PHASE_2_SHELVES_ENABLED ? (
           <div
             className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-px rounded-lg overflow-hidden"
             style={{ background: BORDER }}
@@ -257,6 +278,7 @@ function Library() {
               );
             })}
           </div>
+          ) : null}
         </div>
       </section>
 
