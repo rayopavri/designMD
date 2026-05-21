@@ -53,7 +53,7 @@ export function ItemCard({ item }: { item: Item }) {
         </div>
         {item.type === "bundle" && (item as BundleItem).bundle.logoDomain && (
           <img
-            src={`https://logo.clearbit.com/${(item as BundleItem).bundle.logoDomain}`}
+            src={`https://www.google.com/s2/favicons?domain=${(item as BundleItem).bundle.logoDomain}&sz=128`}
             alt=""
             width={32}
             height={32}
