@@ -15,52 +15,56 @@ import {
   SURFACE_2,
   VIOLET,
 } from '@/lib/ui-data/tokens';
-import { useBundles, type BundleSummary } from '@/hooks/useBundles';
-import { HomeBundleCard } from '@/components/ui/HomeBundleCard';
+import { useBundleItems } from '@/hooks/useBundleItems';
+import { ItemCard } from '@/components/ui/ItemCard';
+import type { BundleItem } from '@/lib/ui-data/items';
 
-const CATEGORY_CHIPS: { slug: string; label: string }[] = [
-  { slug: 'productivity-saas', label: 'Productivity & SaaS' },
-  { slug: 'developer-tools-ides', label: 'Developer Tools' },
-  { slug: 'ai-llm-platforms', label: 'AI & ML' },
-  { slug: 'database-devops', label: 'Backend & DevOps' },
-  { slug: 'fintech-crypto', label: 'Fintech' },
-  { slug: 'design-creative-tools', label: 'Design & Creative' },
-  { slug: 'e-commerce-retail', label: 'E-commerce' },
-  { slug: 'media-consumer-tech', label: 'Media & Consumer' },
+// Chip labels are abbreviated; `match` is the full BundleItem.category
+// value the hook produces (see ITEM_CATEGORY_BY_SLUG in useBundleItems).
+const CATEGORY_CHIPS: { label: string; match: string }[] = [
+  { label: 'Productivity & SaaS', match: 'Productivity & SaaS' },
+  { label: 'Developer Tools', match: 'Developer Tools & IDEs' },
+  { label: 'AI & ML', match: 'AI & LLM Platforms' },
+  { label: 'Backend & DevOps', match: 'Database & DevOps' },
+  { label: 'Fintech', match: 'Fintech & Crypto' },
+  { label: 'Design & Creative', match: 'Design & Creative Tools' },
+  { label: 'E-commerce', match: 'E-commerce & Retail' },
+  { label: 'Media & Consumer', match: 'Media & Consumer Tech' },
 ];
 
 const ALL = 'all';
 
 export function HomeLibrary() {
-  const { items, loading, error } = useBundles();
-  const [category, setCategory] = useState<string>(ALL);
+  const { items, loading, error } = useBundleItems();
+  const [match, setMatch] = useState<string>(ALL);
   const [query, setQuery] = useState('');
 
-  const designBundles = useMemo(
-    () => items.filter((b) => b.type === 'design_md'),
+  // Only design-system bundles on the home grid — skills/agents/mcps stay
+  // accessible from /library.
+  const bundles = useMemo(
+    () => items.filter((i) => i.type === 'bundle'),
     [items],
   );
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return designBundles.filter((b) => {
-      if (category !== ALL && b.primaryCategorySlug !== category) return false;
+    return bundles.filter((b) => {
+      if (match !== ALL && b.category !== match) return false;
       if (!q) return true;
-      const hay = [b.title, b.description, b.primaryCategoryName, b.sourceDomain]
+      const hay = [b.name, b.tagline, b.description, b.category]
         .filter(Boolean)
         .join(' ')
         .toLowerCase();
       return hay.includes(q);
     });
-  }, [designBundles, category, query]);
+  }, [bundles, match, query]);
 
-  const allCount = designBundles.length;
-  const hasFilters = category !== ALL || query.trim().length > 0;
+  const allCount = bundles.length;
+  const hasFilters = match !== ALL || query.trim().length > 0;
 
   return (
     <section className="border-b" style={{ borderColor: BORDER_SOFT }}>
       <div className="mx-auto max-w-screen-2xl px-6 lg:px-10 py-10">
-        {/* Filter row */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
           <div
             className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1"
@@ -69,15 +73,15 @@ export function HomeLibrary() {
             aria-label="Filter by category"
           >
             <Chip
-              active={category === ALL}
-              onClick={() => setCategory(ALL)}
+              active={match === ALL}
+              onClick={() => setMatch(ALL)}
               label={`All ${allCount}`}
             />
             {CATEGORY_CHIPS.map((c) => (
               <Chip
-                key={c.slug}
-                active={category === c.slug}
-                onClick={() => setCategory(c.slug)}
+                key={c.match}
+                active={match === c.match}
+                onClick={() => setMatch(c.match)}
                 label={c.label}
               />
             ))}
@@ -86,7 +90,6 @@ export function HomeLibrary() {
           <SearchBox value={query} onChange={setQuery} />
         </div>
 
-        {/* Grid */}
         {error ? (
           <ErrorState message={error.message} />
         ) : loading ? (
@@ -95,7 +98,7 @@ export function HomeLibrary() {
           <EmptyState
             hasFilters={hasFilters}
             onClear={() => {
-              setCategory(ALL);
+              setMatch(ALL);
               setQuery('');
             }}
           />
@@ -106,8 +109,6 @@ export function HomeLibrary() {
     </section>
   );
 }
-
-// ─── Chip ────────────────────────────────────────────────────
 
 function Chip({
   label,
@@ -134,8 +135,6 @@ function Chip({
     </button>
   );
 }
-
-// ─── Search ──────────────────────────────────────────────────
 
 function SearchBox({
   value,
@@ -169,39 +168,43 @@ function SearchBox({
   );
 }
 
-// ─── Grid ────────────────────────────────────────────────────
-
-function BundleGrid({ bundles }: { bundles: BundleSummary[] }) {
+function BundleGrid({ bundles }: { bundles: BundleItem[] }) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-      {bundles.map((b, i) => (
-        <HomeBundleCard key={b.id} bundle={b} priority={i < 3} />
+    <div
+      className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-px rounded-lg overflow-hidden"
+      style={{ background: BORDER }}
+    >
+      {bundles.map((b) => (
+        <ItemCard key={b.id} item={b} />
       ))}
     </div>
   );
 }
 
-// ─── States ──────────────────────────────────────────────────
-
 function LoadingState() {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-      {Array.from({ length: 6 }).map((_, i) => (
-        <div key={i}>
+    <div
+      className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-px rounded-lg overflow-hidden"
+      style={{ background: BORDER }}
+    >
+      {Array.from({ length: 8 }).map((_, i) => (
+        <div key={i} className="p-5" style={{ background: BG }}>
           <div
-            className="w-full rounded-xl animate-pulse"
-            style={{
-              aspectRatio: '16 / 11',
-              background: SURFACE,
-              border: `1px solid ${BORDER}`,
-            }}
+            className="h-1.5 mb-5 animate-pulse rounded-sm"
+            style={{ background: SURFACE_2 }}
           />
-          <div className="px-1 pt-3">
-            <div
-              className="h-3 rounded animate-pulse"
-              style={{ background: SURFACE_2, width: '60%' }}
-            />
-          </div>
+          <div
+            className="h-4 mb-2 rounded animate-pulse"
+            style={{ background: SURFACE_2, width: '60%' }}
+          />
+          <div
+            className="h-3 mb-4 rounded animate-pulse"
+            style={{ background: SURFACE_2, width: '85%' }}
+          />
+          <div
+            className="h-2 rounded animate-pulse"
+            style={{ background: SURFACE_2, width: '40%' }}
+          />
         </div>
       ))}
     </div>

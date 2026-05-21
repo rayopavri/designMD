@@ -39,7 +39,7 @@ export async function POST(_req: NextRequest, ctx: RouteContext) {
   const { slug } = await ctx.params;
 
   const [bundle] = await db
-    .select({ id: bundles.id, screenshotUrl: bundles.screenshotUrl })
+    .select({ id: bundles.id })
     .from(bundles)
     .where(eq(bundles.slug, slug))
     .limit(1);
@@ -84,21 +84,6 @@ export async function POST(_req: NextRequest, ctx: RouteContext) {
     .where(eq(discoveryCandidates.promotedToBundleId, bundleId));
 
   await db.delete(bundles).where(eq(bundles.id, bundleId));
-
-  // Best-effort: delete the screenshot blob. Failure is non-fatal — the
-  // DB row is already gone; an orphaned blob is harmless and will roll
-  // off with the next cleanup pass.
-  if (bundle.screenshotUrl) {
-    try {
-      const { del } = await import('@vercel/blob');
-      await del(bundle.screenshotUrl);
-    } catch (err) {
-      console.warn(
-        '[admin:delete] failed to delete screenshot blob:',
-        err instanceof Error ? err.message : err,
-      );
-    }
-  }
 
   return NextResponse.json({ ok: true });
 }

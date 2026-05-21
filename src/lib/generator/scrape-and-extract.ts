@@ -30,7 +30,6 @@ import {
 import { resolveOrphans } from '@/lib/generator/resolve-orphans';
 import { extractDomain } from '@/lib/generator/url';
 import { uniqueBundleSlug } from '@/lib/generator/slug';
-import { uploadScreenshotToBlob } from '@/lib/generator/upload-screenshot';
 
 // QStash payloads are capped at 1MB. Trim the scraped markdown before
 // passing to Phase 2 — design.md authoring only needs a representative
@@ -232,11 +231,6 @@ Brand: ${brand.name}
 Source: ${job.url}
 `;
 
-  const screenshotBlobUrl = await uploadScreenshotToBlob({
-    screenshotUrl: scrape.screenshotUrl,
-    slugHint: brand.name || domain || 'bundle',
-  });
-
   // Re-run mode: UPDATE the existing bundle in place, preserving
   // editor-managed fields (title, description, license, attribution,
   // featured/curated, primaryCategoryId). Pipeline-managed fields are
@@ -258,9 +252,6 @@ Source: ${job.url}
         paletteColors: palette,
         brandInitial: brand.name ? brand.name.charAt(0).toUpperCase() : null,
         brandColor: primary,
-        // Only overwrite the screenshot when the new upload succeeded —
-        // a stale thumbnail is better than no thumbnail.
-        ...(screenshotBlobUrl ? { screenshotUrl: screenshotBlobUrl } : {}),
         updatedAt: new Date(),
       })
       .where(eq(bundles.id, job.targetBundleId));
@@ -295,7 +286,6 @@ Source: ${job.url}
       paletteColors: palette,
       brandInitial: brand.name ? brand.name.charAt(0).toUpperCase() : null,
       brandColor: primary,
-      screenshotUrl: screenshotBlobUrl,
     })
     .returning({ id: bundles.id });
 
