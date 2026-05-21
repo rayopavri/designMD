@@ -26,6 +26,12 @@ const nextConfig: NextConfig = {
   // Also include the pnpm-real path explicitly so Vercel ships the
   // assets next to the resolved module.
   outputFileTracingIncludes: {
+    // Lint moved here in the Phase 1/Phase 2 split — the spec yaml files
+    // must be traced for this function or runtime fails with ENOENT.
+    '/api/internal/tasks/author-design-md': [
+      './node_modules/.pnpm/@google+design.md@*/node_modules/@google/design.md/dist/**/*.yaml',
+      './node_modules/.pnpm/@google+design.md@*/node_modules/@google/design.md/dist/**/*.md',
+    ],
     '/api/internal/tasks/scrape-and-extract': [
       './node_modules/.pnpm/@google+design.md@*/node_modules/@google/design.md/dist/**/*.yaml',
       './node_modules/.pnpm/@google+design.md@*/node_modules/@google/design.md/dist/**/*.md',
