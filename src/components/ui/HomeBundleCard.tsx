@@ -18,14 +18,13 @@ interface HomeBundleCardProps {
   priority?: boolean;
 }
 
-// Hover scrolls roughly through hero + 2-3 follow-up sections; the cap keeps
-// the reveal feeling tight rather than letting it grind through the whole
-// 10,000px page. Tuned against the typical landing-page rhythm where each
-// section is ~600-900px tall.
-const MAX_SCROLL_VIEWPORTS = 4.5;
-const HOVER_DURATION_PX_PER_SEC = 260;
-const MIN_HOVER_DURATION = 2;
-const MAX_HOVER_DURATION = 7;
+// Hover scrolls just past the hero into the first content section, then
+// stops. Intentionally tight so the card stays previewable rather than
+// turning into a slow auto-tour of the whole page.
+const MAX_SCROLL_VIEWPORTS = 2.0;
+const HOVER_DURATION_PX_PER_SEC = 220;
+const MIN_HOVER_DURATION = 1.8;
+const MAX_HOVER_DURATION = 4;
 
 export function HomeBundleCard({ bundle, priority = false }: HomeBundleCardProps) {
   const containerRef = useRef<HTMLDivElement>(null);
