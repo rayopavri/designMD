@@ -137,6 +137,55 @@ const DESIGN_STYLES = [
 ];
 const TOOLS = ["claude", "cursor", "lovable", "figma-make"];
 
+// Re-run pipeline progress phases — mirror /generate page semantics so the
+// admin and public flows look like the same machine. Each phase groups one
+// or more backend `currentStep` values written by scrape-and-extract.ts.
+interface RerunPhase {
+  id: string;
+  label: string;
+  tool: string;
+  steps: string[];
+}
+const RERUN_PHASES: RerunPhase[] = [
+  {
+    id: "collect",
+    label: "Page collection",
+    tool: "Firecrawl",
+    steps: ["scraping", "parsing-computed"],
+  },
+  {
+    id: "extract",
+    label: "Brand extraction",
+    tool: "Gemini 2.5 Flash",
+    steps: ["extracting", "resolving-orphans"],
+  },
+  {
+    id: "author",
+    label: "Design.md authored",
+    tool: "Claude Sonnet 4.6",
+    steps: ["persisting", "writing-design-md", "persisting-design-md"],
+  },
+  {
+    id: "validate",
+    label: "Validate & score",
+    tool: "@google/design.md",
+    steps: ["linting", "scoring"],
+  },
+];
+
+function rerunPhaseIndex(currentStep: string | null): number {
+  if (!currentStep) return -1;
+  for (let i = 0; i < RERUN_PHASES.length; i += 1) {
+    if (RERUN_PHASES[i].steps.includes(currentStep)) return i;
+  }
+  // currentStep is something terminal (`rerun_complete`, `ready_for_review`,
+  // `held_as_draft`) — every phase is done.
+  if (currentStep === "rerun_complete" || currentStep === "ready_for_review" || currentStep === "held_as_draft") {
+    return RERUN_PHASES.length;
+  }
+  return -1;
+}
+
 // ─── Status pill ─────────────────────────────────────────────
 
 function statusColor(status: BundleStatus): string {
@@ -217,6 +266,14 @@ export default function AdminBundlesPage() {
   const [actionState, setActionState] = useState<ActionState>("idle");
   const [actionError, setActionError] = useState<string | null>(null);
   const [form, setForm] = useState<EditFormState | null>(null);
+
+  // Live progress for the Re-run pipeline button. `rerunStep` is the raw
+  // `currentStep` polled from /api/generate/[jobId]; `rerunStatus` mirrors
+  // job.status so we know when to stop the polling loops.
+  const [rerunStep, setRerunStep] = useState<string | null>(null);
+  const [rerunStatus, setRerunStatus] = useState<
+    "queued" | "running" | "completed" | "failed" | null
+  >(null);
 
   // Ref mirror of `detail` so polling loops inside setInterval closures
   // can read the latest value without stale captures.
@@ -540,7 +597,10 @@ export default function AdminBundlesPage() {
 
     setActionState("rerunning-pipeline");
     setActionError(null);
+    setRerunStep(null);
+    setRerunStatus("queued");
 
+    let jobId: string | null = null;
     try {
       const res = await fetch(
         `/api/admin/bundles/${encodeURIComponent(detail.slug)}/rerun-pipeline`,
@@ -550,22 +610,46 @@ export default function AdminBundlesPage() {
         const body = await res.json().catch(() => ({ error: res.statusText }));
         setActionError(body.error || `Re-run failed (${res.status})`);
         setActionState("idle");
+        setRerunStatus(null);
         return;
       }
+      const body = (await res.json()) as { jobId?: string };
+      jobId = body.jobId ?? null;
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Network error");
       setActionState("idle");
+      setRerunStatus(null);
       return;
     }
 
-    // Pipeline kicked off. Poll the detail panel every 3s until the
-    // companion worker flips status to 'ready' or 'failed', or we time
-    // out after 90s. The detail row's updatedAt also moves as the
-    // pipeline writes intermediate stages.
+    // Pipeline kicked off. Two parallel polling loops:
+    //   1. Job-status poll (every 2s) — drives the live phase indicator.
+    //   2. Detail reload (every 3s) — refreshes the panel data so editors
+    //      see updated palette/coverage as the pipeline progresses.
+    // Both stop when the bundle's companion worker flips to ready/failed
+    // OR after a 120s timeout (full pipeline + companion ≈ 60-90s).
     const slug = detail.slug;
     const startedAt = Date.now();
-    const TIMEOUT_MS = 90_000;
-    const handle = window.setInterval(async () => {
+    const TIMEOUT_MS = 120_000;
+
+    const jobHandle = jobId
+      ? window.setInterval(async () => {
+          try {
+            const r = await fetch(`/api/generate/${encodeURIComponent(jobId!)}`);
+            if (!r.ok) return;
+            const j = (await r.json()) as {
+              status: "queued" | "running" | "completed" | "failed";
+              currentStep: string | null;
+            };
+            setRerunStatus(j.status);
+            setRerunStep(j.currentStep);
+          } catch {
+            // swallow polling errors; loop continues
+          }
+        }, 2000)
+      : null;
+
+    const detailHandle = window.setInterval(async () => {
       try {
         await loadDetail(slug);
       } catch {
@@ -577,11 +661,14 @@ export default function AdminBundlesPage() {
         refreshed?.companionStatus === "failed";
       const timedOut = Date.now() - startedAt > TIMEOUT_MS;
       if (done || timedOut) {
-        window.clearInterval(handle);
+        if (jobHandle) window.clearInterval(jobHandle);
+        window.clearInterval(detailHandle);
         setActionState("idle");
+        setRerunStep(null);
+        setRerunStatus(null);
         if (timedOut && !done) {
           setActionError(
-            "Re-run still running after 90s — refresh manually to check status.",
+            "Re-run still running after 2 min — refresh manually to check status.",
           );
         }
       }
@@ -857,6 +944,8 @@ export default function AdminBundlesPage() {
               isDirty={isDirty}
               actionState={actionState}
               actionError={actionError}
+              rerunStep={rerunStep}
+              rerunStatus={rerunStatus}
               onSave={onSave}
               onArchive={onArchive}
               onRestore={onRestore}
@@ -881,6 +970,8 @@ interface DetailEditorProps {
   isDirty: boolean;
   actionState: ActionState;
   actionError: string | null;
+  rerunStep: string | null;
+  rerunStatus: "queued" | "running" | "completed" | "failed" | null;
   onSave: () => void | Promise<void>;
   onArchive: () => void | Promise<void>;
   onRestore: (target: "published" | "pending_review") => void | Promise<void>;
@@ -889,8 +980,93 @@ interface DetailEditorProps {
   onRerunPipeline: () => void | Promise<void>;
 }
 
+// Compact 4-phase progress strip rendered inside the sticky action bar
+// while a Re-run pipeline job is in flight. Mirrors /generate's phase
+// model so editors and end-users see the same machine.
+function RerunProgress({
+  step,
+  status,
+}: {
+  step: string | null;
+  status: "queued" | "running" | "completed" | "failed" | null;
+}) {
+  const phaseIdx = rerunPhaseIndex(step);
+  const failed = status === "failed";
+
+  return (
+    <div
+      className="rounded-md border px-3 py-2.5"
+      style={{ borderColor: BORDER, background: SURFACE_2 }}
+    >
+      <div className="flex items-center justify-between mb-2">
+        <span
+          className="text-[10.5px] uppercase tracking-[0.22em]"
+          style={{ color: MUTED, fontFamily: MONO }}
+        >
+          {failed ? "pipeline failed" : status === "completed" ? "pipeline complete" : "re-running pipeline"}
+        </span>
+        <span className="text-[10.5px]" style={{ color: SUB, fontFamily: MONO }}>
+          {step ?? "queued"}
+        </span>
+      </div>
+      <div className="grid grid-cols-4 gap-1.5">
+        {RERUN_PHASES.map((phase, i) => {
+          const state =
+            failed && i === phaseIdx
+              ? "failed"
+              : i < phaseIdx
+                ? "done"
+                : i === phaseIdx
+                  ? "active"
+                  : "pending";
+          const fill =
+            state === "done"
+              ? LIME
+              : state === "active"
+                ? CYAN
+                : state === "failed"
+                  ? PEACH
+                  : BORDER;
+          return (
+            <div key={phase.id} className="flex flex-col gap-1">
+              <div
+                className="h-1 rounded-full overflow-hidden"
+                style={{ background: BORDER_SOFT }}
+              >
+                <div
+                  className={state === "active" ? "h-full animate-pulse" : "h-full"}
+                  style={{
+                    background: fill,
+                    width: state === "done" ? "100%" : state === "active" ? "55%" : "0%",
+                    transition: "width 400ms ease, background 200ms ease",
+                  }}
+                />
+              </div>
+              <div
+                className="text-[10.5px] leading-tight truncate"
+                style={{
+                  color: state === "pending" ? MUTED : INK,
+                  fontFamily: state === "pending" ? MONO : undefined,
+                }}
+              >
+                {phase.label}
+              </div>
+              <div
+                className="text-[9.5px] uppercase tracking-[0.16em] truncate"
+                style={{ color: MUTED, fontFamily: MONO }}
+              >
+                {phase.tool}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function DetailEditor(props: DetailEditorProps) {
-  const { detail, form, setForm, categories, isDirty, actionState, actionError } = props;
+  const { detail, form, setForm, categories, isDirty, actionState, actionError, rerunStep, rerunStatus } = props;
   const status = detail.status as BundleStatus;
   const busy = actionState !== "idle";
 
@@ -1134,6 +1310,9 @@ function DetailEditor(props: DetailEditorProps) {
           >
             {actionError}
           </div>
+        ) : null}
+        {actionState === "rerunning-pipeline" ? (
+          <RerunProgress step={rerunStep} status={rerunStatus} />
         ) : null}
         <div className="flex flex-wrap items-center gap-2">
           <button
