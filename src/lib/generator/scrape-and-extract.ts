@@ -77,6 +77,7 @@ export async function runScrapeAndExtract(payload: ScrapeAndExtractPayload): Pro
       html: null,
       screenshotUrl: null,
       ogImageUrl: null,
+      brandLogoUrl: null,
       language: null,
       statusCode: null,
     };
@@ -256,6 +257,7 @@ Source: ${job.url}
         sourceDomain: domain,
         authorName: brand.name,
         paletteColors: palette,
+        brandLogoUrl: scrape.brandLogoUrl,
         brandInitial: brand.name ? brand.name.charAt(0).toUpperCase() : null,
         brandColor: primary,
         updatedAt: new Date(),
@@ -290,6 +292,7 @@ Source: ${job.url}
       sourceDomain: isUpload ? null : domain,
       authorName: brand.name,
       paletteColors: palette,
+      brandLogoUrl: scrape.brandLogoUrl,
       brandInitial: brand.name ? brand.name.charAt(0).toUpperCase() : null,
       brandColor: primary,
     })

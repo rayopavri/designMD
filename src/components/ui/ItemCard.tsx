@@ -14,6 +14,16 @@ import {
   type BundleItem,
   type Item,
 } from "@/lib/ui-data/items";
+import { BrandLogo } from "./BrandLogo";
+
+function hostnameFromUrl(maybeUrl: string | undefined): string | null {
+  if (!maybeUrl) return null;
+  try {
+    return new URL(maybeUrl).hostname;
+  } catch {
+    return null;
+  }
+}
 
 export function ItemCard({ item }: { item: Item }) {
   const meta = TYPE_META[item.type];
@@ -51,14 +61,10 @@ export function ItemCard({ item }: { item: Item }) {
             {item.tagline}
           </div>
         </div>
-        {item.type === "bundle" && (item as BundleItem).bundle.logoDomain && (
-          <img
-            src={`https://www.google.com/s2/favicons?domain=${(item as BundleItem).bundle.logoDomain}&sz=128`}
-            alt=""
-            width={32}
-            height={32}
-            className="h-8 w-8 rounded shrink-0 object-contain"
-            loading="lazy"
+        {item.type === "bundle" && (item as BundleItem).bundle.brandLogoUrl && (
+          <BrandLogo
+            src={(item as BundleItem).bundle.brandLogoUrl as string}
+            fallbackDomain={hostnameFromUrl((item as BundleItem).bundle.brandLogoUrl)}
           />
         )}
       </div>

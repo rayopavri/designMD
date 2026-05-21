@@ -30,6 +30,7 @@ interface ApiBundleListItem {
   designStyle: string[];
   compatibleTools: string[];
   paletteColors: string[];
+  brandLogoUrl: string | null;
   brandInitial: string | null;
   brandColor: string | null;
   voteCount: number;
@@ -171,6 +172,7 @@ function apiToBundleItem(row: ApiBundleListItem): BundleItem {
     category: uiCategoryFromSlug(row.primaryCategorySlug, row.slug),
     feel: feelFromDesignStyle(row.designStyle),
     palette,
+    brandLogoUrl: row.brandLogoUrl ?? undefined,
     coverage,
     sectionCoverage,
     tokens: 0,

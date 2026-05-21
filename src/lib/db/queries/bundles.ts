@@ -31,6 +31,7 @@ export interface BundleListItem {
   designStyle: string[];
   compatibleTools: string[];
   paletteColors: string[];
+  brandLogoUrl: string | null;
   brandInitial: string | null;
   brandColor: string | null;
   voteCount: number;
@@ -112,6 +113,7 @@ export async function listPublishedBundles(
       designStyle: bundles.designStyle,
       compatibleTools: bundles.compatibleTools,
       paletteColors: bundles.paletteColors,
+      brandLogoUrl: bundles.brandLogoUrl,
       brandInitial: bundles.brandInitial,
       brandColor: bundles.brandColor,
       voteCount: bundles.voteCount,
@@ -229,6 +231,7 @@ export async function listAdminBundles(
       designStyle: bundles.designStyle,
       compatibleTools: bundles.compatibleTools,
       paletteColors: bundles.paletteColors,
+      brandLogoUrl: bundles.brandLogoUrl,
       brandInitial: bundles.brandInitial,
       brandColor: bundles.brandColor,
       voteCount: bundles.voteCount,
@@ -307,6 +310,7 @@ const bundleDetailColumns = {
   designStyle: bundles.designStyle,
   compatibleTools: bundles.compatibleTools,
   paletteColors: bundles.paletteColors,
+  brandLogoUrl: bundles.brandLogoUrl,
   brandInitial: bundles.brandInitial,
   brandColor: bundles.brandColor,
   voteCount: bundles.voteCount,
@@ -388,6 +392,7 @@ export async function getVisibleBundleBySlug(slug: string): Promise<BundleDetail
       designStyle: bundles.designStyle,
       compatibleTools: bundles.compatibleTools,
       paletteColors: bundles.paletteColors,
+      brandLogoUrl: bundles.brandLogoUrl,
       brandInitial: bundles.brandInitial,
       brandColor: bundles.brandColor,
       voteCount: bundles.voteCount,

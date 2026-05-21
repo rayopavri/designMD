@@ -7,6 +7,7 @@
  */
 import FirecrawlApp from '@mendable/firecrawl-js';
 import { env } from '@/lib/env';
+import { extractBrandLogoUrl } from './logo-extract';
 
 let _client: FirecrawlApp | null = null;
 
@@ -27,6 +28,7 @@ export interface ScrapeResult {
   html: string | null;
   screenshotUrl: string | null;
   ogImageUrl: string | null;
+  brandLogoUrl: string | null;
   language: string | null;
   statusCode: number | null;
 }
@@ -76,6 +78,9 @@ export async function scrapeUrl(url: string): Promise<ScrapeResult> {
   const html = res.html ?? null;
   const metadata = res.metadata ?? {};
 
+  const ogImageUrl = typeof metadata.ogImage === 'string' ? metadata.ogImage : null;
+  const extractedLogo = extractBrandLogoUrl(html, url);
+
   return {
     url,
     title: String(metadata.title ?? metadata.ogTitle ?? '').trim(),
@@ -83,7 +88,8 @@ export async function scrapeUrl(url: string): Promise<ScrapeResult> {
     markdown,
     html,
     screenshotUrl: res.screenshot ?? null,
-    ogImageUrl: typeof metadata.ogImage === 'string' ? metadata.ogImage : null,
+    ogImageUrl,
+    brandLogoUrl: extractedLogo ?? ogImageUrl,
     language: typeof metadata.language === 'string' ? metadata.language : null,
     statusCode: typeof metadata.statusCode === 'number' ? metadata.statusCode : null,
   };

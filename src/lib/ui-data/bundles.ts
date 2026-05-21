@@ -47,8 +47,10 @@ export type Bundle = {
    * 'pending_review' or 'personal'. The detail page renders a small
    * banner for non-published statuses. */
   lifecycleStatus?: 'personal' | 'pending_review' | 'published' | 'flagged' | 'rejected';
-  /** Domain used to fetch the brand logo via Clearbit (e.g. "linear.app"). */
-  logoDomain?: string;
+  /** Absolute URL to a square brand logo (apple-touch-icon, og:image, or favicon).
+   * For user-generated bundles this is populated by the scrape pipeline from the
+   * page's HTML head. For seed bundles, hand-picked from each brand's site. */
+  brandLogoUrl?: string;
 };
 
 const linear = `---
@@ -551,7 +553,7 @@ When user pastes a Figma frame or screenshot, infer which tokens it maps to and 
 export const BUNDLES: Bundle[] = [
   {
     id: "linear",
-    logoDomain: "linear.app",
+    brandLogoUrl: "https://linear.app/apple-touch-icon.png",
     num: "042",
     name: "Linear",
     tagline: "Precise · dark-mode native",
@@ -585,7 +587,7 @@ export const BUNDLES: Bundle[] = [
   },
   {
     id: "stripe",
-    logoDomain: "stripe.com",
+    brandLogoUrl: "https://images.stripeassets.com/fzn2n1nzq965/4vVgZi0ZMoEzOhkcv7EVwK/8cce6fdcf2733b2ec8e99548908847ed/favicon.png?w=180&h=180",
     num: "041",
     name: "Stripe",
     tagline: "Vibrant modern finance",
@@ -619,7 +621,7 @@ export const BUNDLES: Bundle[] = [
   },
   {
     id: "notion",
-    logoDomain: "notion.so",
+    brandLogoUrl: "https://www.notion.so/images/logo-ios.png",
     num: "040",
     name: "Notion",
     tagline: "Serif · calm document feel",
@@ -653,7 +655,7 @@ export const BUNDLES: Bundle[] = [
   },
   {
     id: "carbon",
-    logoDomain: "ibm.com",
+    brandLogoUrl: "https://www.ibm.com/content/dam/adobe-cms/default-images/icon-192x192.png",
     num: "039",
     name: "IBM Carbon",
     tagline: "Dense · enterprise grid",
@@ -687,7 +689,7 @@ export const BUNDLES: Bundle[] = [
   },
   {
     id: "arc",
-    logoDomain: "arc.net",
+    brandLogoUrl: "https://arc.net/favicon.png",
     num: "038",
     name: "Arc Browser",
     tagline: "Playful · warm coral",
@@ -721,7 +723,7 @@ export const BUNDLES: Bundle[] = [
   },
   {
     id: "vercel",
-    logoDomain: "vercel.com",
+    brandLogoUrl: "https://vercel.com/apple-touch-icon.png",
     num: "037",
     name: "Vercel",
     tagline: "Mono · devtools minimal",
@@ -755,7 +757,7 @@ export const BUNDLES: Bundle[] = [
   },
   {
     id: "ramp",
-    logoDomain: "ramp.com",
+    brandLogoUrl: "https://ramp.com/favicon.ico",
     num: "036",
     name: "Ramp",
     tagline: "Fintech · ochre",
@@ -789,7 +791,7 @@ export const BUNDLES: Bundle[] = [
   },
   {
     id: "atlassian",
-    logoDomain: "atlassian.com",
+    brandLogoUrl: "https://www.atlassian.com/apple-touch-icon.png",
     num: "035",
     name: "Atlassian",
     tagline: "Blue · enterprise",
