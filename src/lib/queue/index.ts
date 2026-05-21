@@ -46,7 +46,17 @@ function getReceiver(): Receiver | null {
   return qstashReceiver;
 }
 
-export async function enqueueTask<P>(name: TaskName, payload: P): Promise<EnqueueResult> {
+export interface EnqueueOptions {
+  /** Seconds QStash will wait before delivering to the worker. Used for
+   * staggering bulk re-runs so we don't burst Firecrawl / Gemini / Anthropic. */
+  delaySeconds?: number;
+}
+
+export async function enqueueTask<P>(
+  name: TaskName,
+  payload: P,
+  opts?: EnqueueOptions,
+): Promise<EnqueueResult> {
   const client = getQStash();
   const workerUrl = `${env.NEXT_PUBLIC_APP_URL}/api/internal/tasks/${name}`;
 
@@ -56,6 +66,9 @@ export async function enqueueTask<P>(name: TaskName, payload: P): Promise<Enqueu
         url: workerUrl,
         body: payload as Record<string, unknown>,
         retries: 3,
+        ...(opts?.delaySeconds && opts.delaySeconds > 0
+          ? { delay: opts.delaySeconds }
+          : {}),
       });
       return { inline: false };
     } catch (err) {
@@ -65,6 +78,7 @@ export async function enqueueTask<P>(name: TaskName, payload: P): Promise<Enqueu
   }
 
   if (env.INLINE_TASKS) {
+    // Inline (dev) dispatch ignores delay — workers fire immediately.
     await runInline(name, payload, workerUrl);
     return { inline: true };
   }
