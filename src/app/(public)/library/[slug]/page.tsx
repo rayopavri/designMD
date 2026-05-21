@@ -11,6 +11,16 @@ import { AttributionRow } from "@/components/ui/AttributionRow";
 import { WorksWellWith } from "@/components/ui/WorksWellWith";
 import { SectionCoverage } from "@/components/ui/SectionCoverage";
 import { PulseRow } from "@/components/ui/PulseRow";
+import { BrandLogo } from "@/components/ui/BrandLogo";
+
+function hostnameSafe(url: string | null | undefined): string | null {
+  if (!url) return null;
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return null;
+  }
+}
 import { compatibleTools, nonBundleSteps } from "@/lib/ui-data/nonBundleInstall";
 import { PHASE_2_SHELVES_ENABLED } from "@/lib/ui-data/featureFlags";
 import {
@@ -196,10 +206,19 @@ function BundleView({ item }: { item: BundleItem }) {
               <span style={{ color: BORDER }}>·</span>
               <span>v{bundle.version}</span>
             </div>
-            <h1 className="text-[52px] sm:text-[64px] leading-[0.98] font-medium tracking-[-0.022em]">
-              {bundle.name}
-              <span style={{ color: SUB }}>.</span>
-            </h1>
+            <div className="flex items-center justify-between gap-6">
+              <h1 className="text-[52px] sm:text-[64px] leading-[0.98] font-medium tracking-[-0.022em] min-w-0">
+                {bundle.name}
+                <span style={{ color: SUB }}>.</span>
+              </h1>
+              {bundle.brandLogoUrl && (
+                <BrandLogo
+                  src={bundle.brandLogoUrl}
+                  fallbackDomain={hostnameSafe(bundle.brandLogoUrl)}
+                  size={72}
+                />
+              )}
+            </div>
             <p className="mt-6 text-[15px] leading-[1.65] max-w-[36rem]" style={{ color: SUB }}>
               {bundle.description}
             </p>

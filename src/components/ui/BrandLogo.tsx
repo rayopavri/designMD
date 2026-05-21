@@ -9,9 +9,11 @@ type Props = {
   fallbackDomain?: string | null;
   /** Decorative — surrounding card already names the brand. */
   alt?: string;
+  /** Pixel size for the square logo. Defaults to 32 (library card). */
+  size?: number;
 };
 
-const SIZE = 32;
+const DEFAULT_SIZE = 32;
 
 /**
  * Square brand mark with a graceful fallback chain:
@@ -19,7 +21,7 @@ const SIZE = 32;
  *   2. If that errors, fall back to Google's favicons service.
  *   3. If that also errors, hide the element.
  */
-export function BrandLogo({ src, fallbackDomain, alt = "" }: Props) {
+export function BrandLogo({ src, fallbackDomain, alt = "", size = DEFAULT_SIZE }: Props) {
   const [stage, setStage] = useState<"primary" | "fallback" | "hidden">("primary");
 
   if (stage === "hidden") return null;
@@ -37,9 +39,10 @@ export function BrandLogo({ src, fallbackDomain, alt = "" }: Props) {
     <img
       src={url}
       alt={alt}
-      width={SIZE}
-      height={SIZE}
-      className="h-8 w-8 rounded shrink-0 object-contain"
+      width={size}
+      height={size}
+      style={{ width: size, height: size }}
+      className="rounded shrink-0 object-contain"
       loading="lazy"
       onError={() => {
         setStage((prev) => (prev === "primary" && fallbackDomain ? "fallback" : "hidden"));
