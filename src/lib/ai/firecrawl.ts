@@ -51,7 +51,11 @@ export async function scrapeUrl(url: string): Promise<ScrapeResult> {
     formats: ['markdown', 'html', 'screenshot@fullPage'],
     onlyMainContent: true,
     waitFor: 1500,
-    timeout: 25_000,
+    // Heavier sites (long pages + many lazy images) routinely take 20-35s
+    // including our scroll-through actions. 45s gives margin without
+    // jeopardising the 60s Vercel function cap because Phase 1 now only
+    // contains Firecrawl + Gemini (~15s) + DB writes (~1s).
+    timeout: 45_000,
     blockAds: true,
     actions: [
       { type: 'wait', milliseconds: 1200 },
