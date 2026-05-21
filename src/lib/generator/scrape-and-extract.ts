@@ -212,6 +212,12 @@ async function writeDraftBundle(input: {
       .where(eq(categories.slug, brand.category))
       .limit(1);
     primaryCategoryId = cat?.id ?? null;
+    if (!primaryCategoryId) {
+      console.warn(
+        `[scrape-and-extract] Gemini returned unknown category slug: "${brand.category}". ` +
+          `Bundle will land uncategorized — check the enum in EXTRACTION_SCHEMA.`,
+      );
+    }
   }
 
   // Palette = role-bound colors (hex only, up to 6).

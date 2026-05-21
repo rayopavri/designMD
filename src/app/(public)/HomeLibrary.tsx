@@ -30,6 +30,7 @@ const CATEGORY_CHIPS: { label: string; match: string }[] = [
   { label: 'Design & Creative', match: 'Design & Creative Tools' },
   { label: 'E-commerce', match: 'E-commerce & Retail' },
   { label: 'Media & Consumer', match: 'Media & Consumer Tech' },
+  { label: 'Automotive', match: 'Automotive' },
 ];
 
 const ALL = 'all';

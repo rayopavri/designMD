@@ -129,21 +129,16 @@ function relativeAgo(iso: string): string {
   return `${y}y ago`;
 }
 
-// Reuse the legacy ItemCategory map so DB bundles render in the same
-// rows as the static skill/agent/mcp items in the library.
-const ITEM_CATEGORY_BY_SLUG: Record<string, ItemCategory> = {
-  linear: 'Developer Tools & IDEs',
-  stripe: 'Fintech & Crypto',
-  notion: 'Productivity & SaaS',
-  carbon: 'Database & DevOps',
-  arc: 'Media & Consumer Tech',
-  vercel: 'Developer Tools & IDEs',
-  ramp: 'Fintech & Crypto',
-  atlassian: 'Productivity & SaaS',
-};
-
-function itemCategoryFor(bundleSlug: string): ItemCategory {
-  return ITEM_CATEGORY_BY_SLUG[bundleSlug] ?? 'Productivity & SaaS';
+// Pre-migration the home grid hardcoded a per-bundle-slug category override
+// because the DB seed didn't match the UI taxonomy. After the category
+// migration, the DB now stores the canonical 9-domain taxonomy directly,
+// so we read `primaryCategoryName` from the API response and trust it.
+function itemCategoryFor(apiCategoryName: string | null): ItemCategory {
+  // After the migration this matches one of the 9 ItemCategory values
+  // exactly. If a bundle is still NULL (editor hasn't classified it yet),
+  // fall back to the most common category so the UI doesn't break.
+  if (!apiCategoryName) return 'Productivity & SaaS';
+  return apiCategoryName as ItemCategory;
 }
 
 function apiToBundleItem(row: ApiBundleListItem): BundleItem {
@@ -208,7 +203,7 @@ function apiToBundleItem(row: ApiBundleListItem): BundleItem {
     updatedAgo: uiBundle.updatedAgo,
     accent: TYPE_META.bundle.accent,
     icon: TYPE_META.bundle.icon,
-    category: itemCategoryFor(row.slug),
+    category: itemCategoryFor(row.primaryCategoryName),
     attribution: {
       sourceUrl: `https://${row.sourceDomain ?? ''}`,
       author: row.authorName ?? '',

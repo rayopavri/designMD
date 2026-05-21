@@ -182,7 +182,21 @@ const EXTRACTION_SCHEMA: Schema = {
     dos: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
     donts: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
     designStyles: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
-    category: { type: SchemaType.STRING, nullable: true },
+    category: {
+      type: SchemaType.STRING,
+      enum: [
+        'productivity-saas',
+        'developer-tools-ides',
+        'ai-llm-platforms',
+        'database-devops',
+        'design-creative-tools',
+        'fintech-crypto',
+        'e-commerce-retail',
+        'media-consumer-tech',
+        'automotive',
+      ],
+      // No `nullable: true` — Gemini MUST pick one of the nine slugs.
+    },
   },
   required: [
     'name',
@@ -200,6 +214,7 @@ const EXTRACTION_SCHEMA: Schema = {
     'dos',
     'donts',
     'designStyles',
+    'category',
   ],
 };
 
@@ -278,7 +293,21 @@ COMPONENT COVERAGE — CRITICAL:
   matching backgroundColor component.
 - Outline/border colors lack a dedicated sub-token in the spec — reference them as
   backgroundColor on a divider/separator component (height: 1px).
-- Aim for 10–18 components total. More is fine. Fewer than 8 risks orphan warnings.`;
+- Aim for 10–18 components total. More is fine. Fewer than 8 risks orphan warnings.
+
+CATEGORY — MANDATORY. Output the slug (kebab-case), never the display name. Pick the
+single best fit from this taxonomy:
+- productivity-saas         — productivity apps, SaaS tools, work software (Notion, Linear, Asana)
+- developer-tools-ides      — dev tools, IDEs, CI/CD, devops platforms, hosting (Vercel, GitHub, Figma plugins)
+- ai-llm-platforms          — AI / ML / LLM products, agent platforms, model playgrounds (Anthropic, OpenAI, Hugging Face)
+- database-devops           — databases, observability, infrastructure, monitoring (Datadog, Supabase, Neon)
+- design-creative-tools     — design software, creative suites, illustration, video (Figma, Adobe, Procreate)
+- fintech-crypto            — banking, payments, investing, crypto, accounting (Stripe, Wise, Ramp, Coinbase)
+- e-commerce-retail         — online stores, marketplaces, retail brands (Shopify, Amazon, DTC brands)
+- media-consumer-tech       — consumer apps, news, social, browsers, entertainment (Arc, Spotify, NYT)
+- automotive                — car brands, racing, mobility, EV (Tesla, F1 driver sites, Rivian)
+
+When a site straddles two, pick the dominant lens of who pays / who uses it.`;
 
 // ─── Extraction call ─────────────────────────────────────────
 
@@ -387,7 +416,20 @@ Apply the same token conventions as the URL-based extractor (role-based color na
 typography levels, kebab-case keys, "#RRGGBB" uppercase hex, dimension strings with units).
 
 If the screenshot does not contain enough signal to identify a token group with confidence,
-return an empty array for that group rather than guessing.`;
+return an empty array for that group rather than guessing.
+
+CATEGORY — MANDATORY. Output the slug, never the display name. Pick the single best fit:
+- productivity-saas         — productivity, SaaS, work tools
+- developer-tools-ides      — dev tools, IDEs, hosting, CI/CD
+- ai-llm-platforms          — AI / ML / LLM products
+- database-devops           — databases, observability, infra
+- design-creative-tools     — design / creative software
+- fintech-crypto            — banking, payments, investing, crypto
+- e-commerce-retail         — online stores, marketplaces, retail
+- media-consumer-tech       — consumer apps, news, social, browsers
+- automotive                — cars, racing, mobility
+
+When unclear, infer from the dominant visual cues (CTAs, product type, audience).`;
 
 export interface ImageExtractionInput {
   brandName: string;
