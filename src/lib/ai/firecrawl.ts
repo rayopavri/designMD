@@ -43,22 +43,24 @@ export async function scrapeUrl(url: string): Promise<ScrapeResult> {
   //  3. A scroll back to the top so the final full-page screenshot
   //     starts from the hero instead of mid-page.
   // blockAds: true also speeds first paint by skipping third-party trackers.
+  // Aggregate budget for actions: ~6-7s. Have to stay tight because the
+  // whole pipeline (scrape + Gemini + Sonnet + lint) runs in a single
+  // 60s Vercel Hobby function. Two scroll-cycles is enough to fire
+  // IntersectionObserver lazy-loads on most landing pages.
   const res = await client().scrapeUrl(url, {
     formats: ['markdown', 'html', 'screenshot@fullPage'],
     onlyMainContent: true,
-    waitFor: 3000,
-    timeout: 60_000,
+    waitFor: 1500,
+    timeout: 25_000,
     blockAds: true,
     actions: [
-      { type: 'wait', milliseconds: 2000 },
+      { type: 'wait', milliseconds: 1200 },
       { type: 'scroll', direction: 'down' },
-      { type: 'wait', milliseconds: 1500 },
+      { type: 'wait', milliseconds: 800 },
       { type: 'scroll', direction: 'down' },
-      { type: 'wait', milliseconds: 1500 },
-      { type: 'scroll', direction: 'down' },
-      { type: 'wait', milliseconds: 1500 },
+      { type: 'wait', milliseconds: 800 },
       { type: 'scroll', direction: 'up' },
-      { type: 'wait', milliseconds: 1500 },
+      { type: 'wait', milliseconds: 800 },
     ],
   });
 

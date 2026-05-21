@@ -1,22 +1,24 @@
 /**
- * Vercel Cron — Neon warmer.
+ * Cron endpoint — does two cheap jobs on each tick:
+ *   1. SELECT 1 to keep Neon out of its 5-min idle autosuspend.
+ *   2. Mark generation jobs that have been `running` for > 5 minutes as
+ *      `failed`. The Vercel Hobby plan caps function runtime at 60s, so
+ *      any job stuck in `running` for far longer means the worker was
+ *      killed mid-pipeline and there's nobody left to update the row.
+ *      Without this sweep the /generate UI polls forever.
  *
- * Runs every 4 minutes. Issues a trivial SELECT 1 against the
- * database so Neon's 5-minute autosuspend never trips. Without this,
- * the first visitor in each idle window pays a ~500ms-2s cold-start.
- *
- * Auth: when CRON_SECRET env var is set, Vercel sends it as
- * `Authorization: Bearer <secret>` for cron invocations. We accept
- * either that or an unauthenticated request (Vercel's cron edge
- * routes through their infra; public abuse is mitigated by cheap
- * cost). For belt-and-suspenders, set CRON_SECRET in Vercel env.
+ * Triggered by GitHub Actions (Vercel Hobby crons are once-per-day now).
+ * Auth: optional Bearer via CRON_SECRET env var.
  */
 import { NextResponse, type NextRequest } from 'next/server';
-import { sql } from 'drizzle-orm';
+import { and, eq, lt, sql } from 'drizzle-orm';
 import { db } from '@/lib/db/client';
+import { generationJobs } from '@/lib/db/schema';
 
 export const runtime = 'nodejs';
-export const maxDuration = 10;
+export const maxDuration = 15;
+
+const STUCK_JOB_AGE_MS = 5 * 60_000;
 
 export async function GET(req: NextRequest) {
   const expected = process.env.CRON_SECRET;
@@ -29,9 +31,37 @@ export async function GET(req: NextRequest) {
 
   const startedAt = Date.now();
   try {
+    // 1. Warm Neon.
     const [row] = (await db.execute(sql`SELECT 1 AS ping`)) as Array<{ ping: number }>;
+
+    // 2. Expire stuck jobs. Anything still 'queued' or 'running' past
+    //    STUCK_JOB_AGE_MS lost its worker (Vercel killed the function
+    //    or QStash never reached it). Mark them failed so the UI stops
+    //    polling forever.
+    const cutoff = new Date(Date.now() - STUCK_JOB_AGE_MS);
+    const expired = await db
+      .update(generationJobs)
+      .set({
+        status: 'failed',
+        errorStep: 'watchdog',
+        errorMessage: `Worker exceeded ${Math.round(STUCK_JOB_AGE_MS / 60_000)}min budget without status update`,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          sql`${generationJobs.status} IN ('queued', 'running')`,
+          lt(generationJobs.updatedAt, cutoff),
+        ),
+      )
+      .returning({ id: generationJobs.id });
+
     const elapsedMs = Date.now() - startedAt;
-    return NextResponse.json({ ok: true, ping: row?.ping ?? null, elapsedMs });
+    return NextResponse.json({
+      ok: true,
+      ping: row?.ping ?? null,
+      expiredJobs: expired.length,
+      elapsedMs,
+    });
   } catch (err) {
     console.error('[cron:warm-db] failed:', err);
     return NextResponse.json(
