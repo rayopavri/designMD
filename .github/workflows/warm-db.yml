@@ -1,0 +1,30 @@
+name: warm-db
+# Hits /api/cron/warm-db every 5 minutes to keep Neon from autosuspending.
+# Replaces the Vercel cron we had to drop (Hobby plan now caps cron jobs at
+# once per day). GitHub Actions schedule has a 5-min granularity floor;
+# Neon autosuspends at 5 min idle, so this is on the edge — first request
+# in a window may still cold-start occasionally. Worth it for free.
+#
+# If CRON_SECRET is set on Vercel, also add it as a GitHub Actions secret
+# named CRON_SECRET so this workflow can authenticate.
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Hit /api/cron/warm-db
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -n "$CRON_SECRET" ]; then
+            curl -fsS -H "Authorization: Bearer $CRON_SECRET" \
+              https://uiuxskills.com/api/cron/warm-db
+          else
+            curl -fsS https://uiuxskills.com/api/cron/warm-db
+          fi
