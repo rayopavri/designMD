@@ -277,6 +277,20 @@ export default function AdminBundlesPage() {
     "queued" | "running" | "completed" | "failed" | null
   >(null);
 
+  // Server-truth latest job for the selected bundle. Survives page reloads,
+  // unlike `rerunStatus` (which is only set during a click-initiated re-run).
+  // Drives the persistent pipeline-status row above the action bar.
+  type LatestJob = {
+    jobId: string;
+    status: "queued" | "running" | "completed" | "failed";
+    currentStep: string | null;
+    errorStep: string | null;
+    errorMessage: string | null;
+    createdAt: string;
+    updatedAt: string;
+  };
+  const [latestJob, setLatestJob] = useState<LatestJob | null>(null);
+
   // Ref mirror of `detail` so polling loops inside setInterval closures
   // can read the latest value without stale captures.
   const currentDetailRef = useRef<DetailRow | null>(null);
@@ -396,6 +410,42 @@ export default function AdminBundlesPage() {
   useEffect(() => {
     if (selectedSlug) void loadDetail(selectedSlug);
   }, [selectedSlug, loadDetail]);
+
+  // Fetch the latest generation_jobs row for the selected bundle whenever
+  // selection changes. Surfaces queued/running/failed status that persists
+  // across page reloads (the click-driven rerunStatus is only set in-session).
+  const loadJobStatus = useCallback(async (slug: string) => {
+    try {
+      const r = await fetch(`/api/admin/bundles/${encodeURIComponent(slug)}/job-status`);
+      if (!r.ok) return;
+      const body = (await r.json()) as { job: LatestJob | null };
+      setLatestJob(body.job);
+    } catch {
+      // soft fail — status row just won't update this tick
+    }
+  }, []);
+
+  useEffect(() => {
+    setLatestJob(null);
+    if (selectedSlug) void loadJobStatus(selectedSlug);
+  }, [selectedSlug, loadJobStatus]);
+
+  // Auto-poll job status while the latest job is still in flight. Stops as
+  // soon as the server reports `completed` or `failed`. Also refreshes the
+  // bundle detail panel so palette/coverage/companion fields update live.
+  useEffect(() => {
+    if (!selectedSlug) return;
+    if (!latestJob) return;
+    if (latestJob.status !== "queued" && latestJob.status !== "running") return;
+
+    const handle = window.setInterval(() => {
+      void loadJobStatus(selectedSlug);
+      void loadDetail(selectedSlug);
+    }, 3000);
+    return () => {
+      window.clearInterval(handle);
+    };
+  }, [selectedSlug, latestJob, loadJobStatus, loadDetail]);
 
   // Dirty state — true when form differs from the loaded detail.
   const isDirty = useMemo(() => {
@@ -990,6 +1040,7 @@ export default function AdminBundlesPage() {
               actionError={actionError}
               rerunStep={rerunStep}
               rerunStatus={rerunStatus}
+              latestJob={latestJob}
               onSave={onSave}
               onArchive={onArchive}
               onRestore={onRestore}
@@ -1017,6 +1068,15 @@ interface DetailEditorProps {
   actionError: string | null;
   rerunStep: string | null;
   rerunStatus: "queued" | "running" | "completed" | "failed" | null;
+  latestJob: {
+    jobId: string;
+    status: "queued" | "running" | "completed" | "failed";
+    currentStep: string | null;
+    errorStep: string | null;
+    errorMessage: string | null;
+    createdAt: string;
+    updatedAt: string;
+  } | null;
   onSave: () => void | Promise<void>;
   onArchive: () => void | Promise<void>;
   onRestore: (target: "published" | "pending_review") => void | Promise<void>;
@@ -1112,9 +1172,18 @@ function RerunProgress({
 }
 
 function DetailEditor(props: DetailEditorProps) {
-  const { detail, form, setForm, categories, isDirty, actionState, actionError, rerunStep, rerunStatus } = props;
+  const { detail, form, setForm, categories, isDirty, actionState, actionError, rerunStep, rerunStatus, latestJob } = props;
   const status = detail.status as BundleStatus;
   const busy = actionState !== "idle";
+
+  // Effective progress source: click-driven state takes priority while a
+  // re-run is actively initiated this session; otherwise fall back to the
+  // server-truth latestJob so the indicator survives page reloads.
+  const effectiveStatus = rerunStatus ?? latestJob?.status ?? null;
+  const effectiveStep = rerunStep ?? latestJob?.currentStep ?? null;
+  const showProgress = effectiveStatus === "queued" || effectiveStatus === "running";
+  const showFailureBanner =
+    !showProgress && latestJob?.status === "failed" && rerunStatus !== "completed";
 
   return (
     <div className="flex flex-col gap-5">
@@ -1357,8 +1426,35 @@ function DetailEditor(props: DetailEditorProps) {
             {actionError}
           </div>
         ) : null}
-        {actionState === "rerunning-pipeline" ? (
-          <RerunProgress step={rerunStep} status={rerunStatus} />
+        {showProgress ? (
+          <RerunProgress step={effectiveStep} status={effectiveStatus} />
+        ) : null}
+        {showFailureBanner && latestJob ? (
+          <div
+            className="rounded-md border px-3 py-2.5 text-[12px]"
+            style={{ borderColor: PEACH, background: `${PEACH}10`, color: INK, fontFamily: MONO }}
+          >
+            <div className="flex items-center justify-between mb-1">
+              <span
+                className="text-[10.5px] uppercase tracking-[0.22em]"
+                style={{ color: PEACH }}
+              >
+                last re-run failed
+              </span>
+              <span className="text-[10.5px]" style={{ color: SUB }}>
+                {new Date(latestJob.updatedAt).toLocaleString()}
+              </span>
+            </div>
+            <div className="mb-0.5">
+              <span style={{ color: SUB }}>step:</span>{" "}
+              <span style={{ color: INK }}>{latestJob.errorStep ?? "unknown"}</span>
+            </div>
+            {latestJob.errorMessage ? (
+              <div className="truncate" style={{ color: SUB }} title={latestJob.errorMessage}>
+                {latestJob.errorMessage}
+              </div>
+            ) : null}
+          </div>
         ) : null}
         <div className="flex flex-wrap items-center gap-2">
           <button
