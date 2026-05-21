@@ -59,7 +59,7 @@ export function HomeLibrary() {
 
   return (
     <section className="border-b" style={{ borderColor: BORDER_SOFT }}>
-      <div className="mx-auto max-w-6xl px-6 lg:px-8 py-10">
+      <div className="mx-auto max-w-screen-2xl px-6 lg:px-10 py-10">
         {/* Filter row */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
           <div

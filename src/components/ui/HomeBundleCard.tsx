@@ -18,9 +18,13 @@ interface HomeBundleCardProps {
   priority?: boolean;
 }
 
-const HOVER_DURATION_PX_PER_SEC = 280;
-const MIN_HOVER_DURATION = 2.5;
-const MAX_HOVER_DURATION = 9;
+// Hover scrolls roughly through hero + 2 follow-up sections; the cap keeps
+// the reveal feeling tight rather than letting it grind through the whole
+// 10,000px page. Tuned against the typical landing-page rhythm.
+const MAX_SCROLL_VIEWPORTS = 2.5;
+const HOVER_DURATION_PX_PER_SEC = 220;
+const MIN_HOVER_DURATION = 1.8;
+const MAX_HOVER_DURATION = 5;
 
 export function HomeBundleCard({ bundle, priority = false }: HomeBundleCardProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -35,8 +39,9 @@ export function HomeBundleCard({ bundle, priority = false }: HomeBundleCardProps
     const container = containerRef.current;
     if (!container || img.naturalWidth === 0) return;
     const renderedHeight = (img.naturalHeight / img.naturalWidth) * container.clientWidth;
-    const distance = Math.max(0, renderedHeight - container.clientHeight);
-    setScrollPx(distance);
+    const fullDistance = Math.max(0, renderedHeight - container.clientHeight);
+    const capped = Math.min(fullDistance, container.clientHeight * MAX_SCROLL_VIEWPORTS);
+    setScrollPx(capped);
   }
 
   const duration = Math.min(
