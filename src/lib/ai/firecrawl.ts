@@ -34,13 +34,32 @@ export interface ScrapeResult {
 const MAX_MARKDOWN_CHARS = 80_000; // ~20k tokens; Gemini Flash handles plenty more, but we cap for cost/safety
 
 export async function scrapeUrl(url: string): Promise<ScrapeResult> {
+  // Heavy animated landing pages (Lando Norris, etc.) need:
+  //  1. Time for web fonts + hero animations to settle (text invisible
+  //     without fonts, looks "broken" in screenshots otherwise).
+  //  2. A full scroll through the page to trigger IntersectionObserver
+  //     lazy-loaded images and below-fold content. Without this the
+  //     screenshot captures empty grey placeholder boxes.
+  //  3. A scroll back to the top so the final full-page screenshot
+  //     starts from the hero instead of mid-page.
+  // blockAds: true also speeds first paint by skipping third-party trackers.
   const res = await client().scrapeUrl(url, {
-    // `screenshot@fullPage` captures the entire scroll height — required
-    // by the home gallery's Framer-style hover-scroll animation.
     formats: ['markdown', 'html', 'screenshot@fullPage'],
     onlyMainContent: true,
-    waitFor: 1500,
-    timeout: 30_000,
+    waitFor: 3000,
+    timeout: 60_000,
+    blockAds: true,
+    actions: [
+      { type: 'wait', milliseconds: 2000 },
+      { type: 'scroll', direction: 'down' },
+      { type: 'wait', milliseconds: 1500 },
+      { type: 'scroll', direction: 'down' },
+      { type: 'wait', milliseconds: 1500 },
+      { type: 'scroll', direction: 'down' },
+      { type: 'wait', milliseconds: 1500 },
+      { type: 'scroll', direction: 'up' },
+      { type: 'wait', milliseconds: 1500 },
+    ],
   });
 
   if (!res.success) {
