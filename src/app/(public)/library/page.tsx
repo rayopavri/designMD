@@ -97,6 +97,25 @@ function Library() {
 
   const { items: dbBundleItems } = useBundleItems();
 
+  // Orama search: fetch slug-set from /api/search when query >= 2 chars.
+  const [searchSlugs, setSearchSlugs] = useState<Set<string> | null>(null);
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 2) { setSearchSlugs(null); return; }
+    const ctrl = new AbortController();
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`, { signal: ctrl.signal });
+        if (!res.ok) return;
+        const json = (await res.json()) as { data: { slug: string }[] };
+        setSearchSlugs(new Set(json.data.map((h) => h.slug)));
+      } catch {
+        // aborted or network error — fall through to client filter
+      }
+    }, 250);
+    return () => { clearTimeout(timer); ctrl.abort(); };
+  }, [query]);
+
   const allItems = useMemo<Item[]>(() => {
     // DB-backed bundles + the (still-hardcoded) skills/agents/mcps.
     const nonBundle = ITEMS.filter((it) => it.type !== "bundle");
@@ -108,19 +127,18 @@ function Library() {
       if (!matchesShelf(it, filters.type)) return false;
       if (!matchesCategory(it, filters.category)) return false;
       if (query.trim()) {
-        const q = query.toLowerCase();
-        const haystack = [
-          it.name,
-          it.tagline,
-          it.description,
-          it.category,
-          ...it.tags,
-          ...(it.tools as string[]),
-          it.type,
-        ]
-          .join(" ")
-          .toLowerCase();
-        if (!haystack.includes(q)) return false;
+        // DB bundles use the Orama slug-set when available; non-bundle items
+        // (skills/agents/mcps) always use the client-side haystack.
+        if (searchSlugs !== null && it.type === "bundle") {
+          if (!searchSlugs.has(it.id)) return false;
+        } else {
+          const q = query.toLowerCase();
+          const haystack = [
+            it.name, it.tagline, it.description, it.category,
+            ...it.tags, ...(it.tools as string[]), it.type,
+          ].join(" ").toLowerCase();
+          if (!haystack.includes(q)) return false;
+        }
       }
       return true;
     });

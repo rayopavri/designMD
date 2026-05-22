@@ -21,6 +21,7 @@ import {
   discoveryCandidates,
 } from '@/lib/db/schema';
 import { requireEditor } from '@/lib/auth/session';
+import { invalidateSearchIndex } from '@/lib/search';
 
 export const runtime = 'nodejs';
 
@@ -85,5 +86,6 @@ export async function POST(_req: NextRequest, ctx: RouteContext) {
 
   await db.delete(bundles).where(eq(bundles.id, bundleId));
 
+  invalidateSearchIndex();
   return NextResponse.json({ ok: true });
 }

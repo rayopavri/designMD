@@ -475,3 +475,30 @@ export async function listUserBundles(userId: string): Promise<UserBundleListIte
     .orderBy(desc(bundles.updatedAt), desc(bundles.createdAt));
   return rows as UserBundleListItem[];
 }
+
+export interface BundleIndexItem {
+  id: string;
+  slug: string;
+  title: string | null;
+  description: string | null;
+  designMd: string | null;
+  compatibleTools: string[];
+  primaryCategoryName: string | null;
+}
+
+export async function listPublishedForIndex(): Promise<BundleIndexItem[]> {
+  const rows = await db
+    .select({
+      id: bundles.id,
+      slug: bundles.slug,
+      title: bundles.title,
+      description: bundles.description,
+      designMd: bundles.designMd,
+      compatibleTools: bundles.compatibleTools,
+      primaryCategoryName: categories.name,
+    })
+    .from(bundles)
+    .leftJoin(categories, eq(bundles.primaryCategoryId, categories.id))
+    .where(eq(bundles.status, 'published'));
+  return rows;
+}

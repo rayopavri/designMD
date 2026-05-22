@@ -19,6 +19,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db/client';
 import { bundles } from '@/lib/db/schema';
 import { requireEditor } from '@/lib/auth/session';
+import { invalidateSearchIndex } from '@/lib/search';
 
 export const runtime = 'nodejs';
 
@@ -83,5 +84,6 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
     })
     .where(eq(bundles.id, existing.id));
 
+  invalidateSearchIndex();
   return NextResponse.json({ ok: true, slug, status: target });
 }
