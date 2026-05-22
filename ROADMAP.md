@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-05-22** (P1-3 favorites shipped + UI polish pass)
+> Last updated: **2026-05-22** (Phase 1 closed: P1-5 claim flow + P1-7 Orama search + P1-8 TODOs shipped)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -119,12 +119,14 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 - **Priority:** MEDIUM (UX hole, not yet user-reported)
 - **Effort:** ~2 hr
-- **Status:** `[ ]`
-- **Why:** If an anonymous user generates bundles, then later signs in, there's no link between the anonymous bundles and their account.
-- **Acceptance criteria:**
-  - On sign-in, check `generation_jobs` rows linked to the current session/IP fingerprint
-  - Offer one-click "Claim N bundles from this session" in a post-login banner
-  - Updates `bundles.created_by` to the new user id
+- **Status:** `[x]` — shipped 2026-05-22
+- **Delivered:**
+  - `generation_jobs.anon_token` column added (Supabase SQL editor) — partial-indexed on non-null
+  - Cookie helper `src/lib/auth/anon-token.ts` — httpOnly `__anon_id` with 30-day TTL, single-use (nulled out on claim)
+  - `/api/generate` writes `anonToken` to anonymous jobs and sets the cookie on the 202 response
+  - `/api/me/claim-bundles` (GET preview + POST claim) — JOIN on `result_bundle_id` + `anon_token`, transactional update to `bundles.created_by`
+  - `ClaimBundlesBanner` — sticky banner under header on sign-in, optimistic claim + sessionStorage dismiss
+  - Hidden on `/welcome` to avoid stacking with the welcome flow
 
 ### P1-6 · Re-trigger generation (admin)
 
@@ -145,21 +147,26 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 - **Priority:** LOW (filters work for now)
 - **Effort:** ~3 hr
-- **Status:** `[ ]`
-- **Why:** `/library` has category/tool filters but no full-text search across design.md content. Once the catalog crosses ~50 bundles, filters won't be enough.
-- **Acceptance criteria:**
-  - Orama index built at publish time (or via cron)
-  - Search box in `/library` header queries title + description + designMd content
-  - Highlights matched snippets in results
+- **Status:** `[x]` — shipped 2026-05-22
+- **Delivered:**
+  - `src/lib/search/index.ts` — in-memory Orama index over title/description/designMd/tools/category with 5-min TTL and concurrent-build deduplication
+  - `listPublishedForIndex()` query (no MAX_LIMIT cap) for full-corpus index builds
+  - `GET /api/search?q=...` returns ranked hits with boosted title/category/tools; falls back to DB ilike on Orama error so the UI never goes blank
+  - `invalidateSearchIndex()` hooked into publish / archive / restore / reject / delete admin routes
+  - Library page replaces client-side `.includes()` with debounced 250ms server search for DB bundles (non-bundle items still use client haystack)
+  - Cmd+K from anywhere navigates to `/library`
+- **Note:** Highlights not implemented — Orama returns ranked results, the UI just filters the existing card grid. Revisit if explicit snippet highlighting is needed.
 
 ### P1-8 · Code TODOs (housekeeping)
 
 - **Priority:** LOW
 - **Effort:** ~30 min
-- **Status:** `[ ]`
-- **Open TODOs in source:**
-  - `src/lib/ui-data/mockAuth.ts:298` — Phase 1B: PATCH `/api/me` to persist profile patches
-  - `src/app/(public)/library/[slug]/page.tsx:499` — wire CLI snippet to real CLI (depends on the CLI actually existing — see Beyond-4)
+- **Status:** `[x]` — shipped 2026-05-22
+- **Delivered:**
+  - `PATCH /api/me` implemented with Zod validation (`displayName` / `handle` / `preferredTools`). Returns 409 on duplicate handle (PG 23505)
+  - `updateProfile()` rewritten as async: optimistic state update + server persist + rollback on error. Existing callers without `await` still see optimistic update
+  - CLI snippet comment re-worded to reference roadmap B-4 (the block was already correctly flag-gated; the TODO was misleading)
+  - `grep -rn 'TODO' src/` returns **zero** hits
 
 ---
 
@@ -266,6 +273,9 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-05-22** · **Phase 1 closed.** P1-5 anonymous bundle claim flow shipped: `__anon_id` httpOnly cookie + `generation_jobs.anon_token` + `/api/me/claim-bundles` + post-login `ClaimBundlesBanner`. (`7b13e1e`)
+- [x] **2026-05-22** · P1-7 Orama full-text search shipped: in-memory index over title/description/designMd with 5-min TTL, `/api/search` endpoint with DB fallback, invalidation hooks on all admin actions, debounced library search, Cmd+K navigation. (`5da099b`)
+- [x] **2026-05-22** · P1-8 source TODOs closed: `PATCH /api/me` implemented (Zod + 409 on duplicate handle); `updateProfile()` async with optimistic + rollback; CLI snippet comment re-worded. Zero TODOs remain. (`3c35ee0`)
 - [x] **2026-05-22** · UI polish pass: brand logos now fall through to Google Favicons in `/account/bundles` + `/account/favorites` (no more blank glyphs); empty 4th-column slot in the home bundle grid no longer shows as a grey box; top "operational / build / clock" status bar removed; `UIUXskills` wordmark bumped 14px → 17px; hero top padding reduced 80px → 64px. (`5918df8`, `606824b`, `72e84a6`, `f4c03d4`)
 - [x] **2026-05-22** · P1-3 Favorites UI shipped — heart button on bundle detail, `/account/favorites` page, `user_favorites` table.
 - [x] **2026-05-22** · P1-2 History page (`/account/bundles`) shipped — lists user's bundles across all statuses, count chip inline with title.
