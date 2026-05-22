@@ -71,10 +71,19 @@ export interface ExtractedComponent {
   size?: string;
   height?: string;
   width?: string;
+  borderColor?: string; // focus rings, hover/active borders, card borders
+  outlineOffset?: string; // focus outline offset ("2px", "4px")
 }
 
 export interface ExtractedScale {
   name: string;
+  value: string;
+}
+
+export interface ExtractedMotion {
+  /** Token name (kebab-case): duration-short, easing-standard, etc. */
+  name: string;
+  /** CSS value string: "150ms", "cubic-bezier(0.4,0,0.2,1)", "ease-in-out" */
   value: string;
 }
 
@@ -99,6 +108,8 @@ export interface ExtractedBrand {
   spacing: ExtractedScale[];
   /** Components mapped to composite property blocks. */
   components: ExtractedComponent[];
+  /** Motion / animation tokens (duration, easing). Optional — omit if unobservable. */
+  motion?: ExtractedMotion[];
   /** Prose for the ## Layout section. */
   layoutNotes: string;
   /** Prose for the ## Elevation & Depth section. */
@@ -159,8 +170,19 @@ const componentItemSchema: Schema = {
     size: { type: SchemaType.STRING, nullable: true },
     height: { type: SchemaType.STRING, nullable: true },
     width: { type: SchemaType.STRING, nullable: true },
+    borderColor: { type: SchemaType.STRING, nullable: true },
+    outlineOffset: { type: SchemaType.STRING, nullable: true },
   },
   required: ['name'],
+};
+
+const motionItemSchema: Schema = {
+  type: SchemaType.OBJECT,
+  properties: {
+    name: { type: SchemaType.STRING },
+    value: { type: SchemaType.STRING },
+  },
+  required: ['name', 'value'],
 };
 
 const EXTRACTION_SCHEMA: Schema = {
@@ -176,6 +198,7 @@ const EXTRACTION_SCHEMA: Schema = {
     rounded: { type: SchemaType.ARRAY, items: scaleItemSchema },
     spacing: { type: SchemaType.ARRAY, items: scaleItemSchema },
     components: { type: SchemaType.ARRAY, items: componentItemSchema },
+    motion: { type: SchemaType.ARRAY, items: motionItemSchema, nullable: true },
     layoutNotes: { type: SchemaType.STRING },
     elevationNotes: { type: SchemaType.STRING },
     shapesNotes: { type: SchemaType.STRING },
@@ -262,7 +285,16 @@ Components:
   button-primary AND button-primary-hover.
 - Values reference defined tokens via curly braces: "{colors.primary}", "{typography.label-sm}".
 - Component sub-properties: backgroundColor, textColor, typography, rounded, padding,
-  size, height, width.
+  size, height, width, borderColor, outlineOffset.
+- For input-field-focus and button-primary-focus, set borderColor to the focus ring color.
+- For card and input-field, set borderColor to the border/stroke color.
+
+Motion (optional — only if observable from CSS transitions or animation values):
+- Token names (kebab-case): duration-short, duration-medium, duration-long,
+  easing-standard, easing-decelerate, easing-accelerate.
+- duration values: dimension strings ("100ms", "200ms", "300ms").
+- easing values: cubic-bezier string or CSS keyword ("ease-in-out", "cubic-bezier(0.4,0,0.2,1)").
+- If no transitions are observable, omit motion entirely (return null or empty array).
 
 Prose sections — be terse, factual, designer-focused. No marketing copy.
 - overview: 2-3 sentences on visual vibe, brand tone, emotional response.
@@ -556,6 +588,11 @@ function sanitize(parsed: ExtractedBrand): ExtractedBrand {
   parsed.spacing = (parsed.spacing ?? []).filter((s) => s.name && s.value).slice(0, 12);
   // Components.
   parsed.components = (parsed.components ?? []).filter((c) => c.name).slice(0, 24);
+  // Motion.
+  if (parsed.motion) {
+    parsed.motion = parsed.motion.filter((m) => m.name && m.value).slice(0, 12);
+    if (parsed.motion.length === 0) delete parsed.motion;
+  }
   // Lists.
   parsed.dos = (parsed.dos ?? []).slice(0, 10);
   parsed.donts = (parsed.donts ?? []).slice(0, 10);

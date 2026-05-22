@@ -2,8 +2,8 @@
  * Sonnet 4.6 generates a canonical Google DESIGN.md file.
  *
  * Output format:
- *   1. YAML front-matter (--- delimited): name, description, colors, typography,
- *      rounded, spacing, components.
+ *   1. YAML front-matter (--- delimited): version, name, tagline, description,
+ *      tone, color-scheme, colors, typography, rounded, spacing, motion, components.
  *   2. Markdown body sections in canonical order:
  *      ## Overview → ## Colors → ## Typography → ## Layout
  *      → ## Elevation & Depth → ## Shapes → ## Components → ## Do's and Don'ts
@@ -19,6 +19,7 @@ import type {
   ExtractedBrand,
   ExtractedColor,
   ExtractedTypography,
+  ExtractedMotion,
 } from './gemini';
 
 const SYSTEM_PROMPT = `You write the markdown body of canonical Google DESIGN.md files.
@@ -125,8 +126,18 @@ function buildYamlFrontMatter(brand: ExtractedBrand): string {
     version: 'alpha',
     name: brand.name,
   };
+  if (brand.tagline?.trim()) {
+    obj.tagline = brand.tagline.trim();
+  }
   if (brand.shortDescription?.trim()) {
     obj.description = brand.shortDescription.trim();
+  }
+  if (brand.brandTone?.trim()) {
+    obj.tone = brand.brandTone.trim();
+  }
+  const isDark = brand.designStyles?.includes('dark-mode');
+  if (isDark !== undefined) {
+    obj['color-scheme'] = isDark ? 'dark' : 'light';
   }
 
   if (brand.colors.length > 0) {
@@ -160,9 +171,15 @@ function buildYamlFrontMatter(brand: ExtractedBrand): string {
       if (c.size) props.size = c.size;
       if (c.height) props.height = c.height;
       if (c.width) props.width = c.width;
+      if (c.borderColor) props.borderColor = c.borderColor;
+      if (c.outlineOffset) props.outlineOffset = c.outlineOffset;
       if (Object.keys(props).length > 0) cmpMap[c.name] = props;
     }
     if (Object.keys(cmpMap).length > 0) obj.components = cmpMap;
+  }
+
+  if (brand.motion && brand.motion.length > 0) {
+    obj.motion = mapFromList(brand.motion, (m: ExtractedMotion) => [m.name, m.value]);
   }
 
   // YAML dump with consistent quoting (hex strings need quotes per spec).

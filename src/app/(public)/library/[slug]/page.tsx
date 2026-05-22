@@ -1239,17 +1239,40 @@ function Stat({ label, value, accent }: { label: string; value: string; accent?:
 }
 
 function PreviewPane({ bundle }: { bundle: BundleItem["bundle"] }) {
+  const [mode, setMode] = useState<"dark" | "light">("dark");
+  const bgColor = mode === "dark" ? (bundle.palette[1] ?? "#101012") : "#FAFAFA";
+
   return (
     <div
       className="rounded-xl border p-8"
       style={{ borderColor: BORDER, background: SURFACE }}
     >
-      <div className="text-[10.5px] uppercase tracking-[0.22em] mb-4" style={{ fontFamily: MONO, color: MUTED }}>
-        rendered with {bundle.name.toLowerCase()} tokens
+      <div className="flex items-center justify-between mb-4">
+        <div className="text-[10.5px] uppercase tracking-[0.22em]" style={{ fontFamily: MONO, color: MUTED }}>
+          rendered with {bundle.name.toLowerCase()} tokens
+        </div>
+        <div className="flex gap-1">
+          {(["dark", "light"] as const).map((m) => (
+            <button
+              key={m}
+              onClick={() => setMode(m)}
+              className="px-2 py-0.5 rounded text-[10px] uppercase tracking-[0.15em]"
+              style={{
+                fontFamily: MONO,
+                background: mode === m ? VIOLET : "transparent",
+                color: mode === m ? "#fff" : MUTED,
+                border: `1px solid ${mode === m ? VIOLET : BORDER}`,
+                cursor: "pointer",
+              }}
+            >
+              {m}
+            </button>
+          ))}
+        </div>
       </div>
       <div
         className="rounded-lg p-8 grid grid-cols-1 md:grid-cols-2 gap-6"
-        style={{ background: bundle.palette[1] ?? "#101012" }}
+        style={{ background: bgColor }}
       >
         <div>
           <div
