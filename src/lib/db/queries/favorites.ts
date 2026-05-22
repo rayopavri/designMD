@@ -1,4 +1,4 @@
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
 import { db } from '@/lib/db/client';
 import { bundles, categories, userFavorites } from '@/lib/db/schema';
 import type { UserBundleListItem } from './bundles';

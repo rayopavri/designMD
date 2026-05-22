@@ -29,14 +29,14 @@ async function getAuthAndBundle(ctx: RouteContext) {
   return { user, bundle };
 }
 
-export async function POST(req: NextRequest, ctx: RouteContext) {
+export async function POST(_req: NextRequest, ctx: RouteContext) {
   const result = await getAuthAndBundle(ctx);
   if ('error' in result) return result.error;
   await addFavorite(result.user.id, result.bundle.id);
   return NextResponse.json({ saved: true });
 }
 
-export async function DELETE(req: NextRequest, ctx: RouteContext) {
+export async function DELETE(_req: NextRequest, ctx: RouteContext) {
   const result = await getAuthAndBundle(ctx);
   if ('error' in result) return result.error;
   await removeFavorite(result.user.id, result.bundle.id);
