@@ -1240,11 +1240,15 @@ function Stat({ label, value, accent }: { label: string; value: string; accent?:
 }
 
 // ─── Preview section label ────────────────────────────────────────────────────
-function PreviewSectionLabel({ label }: { label: string }) {
+function PreviewSectionLabel({ label, muted, isDark }: { label: string; muted: string; isDark: boolean }) {
   return (
     <div
       className="text-[9px] uppercase tracking-[0.22em] mb-3 pb-2 border-b"
-      style={{ fontFamily: MONO, color: MUTED, borderColor: "rgba(255,255,255,0.08)" }}
+      style={{
+        fontFamily: MONO,
+        color: muted,
+        borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
+      }}
     >
       {label}
     </div>
@@ -1252,61 +1256,68 @@ function PreviewSectionLabel({ label }: { label: string }) {
 }
 
 function PreviewPane({ bundle }: { bundle: BundleItem["bundle"] }) {
-  const [mode, setMode] = useState<"dark" | "light">("dark");
   const parsed: ParsedTokens = parseDesignMd(bundle.designMd ?? "");
 
-  // ── Derive mode-aware colors ──────────────────────────────────────────────
+  // Default to the brand's native color scheme
+  const [mode, setMode] = useState<"dark" | "light">(
+    parsed.colorScheme === "light" ? "light" : "dark"
+  );
 
-  // Surface backgrounds — only use a color if its luminance actually matches the mode
-  const darkSurface =
-    parsed.colors.find(c => isLuminanceDark(c.hex) && /^(surface|bg|background|canvas)$/.test(c.name))?.hex ??
-    parsed.colors.find(c => isLuminanceDark(c.hex) && /surface|bg|canvas/.test(c.name))?.hex ??
-    (bundle.palette[1] && isLuminanceDark(bundle.palette[1]) ? bundle.palette[1] : undefined) ??
-    "#101012";
-
+  // ── Surface backgrounds ────────────────────────────────────────────────────
   const lightSurface =
     parsed.colors.find(c => !isLuminanceDark(c.hex) && /^(canvas|background|surface)$/.test(c.name))?.hex ??
     parsed.colors.find(c => !isLuminanceDark(c.hex) && /canvas|background|surface/.test(c.name))?.hex ??
     "#FAFAFA";
 
-  // Text on dark background: need a light color
-  const darkText =
-    parsed.colors.find(c => !isLuminanceDark(c.hex) && /^(on-surface|on-canvas|on-bg)$/.test(c.name))?.hex ??
-    "#F2F1EE";
+  // For light brands: their ink/foreground token makes a great dark background
+  const darkSurface =
+    parsed.colors.find(c => isLuminanceDark(c.hex) && /^(surface|bg|background|canvas)$/.test(c.name))?.hex ??
+    parsed.colors.find(c => isLuminanceDark(c.hex) && /surface|bg|canvas/.test(c.name))?.hex ??
+    parsed.colors.find(c => isLuminanceDark(c.hex) && /^(ink|foreground|text[-_]primary|text[-_]main)$/.test(c.name))?.hex ??
+    (bundle.palette[1] && isLuminanceDark(bundle.palette[1]) ? bundle.palette[1] : undefined) ??
+    "#101012";
 
-  // Text on light background: need a dark color
-  const lightText =
-    parsed.colors.find(c => isLuminanceDark(c.hex) && /^(ink|text[-_]main|text[-_]primary|foreground)$/.test(c.name))?.hex ??
-    parsed.colors.find(c => isLuminanceDark(c.hex) && /^(text|ink)/.test(c.name))?.hex ??
-    "#0A2540";
+  const bgColor  = mode === "dark" ? darkSurface : lightSurface;
+  const bgIsDark = isLuminanceDark(bgColor);
 
-  // Muted text — prefer tokens with these names, else mode-appropriate grey
-  const mutedText =
-    parsed.colors.find(c => /^(ink-mute|ink-mute-2|text[-_]muted|text[-_]secondary|on-surface-variant|muted|sub)$/.test(c.name))?.hex ??
-    (mode === "dark" ? "#888888" : "#666666");
+  // ── Text — validated against the actual bgColor luminance ─────────────────
+  const textColor = bgIsDark
+    ? (parsed.colors.find(c => !isLuminanceDark(c.hex) && /^(on-surface|on-canvas|on-bg|on-primary-container)$/.test(c.name))?.hex
+    ?? parsed.colors.find(c => !isLuminanceDark(c.hex) && /^(foreground|on-primary|canvas)$/.test(c.name))?.hex
+    ?? "#F0EFEC")
+    : (parsed.colors.find(c => isLuminanceDark(c.hex) && /^(ink|text[-_]main|text[-_]primary|foreground)$/.test(c.name))?.hex
+    ?? parsed.colors.find(c => isLuminanceDark(c.hex) && /^(text|ink)/.test(c.name))?.hex
+    ?? "#1A1A1A");
 
-  // Card surface (slightly elevated from main bg)
+  // Muted: only use brand token if it actually contrasts with current bg
+  const mutedText = (() => {
+    const brand = parsed.colors.find(c =>
+      /^(ink-mute|ink-mute-2|text[-_]muted|text[-_]secondary|on-surface-variant|muted|sub)$/.test(c.name)
+    );
+    if (brand && bgIsDark !== isLuminanceDark(brand.hex)) return brand.hex;
+    return bgIsDark ? "#9090A0" : "#6B7280";
+  })();
+
+  // ── Card + border ──────────────────────────────────────────────────────────
   const darkCard =
     parsed.colors.find(c => isLuminanceDark(c.hex) && /^(surface-container|surface-container-low|card)$/.test(c.name))?.hex ??
+    parsed.colors.find(c => isLuminanceDark(c.hex) && /^(ink-secondary|text[-_]secondary)$/.test(c.name))?.hex ??
     darkSurface;
   const lightCard =
     parsed.colors.find(c => !isLuminanceDark(c.hex) && /^(canvas-soft|surface-container-low|surface-variant|card)$/.test(c.name))?.hex ??
     lightSurface;
 
-  // Border/hairline
   const borderCol =
     parsed.colors.find(c => /^(hairline|outline|border|divider|surface-container-high)$/.test(c.name))?.hex ??
-    (mode === "dark" ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.10)");
+    (bgIsDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.10)");
 
-  // Accent (primary button)
+  // Accent — never changes by mode
   const findColor = (test: RegExp) => parsed.colors.find(c => test.test(c.name))?.hex;
   const accent = findColor(/^(primary|accent[-_]brand|accent|brand)$/) ?? bundle.palette[0] ?? VIOLET;
   const accentText = findColor(/^(on-primary)$/) ??
     (isLuminanceDark(accent) ? "#FFFFFF" : "#000000");
 
-  const bgColor   = mode === "dark" ? darkSurface : lightSurface;
-  const textColor = mode === "dark" ? darkText    : lightText;
-  const cardBg    = mode === "dark" ? darkCard    : lightCard;
+  const cardBg = mode === "dark" ? darkCard : lightCard;
 
   // ── Typography selection (up to 5 key levels) ─────────────────────────────
   const typoLevels = (() => {
@@ -1338,14 +1349,26 @@ function PreviewPane({ bundle }: { bundle: BundleItem["bundle"] }) {
   const cardBgResolved = cardComp?.backgroundColor ?? cardBg;
   const cardBorder     = cardComp?.borderColor     ?? borderCol;
   const cardRadius     = cardComp?.rounded         ?? "8px";
+  // Card may have different luminance than canvas (e.g. white card on dark bg) — pick text that contrasts with it
+  const cardIsDark     = isLuminanceDark(cardBgResolved);
+  const cardText       = cardIsDark !== bgIsDark
+    ? (cardIsDark
+        ? (parsed.colors.find(c => !isLuminanceDark(c.hex) && /^(on-surface|canvas|foreground|on-primary)$/.test(c.name))?.hex ?? "#F0EFEC")
+        : (parsed.colors.find(c => isLuminanceDark(c.hex) && /^(ink|text[-_]main|foreground)$/.test(c.name))?.hex ?? "#1A1A1A"))
+    : textColor;
+  const cardMuted      = cardIsDark !== bgIsDark
+    ? (cardIsDark ? "#9090A0" : "#6B7280")
+    : mutedText;
 
   const inputBg       = inputComp?.backgroundColor ?? cardBg;
   const inputBorder   = inputComp?.borderColor     ?? borderCol;
   const inputRadius   = inputComp?.rounded         ?? "6px";
+  const inputIsDark   = isLuminanceDark(inputBg);
+  const inputText     = inputIsDark !== bgIsDark ? (inputIsDark ? "#9090A0" : "#6B7280") : mutedText;
 
   // ── Helpers ───────────────────────────────────────────────────────────────
   const sectionDivider: import("react").CSSProperties = {
-    borderTop: `1px solid ${mode === "dark" ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)"}`,
+    borderTop: `1px solid ${bgIsDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)"}`,
     marginTop: "20px",
     paddingTop: "20px",
   };
@@ -1392,7 +1415,7 @@ function PreviewPane({ bundle }: { bundle: BundleItem["bundle"] }) {
       >
 
         {/* ─── Section 1: Color Palette ─── */}
-        <PreviewSectionLabel label={`Color Palette · ${hasParsedColors ? parsed.colors.length : bundle.palette.length} tokens`} />
+        <PreviewSectionLabel label={`Color Palette · ${hasParsedColors ? parsed.colors.length : bundle.palette.length} tokens`} muted={mutedText} isDark={bgIsDark} />
         <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 mb-1">
           {(hasParsedColors ? parsed.colors.slice(0, 18) : bundle.palette.map((h, i) => ({ name: `color-${i}`, hex: h }))).map(c => (
             <div key={c.name} className="flex items-center gap-2 min-w-0">
@@ -1420,7 +1443,7 @@ function PreviewPane({ bundle }: { bundle: BundleItem["bundle"] }) {
         {/* ─── Section 2: Typography Scale ─── */}
         {hasTypo && (
           <div style={sectionDivider}>
-            <PreviewSectionLabel label={`Typography Scale · ${parsed.typography.length} levels`} />
+            <PreviewSectionLabel label={`Typography Scale · ${parsed.typography.length} levels`} muted={mutedText} isDark={bgIsDark} />
             <div className="space-y-2">
               {typoLevels.map(t => {
                 const rawPx = parsePx(t!.fontSize);
@@ -1461,7 +1484,7 @@ function PreviewPane({ bundle }: { bundle: BundleItem["bundle"] }) {
 
         {/* ─── Section 3: Components ─── */}
         <div style={sectionDivider}>
-          <PreviewSectionLabel label="Components" />
+          <PreviewSectionLabel label="Components" muted={mutedText} isDark={bgIsDark} />
           <div className="flex flex-wrap gap-3 mb-4">
             {/* Primary button */}
             <button
@@ -1521,10 +1544,10 @@ function PreviewPane({ bundle }: { bundle: BundleItem["bundle"] }) {
                 borderRadius: cardRadius,
               }}
             >
-              <div className="text-[13px] font-medium mb-1" style={{ color: textColor }}>
+              <div className="text-[13px] font-medium mb-1" style={{ color: cardText }}>
                 {bundle.name} card
               </div>
-              <div className="text-[11.5px]" style={{ color: mutedText }}>
+              <div className="text-[11.5px]" style={{ color: cardMuted }}>
                 {bundle.tokens > 0 ? `${bundle.tokens.toLocaleString()} tokens` : "design.md"} · {bundle.components > 0 ? `${bundle.components} components` : parsed.components.length > 0 ? `${parsed.components.length} components` : "live preview"}
               </div>
             </div>
@@ -1538,7 +1561,7 @@ function PreviewPane({ bundle }: { bundle: BundleItem["bundle"] }) {
                   height: "36px",
                   display: "flex",
                   alignItems: "center",
-                  color: mutedText,
+                  color: inputText,
                 }}
               >
                 Input field
@@ -1552,7 +1575,7 @@ function PreviewPane({ bundle }: { bundle: BundleItem["bundle"] }) {
           <div style={sectionDivider}>
             {hasSpacing && (
               <>
-                <PreviewSectionLabel label="Spacing Scale" />
+                <PreviewSectionLabel label="Spacing Scale" muted={mutedText} isDark={bgIsDark} />
                 <div className="flex flex-wrap items-end gap-2 mb-4">
                   {parsed.spacing.map(s => {
                     const px = parsePx(s.value);
@@ -1579,7 +1602,7 @@ function PreviewPane({ bundle }: { bundle: BundleItem["bundle"] }) {
             )}
             {hasRounded && (
               <>
-                <PreviewSectionLabel label="Border Radius Scale" />
+                <PreviewSectionLabel label="Border Radius Scale" muted={mutedText} isDark={bgIsDark} />
                 <div className="flex flex-wrap items-center gap-3">
                   {parsed.rounded.map(r => (
                     <div key={r.name} className="flex flex-col items-center gap-1">
