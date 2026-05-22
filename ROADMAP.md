@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-05-22** (Phase 1 closed: P1-5 claim flow + P1-7 Orama search + P1-8 TODOs shipped)
+> Last updated: **2026-05-22** (Phase 1 fully closed: P1-4 voting UI shipped on top of P1-5 / P1-7 / P1-8 — Phase 2 now unblocked)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -107,13 +107,14 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 - **Priority:** MEDIUM (gates Phase 2)
 - **Effort:** ~2 hr
-- **Status:** `[ ]`
-- **Why:** DB columns (`bundles.vote_count`, `bundles.positive_vote_rate`) already exist but no UI. Voting signal is needed to drive Phase 2 Discovery ranking.
-- **Acceptance criteria:**
-  - Thumbs up/down on bundle detail page
-  - Rate-limited (1 vote per user per bundle, can toggle)
-  - Anonymous users see the count but can't vote (auth modal upsell on click)
-  - `positive_vote_rate` recomputed via SQL trigger or app code
+- **Status:** `[x]` — shipped 2026-05-22
+- **Delivered:**
+  - `GET/POST/DELETE /api/bundles/[slug]/vote` — auth-gated, Drizzle upsert via `onConflictDoUpdate` on `uq_votes_bundle_user`. DB trigger `trg_vote_stats` handles `vote_count` / `positive_vote_count` / `positive_vote_rate` aggregation automatically.
+  - `VoteWidget` client component on the bundle detail hero (alongside the favorite button). Thumbs-up posts immediately; thumbs-down expands an inline tag picker (5 valid reasons from `is_valid_vote_reason()`) — required by the `chk_reason_requires_failure` DB constraint.
+  - Optimistic updates with rollback on error (same pattern as the favorite button).
+  - Anonymous users see the count + percentage but clicking either thumb opens the auth modal with the current path as the post-login destination.
+  - Toggle behavior: clicking the active vote again deletes the row; switching from up → down (or vice versa) updates the existing row via upsert.
+  - Auto-flag side effect kept implicit — the existing `trg_auto_flag` trigger flips published bundles to `flagged` after ≥5 votes below 60%. No UI change required.
 
 ### P1-5 · Anonymous bundle claim flow
 
@@ -172,7 +173,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 ## Phase 2 — Discovery pipeline
 
-**Gate:** Do not start until Phase 1 voting (P1-4) is live + library has >25 published bundles.
+**Gate:** ✅ Phase 1 closed (P1-4 voting live as of 2026-05-22). Remaining gate: library has >25 published bundles.
 
 ### P2-1 · Discovery candidate fetchers
 
@@ -273,7 +274,8 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
-- [x] **2026-05-22** · **Phase 1 closed.** P1-5 anonymous bundle claim flow shipped: `__anon_id` httpOnly cookie + `generation_jobs.anon_token` + `/api/me/claim-bundles` + post-login `ClaimBundlesBanner`. (`7b13e1e`)
+- [x] **2026-05-22** · **Phase 1 fully closed.** P1-4 voting UI shipped: thumbs up/down on every bundle detail page via `/api/bundles/[slug]/vote` (GET/POST/DELETE, upsert on `uq_votes_bundle_user`). `VoteWidget` handles optimistic updates, inline tag picker for downvotes (required by DB constraint), and auth-modal upsell for anonymous users. DB trigger `trg_vote_stats` auto-recomputes `positive_vote_rate` — no app-level aggregation needed. Phase 2 now unblocked. (`314c8cf`)
+- [x] **2026-05-22** · P1-5 anonymous bundle claim flow shipped: `__anon_id` httpOnly cookie + `generation_jobs.anon_token` + `/api/me/claim-bundles` + post-login `ClaimBundlesBanner`. (`7b13e1e`)
 - [x] **2026-05-22** · P1-7 Orama full-text search shipped: in-memory index over title/description/designMd with 5-min TTL, `/api/search` endpoint with DB fallback, invalidation hooks on all admin actions, debounced library search, Cmd+K navigation. (`5da099b`)
 - [x] **2026-05-22** · P1-8 source TODOs closed: `PATCH /api/me` implemented (Zod + 409 on duplicate handle); `updateProfile()` async with optimistic + rollback; CLI snippet comment re-worded. Zero TODOs remain. (`3c35ee0`)
 - [x] **2026-05-22** · UI polish pass: brand logos now fall through to Google Favicons in `/account/bundles` + `/account/favorites` (no more blank glyphs); empty 4th-column slot in the home bundle grid no longer shows as a grey box; top "operational / build / clock" status bar removed; `UIUXskills` wordmark bumped 14px → 17px; hero top padding reduced 80px → 64px. (`5918df8`, `606824b`, `72e84a6`, `f4c03d4`)
