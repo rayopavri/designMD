@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-05-21 (eve)** (brand-logo extraction + bulk re-run + admin monitor)
+> Last updated: **2026-05-22** (housekeeping reconciliation + Vercel preview restriction + direct-to-main workflow)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -38,12 +38,17 @@
 
 ## 🔁 Remaining housekeeping
 
-- [ ] **Reconnect Vercel ↔ GitHub webhook.** Auto-deploy from `main` is broken since ~2026-05-21. Workaround in use: `pnpm dlx vercel --prod` from local checkout. Fix: https://github.com/settings/installations → Vercel → Configure → grant access to `rayopavri/designMD`.
-- [ ] **Rotate QStash credentials** — original token + signing keys pasted in chat 2026-05-20. Upstash QStash → Reset Token + Roll Signing Key → update Vercel env vars → redeploy.
 - [ ] **Remove unused `BLOB_READ_WRITE_TOKEN` env var** in Vercel + delete the `design-md-blob` store on the Storage tab (we ripped out the screenshot path).
 - [ ] **Set `CRON_SECRET` env var in Vercel** (optional). Locks `/api/cron/warm-db` to authenticated callers. Generate a random 32-char string, add to both Vercel env and `.github/workflows/warm-db.yml` as `secrets.CRON_SECRET`.
 - [ ] **Vercel project rename** (optional cosmetic): `design-md` → `uiuxskills` in Project Settings → General.
-- [ ] **Delete duplicate test bundles** (linear-2..linear-7, stripe-2..stripe-5, vercel-2, vercel-3) via the admin Delete button. They survived the test runs and clutter the gallery.
+
+## ✅ Done 2026-05-22 — housekeeping reconciliation + workflow
+
+- [x] **Switched Claude sessions to direct-to-main workflow.** Solo project + broken preview deploys made the claude/* branch + PR + merge cycle pure friction. AGENTS.md now instructs Claude to commit and push directly to `main`. Production deploys auto-trigger from every push.
+- [x] **Restrict Vercel deployments to main branch only.** Preview builds on claude/* and other feature branches were consistently erroring (~30s in) because production env vars (Supabase, QStash, etc.) aren't scoped to preview environments. Added `git.deploymentEnabled = { main: true }` to `vercel.json` so Vercel skips non-main builds entirely. (PR #7, `0649718`)
+- [x] **Reconnect Vercel ↔ GitHub webhook** — auto-deploy from `main` working again as of GitHub App reinstall. (`10dd346`)
+- [x] **Rotate QStash credentials** — token + signing keys reset, Vercel env vars updated, redeploy verified. (`adb40eb`)
+- [x] **Delete duplicate test bundles** (linear-2..linear-7, stripe-2..stripe-5, vercel-2, vercel-3) — 12 rows removed via admin Delete. (`c88e351`)
 
 ## ✅ Done 2026-05-20 — rebrand + QStash recovery
 
@@ -152,7 +157,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 - **Status:** `[ ]`
 - **Open TODOs in source:**
   - `src/lib/ui-data/mockAuth.ts:298` — Phase 1B: PATCH `/api/me` to persist profile patches
-  - `src/app/(public)/library/[slug]/page.tsx:479` — wire CLI snippet to real CLI (depends on the CLI actually existing — see Beyond-4)
+  - `src/app/(public)/library/[slug]/page.tsx:499` — wire CLI snippet to real CLI (depends on the CLI actually existing — see Beyond-4)
 
 ---
 
