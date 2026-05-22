@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Check, ChevronRight, ExternalLink, Loader2, RefreshCw, ShieldCheck, X } from "lucide-react";
 import { SectionLabel } from "@/components/ui/Shell";
+import { SectionCoverage } from "@/components/ui/SectionCoverage";
+import { CodePanel } from "@/components/ui/CodePanel";
 import {
   BG,
   BORDER,
@@ -16,6 +18,7 @@ import {
   SUB,
   SURFACE,
   SURFACE_2,
+  VIOLET,
 } from "@/lib/ui-data/tokens";
 
 interface PendingRow {
@@ -391,33 +394,54 @@ function DetailView({
   onApprove,
   onReject,
 }: DetailViewProps) {
-  const sectionScores = useMemo(
-    () => [
-      { label: "Colors", score: detail.coverageColors },
-      { label: "Typography", score: detail.coverageTypography },
-      { label: "Layout", score: detail.coverageLayout },
-      { label: "Elevation", score: detail.coverageElevation },
-      { label: "Shapes", score: detail.coverageShapes },
-      { label: "Components", score: detail.coverageComponents },
-      { label: "Do's / Don'ts", score: detail.coverageDosDonts },
-    ],
-    [detail],
-  );
+  const [tab, setTab] = useState<"design.md" | "companion">("design.md");
 
   const overall = detail.coverageScore;
   const overallColor = overall === null ? MUTED : overall >= 70 ? LIME : overall >= 40 ? PEACH : MUTED;
 
+  const sectionCoverage = useMemo(() => {
+    if (
+      detail.coverageColors === null &&
+      detail.coverageTypography === null &&
+      detail.coverageLayout === null
+    ) return null;
+    return {
+      colors: detail.coverageColors ?? 0,
+      typography: detail.coverageTypography ?? 0,
+      spacing: detail.coverageLayout ?? 0,
+      elevation: detail.coverageElevation ?? 0,
+      shapes: detail.coverageShapes ?? 0,
+      components: detail.coverageComponents ?? 0,
+      dosDonts: detail.coverageDosDonts ?? 0,
+    };
+  }, [detail]);
+
+  const designLines = detail.designMd ? detail.designMd.split("\n").length : 0;
+  const promptLines = detail.companionPrompt ? detail.companionPrompt.split("\n").length : 0;
+  const promptTokensApprox = Math.max(1, Math.round((detail.companionPrompt?.length ?? 0) / 4));
+
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div className="min-w-0">
-          <div className="text-[11px] uppercase tracking-[0.22em]" style={{ color: MUTED, fontFamily: MONO }}>
+    <div className="flex flex-col gap-8">
+
+      {/* ── Hero: same 12-col grid as library detail page ─────── */}
+      <div className="grid grid-cols-12 gap-8">
+
+        {/* Left 7 cols */}
+        <div className="col-span-12 lg:col-span-7">
+          <div
+            className="text-[10.5px] uppercase tracking-[0.22em]"
+            style={{ color: MUTED, fontFamily: MONO }}
+          >
             {detail.sourceDomain ?? "—"}
           </div>
-          <h2 className="mt-1 text-[26px] font-medium tracking-[-0.014em]" style={{ color: INK }}>
+          <h2
+            className="mt-1 text-[42px] leading-[0.98] font-medium tracking-[-0.02em]"
+            style={{ color: INK }}
+          >
             {detail.title}
+            <span style={{ color: SUB }}>.</span>
           </h2>
-          <p className="mt-2 text-[13px] leading-[1.6] max-w-2xl" style={{ color: SUB }}>
+          <p className="mt-4 text-[14px] leading-[1.65] max-w-lg" style={{ color: SUB }}>
             {detail.description}
           </p>
           {detail.sourceUrl ? (
@@ -432,91 +456,139 @@ function DetailView({
               <ExternalLink className="h-3 w-3" />
             </a>
           ) : null}
-        </div>
-        <div className="flex items-center gap-3">
-          {overall !== null ? (
-            <div
-              className="rounded-lg border px-3 py-2 text-center"
-              style={{ borderColor: BORDER, background: SURFACE_2 }}
-            >
-              <div className="text-[10px] uppercase tracking-[0.22em]" style={{ color: MUTED, fontFamily: MONO }}>
-                coverage
-              </div>
-              <div className="mt-1 text-[20px] font-medium" style={{ color: overallColor, fontFamily: MONO }}>
-                {overall}
-                <span className="text-[12px]" style={{ color: MUTED }}>
-                  {" "}
-                  / 100
+          {detail.designStyle?.length ? (
+            <div className="mt-5 flex flex-wrap gap-2">
+              {detail.designStyle.map((t) => (
+                <span
+                  key={t}
+                  className="text-[11px] px-2.5 py-1 rounded-full"
+                  style={{
+                    background: SURFACE_2,
+                    border: `1px solid ${BORDER}`,
+                    color: SUB,
+                    fontFamily: MONO,
+                  }}
+                >
+                  {t}
                 </span>
-              </div>
+              ))}
             </div>
           ) : null}
-        </div>
-      </div>
-
-      {/* Palette + meta */}
-      <div className="grid grid-cols-1 md:grid-cols-[1fr_240px] gap-4">
-        <div className="rounded-lg border p-4" style={{ borderColor: BORDER, background: SURFACE }}>
-          <div className="text-[10.5px] uppercase tracking-[0.22em] mb-3" style={{ color: MUTED, fontFamily: MONO }}>
-            palette
+          <div
+            className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11.5px]"
+            style={{ fontFamily: MONO, color: MUTED }}
+          >
+            <span>
+              type{" "}
+              <span style={{ color: INK }}>{detail.type}</span>
+            </span>
+            <span style={{ color: BORDER }}>·</span>
+            <span>
+              status{" "}
+              <span style={{ color: PEACH }}>{detail.status}</span>
+            </span>
+            {detail.license ? (
+              <>
+                <span style={{ color: BORDER }}>·</span>
+                <span>
+                  license <span style={{ color: INK }}>{detail.license}</span>
+                </span>
+              </>
+            ) : null}
+            {detail.authorName ? (
+              <>
+                <span style={{ color: BORDER }}>·</span>
+                <span>
+                  by <span style={{ color: INK }}>{detail.authorName}</span>
+                </span>
+              </>
+            ) : null}
           </div>
-          {detail.paletteColors?.length ? (
-            <>
-              <div className="flex h-8 rounded overflow-hidden">
-                {detail.paletteColors.map((c, i) => (
-                  <span key={`${c}-${i}`} className="flex-1" style={{ background: c }} />
-                ))}
+        </div>
+
+        {/* Right aside: 5 cols — coverage card + artifact chips */}
+        <aside className="col-span-12 lg:col-span-5">
+          <div
+            className="rounded-xl border p-6"
+            style={{ borderColor: BORDER, background: SURFACE }}
+          >
+            <div className="flex items-baseline justify-between mb-5">
+              <div>
+                <div
+                  className="text-[10.5px] uppercase tracking-[0.22em] mb-1.5"
+                  style={{ fontFamily: MONO, color: MUTED }}
+                >
+                  overall coverage
+                </div>
+                <div className="text-[32px] leading-none font-medium" style={{ color: INK }}>
+                  {overall ?? "—"}
+                  {overall !== null && (
+                    <span className="text-[18px]" style={{ color: SUB }}>
+                      / 100
+                    </span>
+                  )}
+                </div>
               </div>
-              <div
-                className="mt-2 grid grid-cols-3 sm:grid-cols-6 gap-1 text-[10.5px]"
-                style={{ fontFamily: MONO, color: SUB }}
+              <span
+                className="text-[11px] inline-flex items-center gap-1.5"
+                style={{ fontFamily: MONO, color: MUTED }}
               >
+                <span className="h-1.5 w-1.5 rounded-full" style={{ background: PEACH }} />
+                pending review
+              </span>
+            </div>
+            {sectionCoverage ? <SectionCoverage coverage={sectionCoverage} /> : null}
+            {detail.paletteColors?.length ? (
+              <div className="h-1.5 my-5 flex">
                 {detail.paletteColors.map((c, i) => (
-                  <span key={`hex-${c}-${i}`}>{c.toUpperCase()}</span>
+                  <span
+                    key={`${c}-${i}`}
+                    className="flex-1 first:rounded-l-sm last:rounded-r-sm"
+                    style={{ background: c }}
+                  />
                 ))}
               </div>
-            </>
-          ) : (
-            <div className="text-[11px]" style={{ color: MUTED, fontFamily: MONO }}>
-              no palette extracted
+            ) : null}
+            <div
+              className="flex items-center justify-between pt-4 border-t text-[11.5px]"
+              style={{ borderColor: BORDER, fontFamily: MONO, color: MUTED }}
+            >
+              <span>{detail.paletteColors?.length ?? 0} palette colors</span>
+              <span style={{ color: overallColor }}>
+                {overall !== null ? `${overall} / 100` : "unscored"}
+              </span>
             </div>
-          )}
-        </div>
-
-        <div className="rounded-lg border p-4 flex flex-col gap-2" style={{ borderColor: BORDER, background: SURFACE }}>
-          <div className="text-[10.5px] uppercase tracking-[0.22em]" style={{ color: MUTED, fontFamily: MONO }}>
-            meta
           </div>
-          <MetaRow k="status" v={detail.status} />
-          <MetaRow k="type" v={detail.type} />
-          <MetaRow k="license" v={detail.license ?? "—"} />
-          <MetaRow k="author" v={detail.authorName ?? "—"} />
-        </div>
+
+          <div
+            className="mt-4 rounded-xl border p-5"
+            style={{ borderColor: BORDER, background: SURFACE }}
+          >
+            <div
+              className="text-[10.5px] uppercase tracking-[0.22em] mb-3"
+              style={{ fontFamily: MONO, color: MUTED }}
+            >
+              What you&apos;ll review
+            </div>
+            <div className="grid grid-cols-1 gap-3">
+              <ArtifactChip
+                filename="design.md"
+                hint="brand spec — tokens, component anatomy, forbidden rules"
+                meta={`${designLines} lines`}
+                accent={LIME}
+              />
+              <ArtifactChip
+                filename="companion.md"
+                hint="system instructions that teach your AI how to use the spec"
+                meta={`~${promptTokensApprox.toLocaleString()} tokens · ${promptLines} lines`}
+                accent={VIOLET}
+              />
+            </div>
+          </div>
+        </aside>
       </div>
 
-      {/* Per-section scores */}
-      <div className="rounded-lg border p-4" style={{ borderColor: BORDER, background: SURFACE }}>
-        <div className="text-[10.5px] uppercase tracking-[0.22em] mb-3" style={{ color: MUTED, fontFamily: MONO }}>
-          section scores
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
-          {sectionScores.map((s) => {
-            const c = s.score === null ? MUTED : s.score >= 70 ? LIME : s.score >= 40 ? PEACH : MUTED;
-            return (
-              <div key={s.label}>
-                <div className="text-[10px]" style={{ color: MUTED, fontFamily: MONO }}>
-                  {s.label}
-                </div>
-                <div className="mt-0.5 text-[14px]" style={{ color: c, fontFamily: MONO }}>
-                  {s.score ?? "—"}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Review notes (lint summary from pipeline) */}
+      {/* ── Linter / WCAG notes ───────────────────────────────── */}
       {detail.reviewNotes ? (
         <details
           className="rounded-lg border p-4"
@@ -526,7 +598,7 @@ function DetailView({
             className="cursor-pointer text-[11.5px] uppercase tracking-[0.22em]"
             style={{ color: SUB, fontFamily: MONO }}
           >
-            linter / wcag notes
+            ▸ linter / wcag notes
           </summary>
           <pre
             className="mt-3 text-[11px] whitespace-pre-wrap leading-[1.55]"
@@ -537,28 +609,96 @@ function DetailView({
         </details>
       ) : null}
 
-      {/* design.md */}
-      <CodeBlock title={`design.md — ${detail.slug}`} body={detail.designMd ?? "(empty)"} />
+      {/* ── Code viewer with tabs ─────────────────────────────── */}
+      <div>
+        <div
+          className="flex items-center gap-1 border-b"
+          style={{ borderColor: BORDER }}
+        >
+          {(["design.md", "companion"] as const).map((t) => {
+            const isActive = tab === t;
+            return (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setTab(t)}
+                className="relative px-4 py-3 text-[12.5px]"
+                style={{
+                  color: isActive ? INK : SUB,
+                  fontFamily: t === "design.md" ? MONO : undefined,
+                }}
+              >
+                {t === "design.md" ? "design.md" : "companion prompt"}
+                {isActive ? (
+                  <span
+                    className="absolute left-0 right-0 -bottom-px h-px"
+                    style={{ background: LIME }}
+                  />
+                ) : null}
+              </button>
+            );
+          })}
+        </div>
+        {tab === "design.md" ? (
+          <CodePanel
+            title={`${detail.slug} / design.md`}
+            language="yaml"
+            source={detail.designMd ?? ""}
+            rightMeta={
+              overall !== null ? (
+                <span className="inline-flex items-center gap-1.5" style={{ color: INK }}>
+                  <span
+                    className="h-1.5 w-1.5 rounded-full"
+                    style={{ background: overallColor }}
+                  />
+                  {overall} coverage
+                </span>
+              ) : undefined
+            }
+          />
+        ) : (
+          <CodePanel
+            title={`${detail.slug} / companion.md`}
+            language="md"
+            source={detail.companionPrompt ?? ""}
+            rightMeta={
+              <span className="inline-flex items-center gap-1.5" style={{ color: INK }}>
+                <span className="h-1.5 w-1.5 rounded-full" style={{ background: VIOLET }} />
+                calibrated for Claude / GPT
+              </span>
+            }
+          />
+        )}
+      </div>
 
-      {/* companion prompt */}
-      <CodeBlock title="companion prompt" body={detail.companionPrompt || "(empty)"} />
-
-      {/* Action bar */}
+      {/* ── Action bar ───────────────────────────────────────── */}
       <div
         className="sticky bottom-4 rounded-xl border p-4 flex flex-col gap-3"
-        style={{ borderColor: BORDER, background: SURFACE, boxShadow: "0 12px 36px -12px rgba(0,0,0,0.6)" }}
+        style={{
+          borderColor: BORDER,
+          background: SURFACE,
+          boxShadow: "0 12px 36px -12px rgba(0,0,0,0.6)",
+        }}
       >
         {actionError ? (
           <div
             className="rounded-md border px-3 py-2 text-[11.5px]"
-            style={{ borderColor: PEACH, background: `${PEACH}10`, color: INK, fontFamily: MONO }}
+            style={{
+              borderColor: PEACH,
+              background: `${PEACH}10`,
+              color: INK,
+              fontFamily: MONO,
+            }}
           >
             {actionError}
           </div>
         ) : null}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div className="flex flex-col gap-2">
-            <label className="text-[10.5px] uppercase tracking-[0.22em]" style={{ color: MUTED, fontFamily: MONO }}>
+            <label
+              className="text-[10.5px] uppercase tracking-[0.22em]"
+              style={{ color: MUTED, fontFamily: MONO }}
+            >
               approve note (optional)
             </label>
             <input
@@ -595,7 +735,10 @@ function DetailView({
             </button>
           </div>
           <div className="flex flex-col gap-2">
-            <label className="text-[10.5px] uppercase tracking-[0.22em]" style={{ color: MUTED, fontFamily: MONO }}>
+            <label
+              className="text-[10.5px] uppercase tracking-[0.22em]"
+              style={{ color: MUTED, fontFamily: MONO }}
+            >
               reject reason (required)
             </label>
             <input
@@ -637,32 +780,34 @@ function DetailView({
   );
 }
 
-function MetaRow({ k, v }: { k: string; v: string }) {
+function ArtifactChip({
+  filename,
+  hint,
+  meta,
+  accent,
+}: {
+  filename: string;
+  hint: string;
+  meta: string;
+  accent: string;
+}) {
   return (
-    <div className="flex items-baseline justify-between gap-3 text-[12px]" style={{ fontFamily: MONO }}>
-      <span style={{ color: MUTED }}>{k}</span>
-      <span className="truncate" style={{ color: INK }}>
-        {v}
-      </span>
-    </div>
-  );
-}
-
-function CodeBlock({ title, body }: { title: string; body: string }) {
-  return (
-    <div className="rounded-lg border overflow-hidden" style={{ borderColor: BORDER, background: SURFACE }}>
-      <div
-        className="px-4 py-2 border-b text-[11px] uppercase tracking-[0.22em]"
-        style={{ borderColor: BORDER_SOFT, color: SUB, fontFamily: MONO, background: SURFACE_2 }}
-      >
-        {title}
+    <div
+      className="rounded-lg border p-3.5"
+      style={{ borderColor: BORDER, background: SURFACE_2 }}
+    >
+      <div className="flex items-center gap-2 mb-1.5">
+        <span className="h-1.5 w-1.5 rounded-full" style={{ background: accent }} />
+        <span className="text-[12.5px] font-medium" style={{ color: INK, fontFamily: MONO }}>
+          {filename}
+        </span>
       </div>
-      <pre
-        className="px-4 py-3 text-[11.5px] leading-[1.55] overflow-x-auto whitespace-pre-wrap max-h-[420px]"
-        style={{ color: INK, fontFamily: MONO }}
-      >
-        {body}
-      </pre>
+      <div className="text-[11.5px] leading-[1.5]" style={{ color: SUB }}>
+        {hint}
+      </div>
+      <div className="text-[10.5px] mt-2" style={{ fontFamily: MONO, color: MUTED }}>
+        {meta}
+      </div>
     </div>
   );
 }
