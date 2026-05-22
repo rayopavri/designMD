@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { ArrowUpRight } from "lucide-react";
 import { SectionLabel } from "@/components/ui/Shell";
+import { BrandLogo } from "@/components/ui/BrandLogo";
 import {
   BG,
   BORDER,
@@ -26,6 +27,7 @@ interface FavoriteBundle {
   brandLogoUrl: string | null;
   brandInitial: string | null;
   brandColor: string | null;
+  sourceDomain: string | null;
   primaryCategoryName: string | null;
   updatedAt: string; // = saved_at (user_favorites.created_at mapped to updatedAt)
 }
@@ -57,22 +59,22 @@ function BundleRow({ b }: { b: FavoriteBundle }) {
       <div className="flex items-start gap-4">
         {/* Brand glyph */}
         <div
-          className="shrink-0 h-10 w-10 rounded-md border inline-flex items-center justify-center overflow-hidden"
+          className="shrink-0 h-10 w-10 rounded-md border inline-flex items-center justify-center overflow-hidden relative"
           style={{ borderColor: BORDER, background: b.brandColor || SURFACE, color: INK }}
         >
-          {b.brandLogoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+          <span
+            className="absolute inset-0 inline-flex items-center justify-center text-[13px] font-medium"
+            style={{ fontFamily: MONO }}
+          >
+            {(b.brandInitial || b.title.charAt(0) || "?").toUpperCase()}
+          </span>
+          <div className="relative z-10">
+            <BrandLogo
               src={b.brandLogoUrl}
-              alt=""
-              className="h-full w-full object-cover"
-              onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+              fallbackDomain={b.sourceDomain}
+              size={40}
             />
-          ) : (
-            <span className="text-[13px] font-medium" style={{ fontFamily: MONO }}>
-              {(b.brandInitial || b.title.charAt(0) || "?").toUpperCase()}
-            </span>
-          )}
+          </div>
         </div>
 
         {/* Main */}
