@@ -1,0 +1,8 @@
+<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <rect width="32" height="32" rx="7" fill="#101012"/>
+  <!-- Lightning bolt: top-right-leaning, hollow outline -->
+  <!-- Outer bolt shape -->
+  <path d="M20 3L9 18.5H16.5L12 29L23 13.5H15.5Z" fill="#F2F1EE"/>
+  <!-- Inner cutout for hollow effect -->
+  <path d="M19 6.5L11 18.5H17.5L13.5 25.5L21 13.5H14.5Z" fill="#101012"/>
+</svg>

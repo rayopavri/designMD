@@ -1,0 +1,21 @@
+<svg viewBox="0 0 320 110" xmlns="http://www.w3.org/2000/svg">
+  <rect width="320" height="110" fill="white"/>
+  <!-- Drop shadow layer -->
+  <text x="12" y="85"
+    font-family="'Arial Black', Impact, sans-serif"
+    font-size="82"
+    font-weight="900"
+    letter-spacing="-3"
+    fill="#2a2a2a"
+    transform="translate(5,5)">U&#x26A1;X</text>
+  <!-- White fill layer (covers inner faces of depth) -->
+  <text x="12" y="85"
+    font-family="'Arial Black', Impact, sans-serif"
+    font-size="82"
+    font-weight="900"
+    letter-spacing="-3"
+    fill="white"
+    stroke="#111"
+    stroke-width="16"
+    paint-order="stroke fill">U&#x26A1;X</text>
+</svg>
