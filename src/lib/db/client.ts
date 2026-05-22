@@ -12,7 +12,7 @@ const client = postgres(env.DATABASE_URL, {
   // PgBouncer transaction-pool mode (Supabase pooler on port 6543) does not
   // support prepared statements — disable them to avoid runtime errors.
   prepare: !env.DATABASE_URL.includes(':6543'),
-  // Cloud Postgres (Neon, Supabase, etc.) requires TLS. Local DBs don't.
+  // Supabase requires TLS; skip for local.
   ssl: isLocalDb ? undefined : 'require',
 });
 
