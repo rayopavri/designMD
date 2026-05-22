@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-05-22** (P1-1 legal pages + P1-2 history page shipped)
+> Last updated: **2026-05-22** (P1-3 favorites shipped + UI polish pass)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -94,13 +94,14 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 - **Priority:** MEDIUM (second half of the auth modal promise)
 - **Effort:** ~3 hr
-- **Status:** `[ ]`
-- **Why:** Auth modal also promises "save favorites".
-- **Acceptance criteria:**
-  - New table `user_favorites (user_id, bundle_id, created_at)` + migration
-  - Heart button on bundle detail page (signed-in only; signed-out shows tooltip "Sign in to save")
-  - `/account/favorites` page listing saved bundles
-  - Optimistic toggle with rollback on error
+- **Status:** `[x]` — shipped 2026-05-22
+- **Delivered:**
+  - New `user_favorites (id, user_id, bundle_id, created_at)` table with unique index on `(bundle_id, user_id)`, cascade-delete FKs to bundles + users. Schema added to `src/lib/db/schema.ts`; raw CREATE TABLE SQL applied via Supabase SQL editor.
+  - DB queries: `listUserFavorites`, `addFavorite`, `removeFavorite`, `isBundleFavorited`, `getFavoriteBundleIds` in `src/lib/db/queries/favorites.ts`
+  - API routes: `GET /api/me/favorites`, `POST|DELETE /api/bundles/[slug]/favorite`, `GET /api/bundles/[slug]/favorite/check`
+  - Heart button on bundle detail page with optimistic toggle + rollback on error. Signed-out → opens auth modal with "Sign in to save" tooltip.
+  - `/account/favorites` page listing saved bundles, ordered by saved-at desc, with empty-state CTA to `/library`
+  - "Your favorites" link added to UserMenu dropdown
 
 ### P1-4 · Voting UI on bundle pages
 
@@ -265,6 +266,10 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-05-22** · UI polish pass: brand logos now fall through to Google Favicons in `/account/bundles` + `/account/favorites` (no more blank glyphs); empty 4th-column slot in the home bundle grid no longer shows as a grey box; top "operational / build / clock" status bar removed; `UIUXskills` wordmark bumped 14px → 17px; hero top padding reduced 80px → 64px. (`5918df8`, `606824b`, `72e84a6`, `f4c03d4`)
+- [x] **2026-05-22** · P1-3 Favorites UI shipped — heart button on bundle detail, `/account/favorites` page, `user_favorites` table.
+- [x] **2026-05-22** · P1-2 History page (`/account/bundles`) shipped — lists user's bundles across all statuses, count chip inline with title.
+- [x] **2026-05-22** · P1-1 Legal pages shipped — `/legal/terms`, `/legal/privacy`, `/legal/attribution` linked from footer + auth modal.
 - [x] **2026-05-21** · Auto-categorize bundles into 9 domain categories. Gemini schema enum-constrained, taxonomy migration, backfill of 25 existing bundles. (`2c15be4`)
 - [x] **2026-05-21** · Home page swapped to library-style ItemCard in 4-col grid. Screenshot infra (Vercel Blob, `@vercel/blob`, HomeBundleCard, screenshot_url column) removed. (`7b9f3a8`)
 - [x] **2026-05-21** · Pipeline split into 3 QStash workers to fit 60s Hobby cap. (`37f4eb6`)
