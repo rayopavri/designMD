@@ -1256,48 +1256,51 @@ function PreviewPane({ bundle }: { bundle: BundleItem["bundle"] }) {
   const parsed: ParsedTokens = parseDesignMd(bundle.designMd ?? "");
 
   // ── Derive mode-aware colors ──────────────────────────────────────────────
-  const findColor = (test: RegExp) => parsed.colors.find(c => test.test(c.name))?.hex;
 
-  // Surface backgrounds
+  // Surface backgrounds — only use a color if its luminance actually matches the mode
   const darkSurface =
-    findColor(/^(surface|canvas-dark|bg)$/) ??
+    parsed.colors.find(c => isLuminanceDark(c.hex) && /^(surface|bg|background|canvas)$/.test(c.name))?.hex ??
     parsed.colors.find(c => isLuminanceDark(c.hex) && /surface|bg|canvas/.test(c.name))?.hex ??
-    bundle.palette[1] ?? "#101012";
+    (bundle.palette[1] && isLuminanceDark(bundle.palette[1]) ? bundle.palette[1] : undefined) ??
+    "#101012";
+
   const lightSurface =
-    findColor(/^(canvas|background|canvas-soft|surface-light)$/) ??
+    parsed.colors.find(c => !isLuminanceDark(c.hex) && /^(canvas|background|surface)$/.test(c.name))?.hex ??
     parsed.colors.find(c => !isLuminanceDark(c.hex) && /canvas|background|surface/.test(c.name))?.hex ??
     "#FAFAFA";
 
-  // Text colors
+  // Text on dark background: need a light color
   const darkText =
-    findColor(/^(on-surface|on-canvas|on-primary-container)$/) ??
-    parsed.colors.find(c => !isLuminanceDark(c.hex) && /^(ink|on-surface|text.?main|foreground)/.test(c.name))?.hex ??
-    bundle.palette[3] ?? "#F2F1EE";
+    parsed.colors.find(c => !isLuminanceDark(c.hex) && /^(on-surface|on-canvas|on-bg)$/.test(c.name))?.hex ??
+    "#F2F1EE";
+
+  // Text on light background: need a dark color
   const lightText =
-    findColor(/^(ink|text-main|text_main|on-light|foreground)$/) ??
-    parsed.colors.find(c => isLuminanceDark(c.hex) && /ink|text|on-surface/.test(c.name))?.hex ??
+    parsed.colors.find(c => isLuminanceDark(c.hex) && /^(ink|text[-_]main|text[-_]primary|foreground)$/.test(c.name))?.hex ??
+    parsed.colors.find(c => isLuminanceDark(c.hex) && /^(text|ink)/.test(c.name))?.hex ??
     "#0A2540";
 
-  // Muted text (same in both modes — it's a relative shade)
+  // Muted text — prefer tokens with these names, else mode-appropriate grey
   const mutedText =
-    findColor(/^(ink-mute|ink-mute-2|text-muted|text_muted|on-surface-variant|muted)$/) ??
-    bundle.palette[2] ?? "#888";
+    parsed.colors.find(c => /^(ink-mute|ink-mute-2|text[-_]muted|text[-_]secondary|on-surface-variant|muted|sub)$/.test(c.name))?.hex ??
+    (mode === "dark" ? "#888888" : "#666666");
 
-  // Card background (slightly different from main surface)
+  // Card surface (slightly elevated from main bg)
   const darkCard =
-    findColor(/^(surface-container|surface-container-low|canvas-dark-2)$/) ??
+    parsed.colors.find(c => isLuminanceDark(c.hex) && /^(surface-container|surface-container-low|card)$/.test(c.name))?.hex ??
     darkSurface;
   const lightCard =
-    findColor(/^(canvas-soft|surface-container-low|surface-variant)$/) ??
+    parsed.colors.find(c => !isLuminanceDark(c.hex) && /^(canvas-soft|surface-container-low|surface-variant|card)$/.test(c.name))?.hex ??
     lightSurface;
 
   // Border/hairline
   const borderCol =
-    findColor(/^(hairline|outline|border|divider|surface-container-high)$/) ??
+    parsed.colors.find(c => /^(hairline|outline|border|divider|surface-container-high)$/.test(c.name))?.hex ??
     (mode === "dark" ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.10)");
 
   // Accent (primary button)
-  const accent = findColor(/^(primary|accent|accent-brand|brand)$/) ?? bundle.palette[0] ?? VIOLET;
+  const findColor = (test: RegExp) => parsed.colors.find(c => test.test(c.name))?.hex;
+  const accent = findColor(/^(primary|accent[-_]brand|accent|brand)$/) ?? bundle.palette[0] ?? VIOLET;
   const accentText = findColor(/^(on-primary)$/) ??
     (isLuminanceDark(accent) ? "#FFFFFF" : "#000000");
 
