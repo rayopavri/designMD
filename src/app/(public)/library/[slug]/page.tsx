@@ -47,6 +47,7 @@ import {
   type SkillItem,
 } from "@/lib/ui-data/items";
 import { TOOLS, toolLabel, type ToolId } from "@/lib/ui-data/toolPref";
+import { parseDesignMd, isLuminanceDark, parsePx, type ParsedTokens } from "@/lib/ui-data/parse-design-md";
 import { useToolPref } from "@/lib/ui-data/useToolPref";
 import { INSTALL_STEPS } from "@/lib/ui-data/installSteps";
 import { downloadBundleZip } from "@/lib/ui-data/bundleZip";
@@ -1238,16 +1239,126 @@ function Stat({ label, value, accent }: { label: string; value: string; accent?:
   );
 }
 
+// ─── Preview section label ────────────────────────────────────────────────────
+function PreviewSectionLabel({ label }: { label: string }) {
+  return (
+    <div
+      className="text-[9px] uppercase tracking-[0.22em] mb-3 pb-2 border-b"
+      style={{ fontFamily: MONO, color: MUTED, borderColor: "rgba(255,255,255,0.08)" }}
+    >
+      {label}
+    </div>
+  );
+}
+
 function PreviewPane({ bundle }: { bundle: BundleItem["bundle"] }) {
   const [mode, setMode] = useState<"dark" | "light">("dark");
-  const bgColor = mode === "dark" ? (bundle.palette[1] ?? "#101012") : "#FAFAFA";
+  const parsed: ParsedTokens = parseDesignMd(bundle.designMd ?? "");
+
+  // ── Derive mode-aware colors ──────────────────────────────────────────────
+  const findColor = (test: RegExp) => parsed.colors.find(c => test.test(c.name))?.hex;
+
+  // Surface backgrounds
+  const darkSurface =
+    findColor(/^(surface|canvas-dark|bg)$/) ??
+    parsed.colors.find(c => isLuminanceDark(c.hex) && /surface|bg|canvas/.test(c.name))?.hex ??
+    bundle.palette[1] ?? "#101012";
+  const lightSurface =
+    findColor(/^(canvas|background|canvas-soft|surface-light)$/) ??
+    parsed.colors.find(c => !isLuminanceDark(c.hex) && /canvas|background|surface/.test(c.name))?.hex ??
+    "#FAFAFA";
+
+  // Text colors
+  const darkText =
+    findColor(/^(on-surface|on-canvas|on-primary-container)$/) ??
+    parsed.colors.find(c => !isLuminanceDark(c.hex) && /^(ink|on-surface|text.?main|foreground)/.test(c.name))?.hex ??
+    bundle.palette[3] ?? "#F2F1EE";
+  const lightText =
+    findColor(/^(ink|text-main|text_main|on-light|foreground)$/) ??
+    parsed.colors.find(c => isLuminanceDark(c.hex) && /ink|text|on-surface/.test(c.name))?.hex ??
+    "#0A2540";
+
+  // Muted text (same in both modes — it's a relative shade)
+  const mutedText =
+    findColor(/^(ink-mute|ink-mute-2|text-muted|text_muted|on-surface-variant|muted)$/) ??
+    bundle.palette[2] ?? "#888";
+
+  // Card background (slightly different from main surface)
+  const darkCard =
+    findColor(/^(surface-container|surface-container-low|canvas-dark-2)$/) ??
+    darkSurface;
+  const lightCard =
+    findColor(/^(canvas-soft|surface-container-low|surface-variant)$/) ??
+    lightSurface;
+
+  // Border/hairline
+  const borderCol =
+    findColor(/^(hairline|outline|border|divider|surface-container-high)$/) ??
+    (mode === "dark" ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.10)");
+
+  // Accent (primary button)
+  const accent = findColor(/^(primary|accent|accent-brand|brand)$/) ?? bundle.palette[0] ?? VIOLET;
+  const accentText = findColor(/^(on-primary)$/) ??
+    (isLuminanceDark(accent) ? "#FFFFFF" : "#000000");
+
+  const bgColor   = mode === "dark" ? darkSurface : lightSurface;
+  const textColor = mode === "dark" ? darkText    : lightText;
+  const cardBg    = mode === "dark" ? darkCard    : lightCard;
+
+  // ── Typography selection (up to 5 key levels) ─────────────────────────────
+  const typoLevels = (() => {
+    if (!parsed.typography.length) return [];
+    const pick = (patterns: RegExp[]) =>
+      patterns.map(p => parsed.typography.find(t => p.test(t.name))).find(Boolean);
+    const display  = pick([/display-xxl/i, /display-xl/i, /display-lg/i, /display/i]);
+    const heading  = pick([/heading-md/i, /heading-lg/i, /headline-md/i, /heading/i, /headline/i]);
+    const body     = pick([/body-lg/i, /body-md/i, /body/i]);
+    const label    = pick([/button-md/i, /label-md/i, /label/i, /button/i]);
+    const caption  = pick([/caption/i, /micro/i, /small/i, /label-sm/i]);
+    return [display, heading, body, label, caption].filter(Boolean).slice(0, 5);
+  })();
+
+  // ── Component selection ───────────────────────────────────────────────────
+  const btnPrimary  = parsed.components.find(c => /button-primary-pill$|^button-primary$/.test(c.name))
+                    ?? parsed.components.find(c => /button-primary/.test(c.name));
+  const btnSecondary = parsed.components.find(c => /button-secondary/.test(c.name));
+  const cardComp    = parsed.components.find(c => /^card(-feature)?$/.test(c.name))
+                    ?? parsed.components.find(c => /^card/.test(c.name));
+  const inputComp   = parsed.components.find(c => /^text-input$|^input-field$/.test(c.name))
+                    ?? parsed.components.find(c => /input/.test(c.name));
+
+  const btnBg       = btnPrimary?.backgroundColor ?? accent;
+  const btnFg       = btnPrimary?.textColor       ?? accentText;
+  const btnRadius   = btnPrimary?.rounded         ?? "6px";
+  const btnPadding  = btnPrimary?.padding         ?? "0 16px";
+
+  const cardBgResolved = cardComp?.backgroundColor ?? cardBg;
+  const cardBorder     = cardComp?.borderColor     ?? borderCol;
+  const cardRadius     = cardComp?.rounded         ?? "8px";
+
+  const inputBg       = inputComp?.backgroundColor ?? cardBg;
+  const inputBorder   = inputComp?.borderColor     ?? borderCol;
+  const inputRadius   = inputComp?.rounded         ?? "6px";
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  const sectionDivider: import("react").CSSProperties = {
+    borderTop: `1px solid ${mode === "dark" ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)"}`,
+    marginTop: "20px",
+    paddingTop: "20px",
+  };
+
+  const hasParsedColors = parsed.colors.length > 0;
+  const hasTypo         = typoLevels.length > 0;
+  const hasSpacing      = parsed.spacing.length >= 2;
+  const hasRounded      = parsed.rounded.length >= 2;
 
   return (
     <div
-      className="rounded-xl border p-8"
+      className="rounded-xl border p-6"
       style={{ borderColor: BORDER, background: SURFACE }}
     >
-      <div className="flex items-center justify-between mb-4">
+      {/* ── Header: label + toggle ── */}
+      <div className="flex items-center justify-between mb-5">
         <div className="text-[10.5px] uppercase tracking-[0.22em]" style={{ fontFamily: MONO, color: MUTED }}>
           rendered with {bundle.name.toLowerCase()} tokens
         </div>
@@ -1270,56 +1381,225 @@ function PreviewPane({ bundle }: { bundle: BundleItem["bundle"] }) {
           ))}
         </div>
       </div>
+
+      {/* ── Canvas ── */}
       <div
-        className="rounded-lg p-8 grid grid-cols-1 md:grid-cols-2 gap-6"
+        className="rounded-lg p-6 transition-colors duration-200"
         style={{ background: bgColor }}
       >
-        <div>
-          <div
-            className="text-[10px] uppercase tracking-[0.2em] mb-3"
-            style={{ fontFamily: MONO, color: bundle.palette[2] ?? "#888" }}
-          >
-            sample · button + card
-          </div>
-          <button
-            className="h-9 rounded-md px-4 text-[12.5px] font-medium"
-            style={{ background: bundle.palette[0], color: bundle.palette[3] ?? "#fff" }}
-          >
-            Primary action
-          </button>
-          <div
-            className="mt-6 rounded-lg p-5 border"
-            style={{
-              borderColor: `${bundle.palette[2] ?? "#444"}33`,
-              background: `${bundle.palette[3] ?? "#fff"}06`,
-            }}
-          >
-            <div
-              className="text-[14px] font-medium mb-1"
-              style={{ color: bundle.palette[3] ?? "#fff" }}
-            >
-              {bundle.name} sample card
-            </div>
-            <div
-              className="text-[12px]"
-              style={{ color: bundle.palette[2] ?? "#888" }}
-            >
-              Rendered live from {bundle.tokens.toLocaleString()} tokens declared in design.md.
-            </div>
-          </div>
-        </div>
-        <div className="space-y-3">
-          {bundle.palette.map((c) => (
-            <div
-              key={c}
-              className="flex items-center gap-3 text-[11.5px]"
-              style={{ fontFamily: MONO, color: bundle.palette[2] ?? "#888" }}
-            >
-              <span className="h-6 w-12 rounded" style={{ background: c }} />
-              <span style={{ color: bundle.palette[3] ?? "#fff" }}>{c.toUpperCase()}</span>
+
+        {/* ─── Section 1: Color Palette ─── */}
+        <PreviewSectionLabel label={`Color Palette · ${hasParsedColors ? parsed.colors.length : bundle.palette.length} tokens`} />
+        <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 mb-1">
+          {(hasParsedColors ? parsed.colors.slice(0, 18) : bundle.palette.map((h, i) => ({ name: `color-${i}`, hex: h }))).map(c => (
+            <div key={c.name} className="flex items-center gap-2 min-w-0">
+              <span
+                className="shrink-0 h-4 w-7 rounded-sm border"
+                style={{ background: c.hex, borderColor: mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)" }}
+              />
+              <span
+                className="text-[10px] truncate"
+                style={{ fontFamily: MONO, color: mutedText }}
+                title={c.name}
+              >
+                {c.name}
+              </span>
+              <span
+                className="text-[10px] shrink-0 ml-auto"
+                style={{ fontFamily: MONO, color: textColor, opacity: 0.7 }}
+              >
+                {c.hex.toUpperCase()}
+              </span>
             </div>
           ))}
         </div>
+
+        {/* ─── Section 2: Typography Scale ─── */}
+        {hasTypo && (
+          <div style={sectionDivider}>
+            <PreviewSectionLabel label={`Typography Scale · ${parsed.typography.length} levels`} />
+            <div className="space-y-2">
+              {typoLevels.map(t => {
+                const rawPx = parsePx(t!.fontSize);
+                const displayPx = Math.min(rawPx, 44);
+                const sampleText = t!.name.replace(/-/g, ' ');
+                return (
+                  <div key={t!.name} className="flex items-baseline gap-3 overflow-hidden">
+                    <span
+                      className="shrink-0 text-[9px] uppercase tracking-[0.15em] w-20"
+                      style={{ fontFamily: MONO, color: mutedText }}
+                    >
+                      {t!.name}
+                    </span>
+                    <span
+                      className="truncate leading-tight"
+                      style={{
+                        fontFamily: t!.fontFamily,
+                        fontSize: `${displayPx}px`,
+                        fontWeight: t!.fontWeight ?? 400,
+                        letterSpacing: t!.letterSpacing ?? undefined,
+                        color: textColor,
+                      }}
+                    >
+                      {sampleText.charAt(0).toUpperCase() + sampleText.slice(1)}
+                    </span>
+                    <span
+                      className="shrink-0 text-[9px] ml-auto"
+                      style={{ fontFamily: MONO, color: mutedText }}
+                    >
+                      {rawPx}px{t!.fontWeight ? ` / ${t!.fontWeight}` : ""}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ─── Section 3: Components ─── */}
+        <div style={sectionDivider}>
+          <PreviewSectionLabel label="Components" />
+          <div className="flex flex-wrap gap-3 mb-4">
+            {/* Primary button */}
+            <button
+              className="text-[13px] font-medium"
+              style={{
+                background: btnBg,
+                color: btnFg,
+                borderRadius: btnRadius,
+                padding: btnPadding,
+                height: "36px",
+                border: "none",
+                cursor: "default",
+              }}
+            >
+              Primary action
+            </button>
+            {/* Secondary button */}
+            {btnSecondary ? (
+              <button
+                className="text-[13px]"
+                style={{
+                  background: btnSecondary.backgroundColor ?? "transparent",
+                  color: btnSecondary.textColor ?? accent,
+                  borderRadius: btnPrimary?.rounded ?? "6px",
+                  padding: btnSecondary.padding ?? "0 16px",
+                  height: "36px",
+                  border: `1px solid ${btnSecondary.textColor ?? accent}`,
+                  cursor: "default",
+                }}
+              >
+                Secondary
+              </button>
+            ) : (
+              <button
+                className="text-[13px]"
+                style={{
+                  background: "transparent",
+                  color: accent,
+                  borderRadius: btnRadius,
+                  padding: btnPadding,
+                  height: "36px",
+                  border: `1px solid ${accent}`,
+                  cursor: "default",
+                }}
+              >
+                Secondary
+              </button>
+            )}
+          </div>
+          {/* Card + Input row */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div
+              className="rounded p-4"
+              style={{
+                background: cardBgResolved,
+                border: `1px solid ${cardBorder}`,
+                borderRadius: cardRadius,
+              }}
+            >
+              <div className="text-[13px] font-medium mb-1" style={{ color: textColor }}>
+                {bundle.name} card
+              </div>
+              <div className="text-[11.5px]" style={{ color: mutedText }}>
+                {bundle.tokens > 0 ? `${bundle.tokens.toLocaleString()} tokens` : "design.md"} · {bundle.components > 0 ? `${bundle.components} components` : parsed.components.length > 0 ? `${parsed.components.length} components` : "live preview"}
+              </div>
+            </div>
+            <div>
+              <div
+                className="w-full text-[12.5px] px-3"
+                style={{
+                  background: inputBg,
+                  border: `1px solid ${inputBorder}`,
+                  borderRadius: inputRadius,
+                  height: "36px",
+                  display: "flex",
+                  alignItems: "center",
+                  color: mutedText,
+                }}
+              >
+                Input field
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ─── Section 4: Scales ─── */}
+        {(hasSpacing || hasRounded) && (
+          <div style={sectionDivider}>
+            {hasSpacing && (
+              <>
+                <PreviewSectionLabel label="Spacing Scale" />
+                <div className="flex flex-wrap items-end gap-2 mb-4">
+                  {parsed.spacing.map(s => {
+                    const px = parsePx(s.value);
+                    const w = Math.max(8, Math.min(px, 64));
+                    return (
+                      <div key={s.name} className="flex flex-col items-center gap-1">
+                        <div
+                          className="rounded-sm"
+                          style={{
+                            width: `${w}px`,
+                            height: "12px",
+                            background: accent,
+                            opacity: 0.7,
+                          }}
+                        />
+                        <span className="text-[8.5px]" style={{ fontFamily: MONO, color: mutedText }}>
+                          {s.name}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+            {hasRounded && (
+              <>
+                <PreviewSectionLabel label="Border Radius Scale" />
+                <div className="flex flex-wrap items-center gap-3">
+                  {parsed.rounded.map(r => (
+                    <div key={r.name} className="flex flex-col items-center gap-1">
+                      <div
+                        style={{
+                          width: "28px",
+                          height: "28px",
+                          background: accent,
+                          opacity: 0.75,
+                          borderRadius: r.value === "9999px" ? "9999px" : r.value,
+                        }}
+                      />
+                      <span className="text-[8.5px]" style={{ fontFamily: MONO, color: mutedText }}>
+                        {r.name}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
       </div>
     </div>
   );
