@@ -128,6 +128,8 @@ function BundleDetail() {
 
 function BundleView({ item }: { item: BundleItem }) {
   const bundle = item.bundle;
+  const routeParams = useParams<{ slug: string }>();
+  const slug = routeParams?.slug ?? "";
   const [tab, setTab] = useState<Tab>("preview");
   const [tool, setTool] = useToolPref();
   const search = useSearchParams().toString();
@@ -153,16 +155,16 @@ function BundleView({ item }: { item: BundleItem }) {
 
   // Hydrate saved state when the user is signed in
   useEffect(() => {
-    if (!user || !item.id) return;
+    if (!user || !slug) return;
     let cancelled = false;
-    fetch(`/api/bundles/${item.bundle.slug}/favorite/check`)
+    fetch(`/api/bundles/${slug}/favorite/check`)
       .then((r) => r.ok ? r.json() : null)
       .then((data: { saved: boolean } | null) => {
         if (!cancelled && data) setIsSaved(data.saved);
       })
       .catch(() => {/* best-effort */});
     return () => { cancelled = true; };
-  }, [user, item.id, item.bundle.slug]);
+  }, [user, slug]);
 
   async function toggleFavorite() {
     if (!user) {
@@ -173,7 +175,7 @@ function BundleView({ item }: { item: BundleItem }) {
     setIsSaved(next);
     setSavePending(true);
     try {
-      const res = await fetch(`/api/bundles/${item.bundle.slug}/favorite`, {
+      const res = await fetch(`/api/bundles/${slug}/favorite`, {
         method: next ? "POST" : "DELETE",
       });
       if (!res.ok) throw new Error("Request failed");
