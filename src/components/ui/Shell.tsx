@@ -173,6 +173,9 @@ export function Footer() {
           <Link href="/library">library</Link>
           <Link href="/generate">generate</Link>
           {PHASE_2_SHELVES_ENABLED ? <Link href="/docs/cli">cli</Link> : null}
+          <Link href="/legal/terms">terms</Link>
+          <Link href="/legal/privacy">privacy</Link>
+          <Link href="/legal/attribution">attribution</Link>
         </div>
       </div>
     </footer>

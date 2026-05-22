@@ -284,7 +284,9 @@ export function AuthCard({ variant = "compact", onSuccess, intent, onSkip, title
             className="mt-6 text-[11px] leading-[1.55] text-center"
             style={{ color: MUTED, fontFamily: MONO }}
           >
-            by continuing you agree to our terms and privacy policy
+            by continuing you agree to our{" "}
+            <Link href="/legal/terms" className="underline">terms</Link> and{" "}
+            <Link href="/legal/privacy" className="underline">privacy policy</Link>
           </p>
         )}
       </div>
