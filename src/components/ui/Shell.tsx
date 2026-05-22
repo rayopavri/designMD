@@ -1,11 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { Command, GitCommit } from "lucide-react";
+import { Command } from "lucide-react";
 import { BG_SOFT_HEADER } from "@/lib/ui-data/constants";
-import { ITEMS } from "@/lib/ui-data/items";
 import {
   BG,
   BORDER,
@@ -24,49 +22,6 @@ import { openAuthModal, useAuth, useAuthStorageSync } from "@/lib/ui-data/mockAu
 import { PHASE_2_SHELVES_ENABLED } from "@/lib/ui-data/featureFlags";
 import { AuthModal } from "./AuthModal";
 import { UserMenu } from "./UserMenu";
-
-function useUtcClock() {
-  const [now, setNow] = useState<Date>(() => new Date());
-  useEffect(() => {
-    const t = setInterval(() => setNow(new Date()), 30_000);
-    return () => clearInterval(t);
-  }, []);
-  const hh = String(now.getUTCHours()).padStart(2, "0");
-  const mm = String(now.getUTCMinutes()).padStart(2, "0");
-  const month = now.toLocaleString("en-US", { month: "short", timeZone: "UTC" }).toLowerCase();
-  const day = now.getUTCDate();
-  return `${month} ${day} · ${hh}:${mm} UTC`;
-}
-
-export function StatusBar() {
-  const clock = useUtcClock();
-  return (
-    <div
-      className="w-full text-[11px]"
-      style={{ background: "#070708", borderBottom: `1px solid ${BORDER_SOFT}`, color: MUTED, fontFamily: MONO }}
-    >
-      <div className="mx-auto flex h-7 max-w-6xl items-center justify-between px-6 lg:px-8">
-        <div className="flex items-center gap-5">
-          <span className="inline-flex items-center gap-1.5">
-            <span className="h-1.5 w-1.5 rounded-full" style={{ background: LIME, boxShadow: `0 0 6px ${LIME}88` }} />
-            <span style={{ color: INK }}>operational</span>
-          </span>
-          <span className="hidden sm:inline" title="Items currently catalogued across all shelves">
-            {ITEMS.length} systems · {ITEMS.reduce((n, it) => n + (it.type === "bundle" ? it.bundle.tokens : 0), 0).toLocaleString()} tokens
-          </span>
-          <span className="hidden lg:inline">edge · iad1 / fra1 / sin1</span>
-        </div>
-        <div className="flex items-center gap-5">
-          <span className="inline-flex items-center gap-1.5">
-            <GitCommit className="h-3 w-3" />
-            <span>build 8a9b2c · v0.42.1</span>
-          </span>
-          <span className="hidden md:inline">{clock}</span>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 type NavItem = { label: string; href: string; matches: (path: string) => boolean };
 
@@ -93,7 +48,7 @@ export function Header() {
     >
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6 lg:px-8">
         <div className="flex items-center gap-9">
-          <Link href="/" className="flex items-baseline gap-2 text-[14px] font-medium tracking-tight" style={{ color: INK }}>
+          <Link href="/" className="flex items-baseline gap-2 text-[17px] font-medium tracking-tight" style={{ color: INK }}>
             UIUXskills
             <span className="text-[10px]" style={{ fontFamily: MONO, color: MUTED }}>/ 042</span>
           </Link>
@@ -186,7 +141,6 @@ export function Shell({ children }: { children: React.ReactNode }) {
   useAuthStorageSync();
   return (
     <div className="min-h-screen flex flex-col" style={{ background: BG, color: INK, fontFamily: SANS }}>
-      <StatusBar />
       <Header />
       <main className="flex-1">{children}</main>
       <Footer />
