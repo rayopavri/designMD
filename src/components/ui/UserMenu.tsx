@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { ChevronDown, LayoutList, LogOut, Settings, User as UserIcon } from "lucide-react";
+import { ChevronDown, Heart, LayoutList, LogOut, Settings, User as UserIcon } from "lucide-react";
 import { BORDER, INK, MONO, MUTED, SUB, SURFACE, SURFACE_2 } from "@/lib/ui-data/tokens";
 import { signOut, useAuth } from "@/lib/ui-data/mockAuth";
 
@@ -89,6 +89,16 @@ export function UserMenu() {
           >
             <LayoutList className="h-3.5 w-3.5" style={{ color: SUB }} />
             Your bundles
+          </Link>
+          <Link
+            href="/account/favorites"
+            onClick={() => setOpen(false)}
+            role="menuitem"
+            className="flex items-center gap-2.5 px-3 py-2.5 text-[12.5px] hover:bg-[#16161A]"
+            style={{ color: INK }}
+          >
+            <Heart className="h-3.5 w-3.5" style={{ color: SUB }} />
+            Your favorites
           </Link>
           <Link
             href="/account/settings"

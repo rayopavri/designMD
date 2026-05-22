@@ -321,6 +321,29 @@ export const bundleVotes = pgTable(
 );
 
 // ============================================================
+// USER FAVORITES
+// ============================================================
+
+export const userFavorites = pgTable(
+  'user_favorites',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    bundleId: uuid('bundle_id')
+      .notNull()
+      .references(() => bundles.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('uq_favorites_bundle_user').on(table.bundleId, table.userId),
+    index('idx_favorites_bundle').on(table.bundleId),
+    index('idx_favorites_user').on(table.userId),
+  ],
+);
+
+// ============================================================
 // COLLECTIONS
 // ============================================================
 

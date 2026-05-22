@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useSearchParams, useParams } from "next/navigation";
 
 import { Suspense, useEffect, useState } from "react";
-import { ArrowUpRight, Check, ChevronRight, Copy, GitFork } from "lucide-react";
+import { ArrowUpRight, Check, ChevronRight, Copy, GitFork, Heart } from "lucide-react";
 import { SectionLabel } from "@/components/ui/Shell";
 import { CodePanel } from "@/components/ui/CodePanel";
 import { AttributionRow } from "@/components/ui/AttributionRow";
@@ -50,6 +50,7 @@ import { useToolPref } from "@/lib/ui-data/useToolPref";
 import { INSTALL_STEPS } from "@/lib/ui-data/installSteps";
 import { downloadBundleZip } from "@/lib/ui-data/bundleZip";
 import { useBundleDetail } from "@/hooks/useBundleDetail";
+import { openAuthModal, useAuth } from "@/lib/ui-data/mockAuth";
 
 type Tab = "design.md" | "companion" | "preview";
 
@@ -138,6 +139,9 @@ function BundleView({ item }: { item: BundleItem }) {
   const [copiedPrompt, setCopiedPrompt] = useState(false);
   const [copiedCli, setCopiedCli] = useState(false);
   const [zipping, setZipping] = useState(false);
+  const { user } = useAuth();
+  const [isSaved, setIsSaved] = useState(false);
+  const [savePending, setSavePending] = useState(false);
 
   useEffect(() => {
     if (showInstall && typeof window !== "undefined") {
@@ -146,6 +150,39 @@ function BundleView({ item }: { item: BundleItem }) {
       });
     }
   }, [showInstall]);
+
+  // Hydrate saved state when the user is signed in
+  useEffect(() => {
+    if (!user || !item.id) return;
+    let cancelled = false;
+    fetch(`/api/bundles/${item.bundle.slug}/favorite/check`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((data: { saved: boolean } | null) => {
+        if (!cancelled && data) setIsSaved(data.saved);
+      })
+      .catch(() => {/* best-effort */});
+    return () => { cancelled = true; };
+  }, [user, item.id, item.bundle.slug]);
+
+  async function toggleFavorite() {
+    if (!user) {
+      openAuthModal(typeof window !== "undefined" ? window.location.pathname : null);
+      return;
+    }
+    const next = !isSaved;
+    setIsSaved(next);
+    setSavePending(true);
+    try {
+      const res = await fetch(`/api/bundles/${item.bundle.slug}/favorite`, {
+        method: next ? "POST" : "DELETE",
+      });
+      if (!res.ok) throw new Error("Request failed");
+    } catch {
+      setIsSaved(!next); // rollback
+    } finally {
+      setSavePending(false);
+    }
+  }
 
   const designLines = bundle.designMd.split("\n").length;
   const promptLines = bundle.companionPrompt.split("\n").length;
@@ -284,7 +321,7 @@ function BundleView({ item }: { item: BundleItem }) {
                 Use in {toolLabel(tool)}
                 <ChevronRight className="h-3.5 w-3.5" />
               </button>
-              <div className="mt-2.5">
+              <div className="mt-2.5 flex items-center gap-5">
                 <button
                   onClick={onZip}
                   disabled={zipping}
@@ -293,6 +330,19 @@ function BundleView({ item }: { item: BundleItem }) {
                 >
                   <span aria-hidden>↓</span>
                   {zipping ? "preparing…" : "download as .zip"}
+                </button>
+                <button
+                  onClick={toggleFavorite}
+                  disabled={savePending}
+                  title={user ? (isSaved ? "Remove from favorites" : "Save to favorites") : "Sign in to save"}
+                  className="inline-flex items-center gap-1.5 text-[12px] transition-colors"
+                  style={{ color: isSaved ? LIME : SUB, opacity: savePending ? 0.6 : 1 }}
+                >
+                  <Heart
+                    className="h-3.5 w-3.5"
+                    style={{ fill: isSaved ? LIME : "none", stroke: isSaved ? LIME : "currentColor" }}
+                  />
+                  {isSaved ? "Saved" : "Save"}
                 </button>
               </div>
             </div>
