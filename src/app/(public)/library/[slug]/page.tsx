@@ -548,7 +548,7 @@ function BundleView({ item }: { item: BundleItem }) {
                       calibrated for {bundle.worksWith.join(" · ")}
                     </div>
                   </button>
-                  {/* TODO: wire to real CLI */}
+                  {/* CLI install is gated on PHASE_2_SHELVES_ENABLED + roadmap B-4 (uiuxskills npm package). */}
                   {PHASE_2_SHELVES_ENABLED ? (
                     <button
                       onClick={() => copyText(`npx uiuxskills add ${bundle.id}`, "cli")}

@@ -286,16 +286,34 @@ export function postAuthDestination(returnTo: string | null | undefined): string
 }
 
 /**
- * Update profile fields. Server-backed update will be wired in Phase 1B;
- * for now we update local state optimistically. Persistence will follow.
+ * Update profile fields optimistically, then persist to the server.
+ * On error the local state rolls back. Existing call sites that don't
+ * await will still see the optimistic update immediately.
  */
-export function updateProfile(
+export async function updateProfile(
   patch: Partial<Pick<AuthUser, 'displayName' | 'handle' | 'preferredTools'>>
-) {
+): Promise<void> {
   if (!state.user) return;
-  const next: AuthUser = { ...state.user, ...patch };
-  setState({ user: next });
-  // TODO(Phase 1B): PATCH /api/me with the same patch to persist.
+  const prev = state.user;
+  setState({ user: { ...prev, ...patch } });
+  try {
+    const res = await fetch('/api/me', {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(patch),
+      credentials: 'include',
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({})) as { error?: string };
+      setState({ user: prev });
+      throw new Error(body.error ?? `HTTP ${res.status}`);
+    }
+    const data = await res.json() as { user: ServerUserRow };
+    setState({ user: mapServerUser(data.user) });
+  } catch (err) {
+    setState({ user: prev });
+    throw err;
+  }
 }
 
 /** Triggers cross-tab hydration. */
