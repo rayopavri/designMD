@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-05-22** (housekeeping reconciliation + Vercel preview restriction + direct-to-main workflow)
+> Last updated: **2026-05-22** (P1-1 legal pages + P1-2 history page shipped)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -69,25 +69,26 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 - **Priority:** HIGH (blocker for any marketing push)
 - **Effort:** ~1 hr
-- **Status:** `[ ]`
-- **Why:** Required before any non-trivial public traffic. Terms / Privacy / Attribution are standard legal hygiene.
-- **Acceptance criteria:**
-  - `/legal/terms`, `/legal/privacy`, `/legal/attribution` pages exist
+- **Status:** `[x]` — shipped 2026-05-22
+- **Delivered:**
+  - `/legal/terms`, `/legal/privacy`, `/legal/attribution` pages (minimal copy, `uiuxofai@gmail.com` contact)
   - Footer links to all three
-  - Privacy mentions: Firebase Auth, Neon (Postgres), Upstash Redis (rate limit IPs), Vercel hosting, Claude/Gemini API processing of submitted URLs
-  - Attribution lists: `@google/design.md`, Firecrawl, Tailwind, Next.js
+  - Auth modal fine print now links to `/legal/terms` and `/legal/privacy`
+  - Privacy lists: Firebase Auth, Supabase/Postgres, Upstash Redis, Vercel, Claude/Gemini, Firecrawl
+  - Attribution lists: `@google/design.md`, Firecrawl, Tailwind, Next.js, Radix UI, Lucide, Drizzle, Orama
 
 ### P1-2 · History page (`/account/bundles`)
 
 - **Priority:** HIGH (closes a stated promise in the auth modal)
 - **Effort:** ~2 hr
-- **Status:** `[ ]`
-- **Why:** Auth modal copy literally says *"track URLs you've generated"*. Today that's vaporware.
-- **Acceptance criteria:**
-  - Signed-in route `/account/bundles` lists bundles where `bundles.created_by = currentUser.uid`
-  - Shows status (personal, pending_review, published, etc.) with same subdued banner pattern
+- **Status:** `[x]` — shipped 2026-05-22
+- **Delivered:**
+  - `/account/bundles` lists all bundles for the signed-in user across all statuses, ordered by `updatedAt desc`
+  - Status chips: draft / in review / published / flagged / rejected / archived
+  - Bundle count shown inline with the page title
   - Empty state with CTA to `/generate`
-  - Header gets a "Your bundles" link visible only when signed in
+  - "Your bundles" link added to UserMenu dropdown (sign-in-gated)
+  - New `listUserBundles()` DB query + `GET /api/me/bundles` API route
 
 ### P1-3 · Favorites UI
 
