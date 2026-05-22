@@ -170,6 +170,9 @@ function SearchBox({
 }
 
 function BundleGrid({ bundles }: { bundles: BundleItem[] }) {
+  // Fill the last row so the border-background gap trick never shows a grey slot.
+  // Max columns is 4 (xl), so at most 3 fillers needed.
+  const fillers = (4 - (bundles.length % 4)) % 4;
   return (
     <div
       className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-px rounded-lg overflow-hidden"
@@ -177,6 +180,9 @@ function BundleGrid({ bundles }: { bundles: BundleItem[] }) {
     >
       {bundles.map((b) => (
         <ItemCard key={b.id} item={b} />
+      ))}
+      {Array.from({ length: fillers }).map((_, i) => (
+        <div key={`filler-${i}`} style={{ background: BG }} />
       ))}
     </div>
   );
