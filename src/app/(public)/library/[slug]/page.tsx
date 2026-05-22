@@ -12,6 +12,7 @@ import { WorksWellWith } from "@/components/ui/WorksWellWith";
 import { SectionCoverage } from "@/components/ui/SectionCoverage";
 import { PulseRow } from "@/components/ui/PulseRow";
 import { BrandLogo } from "@/components/ui/BrandLogo";
+import { VoteWidget } from "@/components/ui/VoteWidget";
 
 function hostnameSafe(url: string | null | undefined): string | null {
   if (!url) return null;
@@ -346,6 +347,11 @@ function BundleView({ item }: { item: BundleItem }) {
                   />
                   {isSaved ? "Saved" : "Save"}
                 </button>
+                <VoteWidget
+                  bundleSlug={slug}
+                  initialVoteCount={bundle.voteCount}
+                  initialPositiveVoteRate={bundle.voteRate}
+                />
               </div>
             </div>
           </div>
