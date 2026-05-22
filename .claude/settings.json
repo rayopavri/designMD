@@ -1,0 +1,19 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "agent",
+            "if": "Bash(git push *)",
+            "timeout": 120,
+            "async": true,
+            "statusMessage": "Updating roadmap + memory...",
+            "prompt": "A bash command was just run. Input: $ARGUMENTS\n\nOnly act if ALL of these are true:\n1. The command contains git push\n2. The command targets the main branch\n3. The tool_response does not contain error or rejected (push succeeded)\n\nIf conditions are NOT met, stop immediately and do nothing.\n\nIf conditions ARE met, perform ALL steps below:\n\nSTEP 1 - Gather context:\nRun: git log --oneline -8\nRun: git show --stat HEAD\n\nSTEP 2 - Update /home/user/designMD/ROADMAP.md:\na) Change the Last updated line near the top to today's date in YYYY-MM-DD format.\nb) In the ## Done (recent) section at the bottom, prepend a new bullet in this format:\n   - [x] **YYYY-MM-DD** - <one-sentence summary of what shipped> (commit-sha first 7 chars)\n   Use the actual commit SHA and describe what changed from the git log.\nc) If a commit clearly closes a roadmap item (P1-x, P2-x, B-x), also mark it [x] in its phase section.\nd) Do NOT rewrite or delete existing Done entries.\n\nSTEP 3 - Update memory at ~/.claude/projects/-home-user-designMD/memory/:\na) Create the directory if it does not exist.\nb) Read the existing file deployments.md if it exists (or create it fresh).\nc) Prepend a new section at the top of deployments.md:\n   ## YYYY-MM-DD - <short summary>\n   - Commits: <comma-separated short SHAs>\n   - Changed: <key files changed>\n   - Status: deployed to production (uiuxskills.com)\nd) Keep all previous entries below - never delete old entries.\n\nBe concise. Do not produce any chat output - just perform the file writes silently."
+          }
+        ]
+      }
+    ]
+  }
+}
