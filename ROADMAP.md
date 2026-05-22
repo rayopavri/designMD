@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-05-23** (Phase 1 fully closed: P1-4 voting UI shipped on top of P1-5 / P1-7 / P1-8 — Phase 2 now unblocked)
+> Last updated: **2026-05-23** (Phase 1 fully closed: P1-4 voting UI shipped on top of P1-5 / P1-7 / P1-8 — Phase 2 now unblocked; logo branding entry update; review queue detail pane redesign shipped)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -274,6 +274,8 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-05-23** · Admin review queue detail pane redesigned to match library bundle layout: 12-col hero grid with left 7 cols (title, description, metadata) + right 5 cols (coverage card + artifact chips), shared CodePanel tabs replacing flat code blocks. (`fe19d33`)
+- [x] **2026-05-23** · Roadmap updated with logo branding entry + last-updated bump. (`6e19a7e`)
 - [x] **2026-05-23** · Replace UIUXskills wordmark with U⚡X hollow logo mark. Nav + footer render hollow outline via -webkit-text-stroke + text-shadow depth; favicon switched to ⚡ bolt outline on dark square; OG/social logo updated to full U⚡X mark. (`a3664e9`)
 - [x] **2026-05-22** · **Phase 1 fully closed.** P1-4 voting UI shipped: thumbs up/down on every bundle detail page via `/api/bundles/[slug]/vote` (GET/POST/DELETE, upsert on `uq_votes_bundle_user`). `VoteWidget` handles optimistic updates, inline tag picker for downvotes (required by DB constraint), and auth-modal upsell for anonymous users. DB trigger `trg_vote_stats` auto-recomputes `positive_vote_rate` — no app-level aggregation needed. Phase 2 now unblocked. (`314c8cf`)
 - [x] **2026-05-22** · P1-5 anonymous bundle claim flow shipped: `__anon_id` httpOnly cookie + `generation_jobs.anon_token` + `/api/me/claim-bundles` + post-login `ClaimBundlesBanner`. (`7b13e1e`)
