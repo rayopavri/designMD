@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-05-21** (post-category-migration + 3-worker pipeline + library cards on home)
+> Last updated: **2026-05-21 (eve)** (brand-logo extraction + bulk re-run + admin monitor)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -14,6 +14,16 @@
 - `[-]` Cancelled / deferred indefinitely
 
 ---
+
+## ✅ Done 2026-05-21 (eve) — brand-logo extraction + bulk re-run + admin monitor
+
+- [x] **Brand logos shown on library cards + bundle detail page.** New `src/lib/ai/logo-extract.ts` parses HTML head for `apple-touch-icon` → `icon` (largest size) → `og:image` → `/favicon.ico`. Wired into `firecrawl.ts` → `scrape-and-extract.ts` so every new generation populates the existing `bundles.brand_logo_url` column. New `<BrandLogo>` client component renders with `onError` fallback to Google favicons, then hides. 8 seed bundles hand-picked. (`9cff766`, `b16facf`)
+- [x] **One-time backfill endpoint** `POST /api/admin/backfill-logos` for older bundles where `brand_logo_url IS NULL`. Concurrency-limited fetch + extract loop, safe to re-run. (`db8b49f`)
+- [x] **Bulk re-run with staggered QStash delays.** `POST /api/admin/bundles/bulk-rerun` accepts `{ slugs?, all?, status? }`, caps at 50/call, staggers via QStash native `delay` (30s between deliveries) so workers fire one-at-a-time instead of bursting Firecrawl/Gemini. Companion `GET .../bulk-rerun/status` returns live counts + recent failures. (`b1d1ec7`)
+- [x] **`enqueueTask` extended with `delaySeconds` option** so any caller can schedule a delayed delivery. Existing call sites unchanged (param is optional). (`b1d1ec7`)
+- [x] **Persistent pipeline-status indicator on admin edit panel.** New `GET /api/admin/bundles/[slug]/job-status` returns the most recent generation_jobs row. Admin page auto-polls every 3s while status is `queued`/`running`. Re-run progress bar survives page reloads — close the tab, come back, still shows the live state. Red banner for failed jobs shows step + error message. (`9a9edeb`)
+- [x] **Re-run button disabled while job in flight.** Reads from `latestJob` (server truth), not just in-session click state — stays disabled across reloads, re-enables only on completed/failed. (`07c84ea`)
+- [x] **Admin bundle panel stripped to monitor view.** Editable form (title, description, category, license, design style, tools, attribution, flags) removed. Save edits / Publish / Re-run companion / Restore / Archive buttons removed. Only `Re-run pipeline · Delete · Open in library` remain. Obsolete 2-min client-side timeout deleted — persistent polling handles it forever. (`3ae9d77`)
 
 ## ✅ Done 2026-05-21 — categorization + UI polish + pipeline split
 
