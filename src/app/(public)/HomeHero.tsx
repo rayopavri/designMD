@@ -41,7 +41,7 @@ export function HomeHero() {
 
   return (
     <section className="border-b" style={{ borderColor: BORDER_SOFT }}>
-      <div className="mx-auto max-w-6xl px-6 lg:px-8 pt-20 pb-16">
+      <div className="mx-auto max-w-6xl px-6 lg:px-8 pt-16 pb-16">
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-12 lg:gap-16 items-start">
           {/* Left: storytelling */}
           <div>
