@@ -27,6 +27,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db/client';
 import { bundles, generationJobs } from '@/lib/db/schema';
 import { getCurrentUser } from '@/lib/auth/session';
+import { getOrCreateAnonToken, attachAnonToken } from '@/lib/auth/anon-token';
 import { normalizeUrl } from '@/lib/generator/url';
 import { enqueueTask } from '@/lib/queue';
 import { rateLimitGenerate } from '@/lib/rate-limit';
@@ -72,14 +73,18 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const { token: anonToken, isNew } = await getOrCreateAnonToken(userId);
+
   const contentType = req.headers.get('content-type') ?? '';
-  if (contentType.startsWith('multipart/form-data')) {
-    return handleUpload(req, userId);
-  }
-  return handleUrl(req, userId);
+  const res = contentType.startsWith('multipart/form-data')
+    ? await handleUpload(req, userId, anonToken)
+    : await handleUrl(req, userId, anonToken);
+
+  if (isNew && anonToken) attachAnonToken(res, anonToken);
+  return res;
 }
 
-async function handleUrl(req: NextRequest, userId: string | null) {
+async function handleUrl(req: NextRequest, userId: string | null, anonToken: string | null) {
   let body: z.infer<typeof UrlBodySchema>;
   try {
     body = UrlBodySchema.parse(await req.json());
@@ -145,6 +150,7 @@ async function handleUrl(req: NextRequest, userId: string | null) {
       currentStep: 'queued',
       userId,
       sourceType: 'url',
+      anonToken: userId ? null : anonToken,
     })
     .returning({ id: generationJobs.id });
 
@@ -159,7 +165,7 @@ async function handleUrl(req: NextRequest, userId: string | null) {
   );
 }
 
-async function handleUpload(req: NextRequest, userId: string | null) {
+async function handleUpload(req: NextRequest, userId: string | null, anonToken: string | null) {
   let form: FormData;
   try {
     form = await req.formData();
@@ -233,6 +239,7 @@ async function handleUpload(req: NextRequest, userId: string | null) {
       imageMimeType: file.type,
       imageHash: hash,
       brandName,
+      anonToken: userId ? null : anonToken,
     })
     .returning({ id: generationJobs.id });
 

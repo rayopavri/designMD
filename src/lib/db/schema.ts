@@ -432,6 +432,8 @@ export const generationJobs = pgTable(
 
     // Ownership — nullable to support anonymous generation.
     userId: uuid('user_id').references(() => users.id),
+    // Cookie fingerprint for anonymous jobs — lets the user claim bundles on sign-in.
+    anonToken: text('anon_token'),
 
     // Duplicate detection
     existingBundleId: uuid('existing_bundle_id').references(() => bundles.id),

@@ -23,6 +23,7 @@ import { openAuthModal, useAuth, useAuthStorageSync } from "@/lib/ui-data/mockAu
 import { PHASE_2_SHELVES_ENABLED } from "@/lib/ui-data/featureFlags";
 import { AuthModal } from "./AuthModal";
 import { UserMenu } from "./UserMenu";
+import { ClaimBundlesBanner } from "./ClaimBundlesBanner";
 
 type NavItem = { label: string; href: string; matches: (path: string) => boolean };
 
@@ -155,6 +156,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen flex flex-col" style={{ background: BG, color: INK, fontFamily: SANS }}>
       <Header />
+      <ClaimBundlesBanner />
       <main className="flex-1">{children}</main>
       <Footer />
       <AuthModal />
