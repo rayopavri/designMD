@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-05-23** (Phase 1 fully closed: P1-4 voting UI shipped on top of P1-5 / P1-7 / P1-8 — Phase 2 now unblocked; logo branding entry update; review queue detail pane redesign shipped; logo fill fix shipped, roadmap auto-update PostToolUse hook wired, logo PNG integration shipped, nav version tag removal logged)
+> Last updated: **2026-05-23** (Bulk URL upload with auto-publish pipeline: new `/admin/bulk-upload` page accepts plain URLs or markdown tables, deduplicates, skips existing bundles, creates jobs with autoPublish flag that bypass quality gate. `auto_publish` column added to generation_jobs schema. Propagation: scrape-and-extract → author-design-md skips gate and publishes directly. New POST endpoint handles up to 150 URLs, enqueues staggered via QStash.)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -274,6 +274,8 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-05-23** - Add bulk URL upload with auto-publish for rapid bundle generation (781455e)
+- [x] **2026-05-23** - chore: roadmap auto-update (af85c2d)
 - [x] **2026-05-23** - chore: roadmap auto-update (41f206d)
 - [x] **2026-05-25** - Update roadmap with favicon entry (3c38738)
 - [x] **2026-05-23** - Use uploaded favicon.ico from public/ directory (a87c104)
