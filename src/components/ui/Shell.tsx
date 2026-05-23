@@ -68,11 +68,10 @@ export function Header() {
               style={{
                 fontFamily: "'Arial Black', 'Impact', 'Inter', system-ui, sans-serif",
                 fontWeight: 900,
-                fontSize: '21px',
+                fontSize: '22px',
                 letterSpacing: '-0.03em',
-                color: 'transparent',
-                WebkitTextStroke: `1.8px ${INK}`,
-                textShadow: `2px 2px 0 rgba(255,255,255,0.12), 3.5px 3.5px 0 rgba(255,255,255,0.05)`,
+                color: INK,
+                textShadow: `1.5px 1.5px 0 rgba(255,255,255,0.15), 3px 3px 0 rgba(255,255,255,0.06)`,
               }}
             >
               U⚡X
