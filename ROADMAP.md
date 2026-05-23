@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-05-23** (Phase 1 fully closed: P1-4 voting UI shipped on top of P1-5 / P1-7 / P1-8 — Phase 2 now unblocked; logo branding entry update; review queue detail pane redesign shipped; logo fill fix shipped, roadmap auto-update PostToolUse hook wired)
+> Last updated: **2026-05-24** (Phase 1 fully closed: P1-4 voting UI shipped on top of P1-5 / P1-7 / P1-8 — Phase 2 now unblocked; logo branding entry update; review queue detail pane redesign shipped; logo fill fix shipped, roadmap auto-update PostToolUse hook wired, logo PNG integration shipped)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -274,6 +274,8 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-05-24** · Logo PNG integration shipped: replaced CSS-text U⚡X with actual logo.png (transparent bg, black letterforms) in nav and footer. Invert(1) filter flips to white for dark nav. Nav: 30px height · footer: 20px at 75% opacity. (`9ee62aa`)
+- [x] **2026-05-24** · Roadmap auto-update PostToolUse hook executed: ROADMAP.md updated with today's date (2026-05-24). (`c329e08`)
 - [x] **2026-05-23** · Roadmap + memory auto-update PostToolUse hook committed: ROADMAP.md updated with today's date + new Done entry; deployments.md memory section added with commit SHAs + changed files list. Hook fires after each `git push` to main. (`3c9cdd3`)
 - [x] **2026-05-23** · Replace nav logo transparent+stroke with solid INK fill for better compatibility: transparent + -webkit-text-stroke silently fails when stroke rendering unsupported, making logo invisible. Switch to solid INK fill with double-shadow for 3D depth hint — always renders. (`534501e`)
 - [x] **2026-05-24** · Roadmap + memory auto-update wired to PostToolUse hook: after each `git push` to main, post-hook commits roadmap updates (today's date + last shipped entry) and primes deployments.md memory with commit SHAs + changed files. (`8b6c9bc`)
