@@ -30,6 +30,7 @@ import {
 import { resolveOrphans } from '@/lib/generator/resolve-orphans';
 import { extractDomain } from '@/lib/generator/url';
 import { uniqueBundleSlug } from '@/lib/generator/slug';
+import { advanceBatch } from '@/lib/generator/batch';
 
 // QStash payloads are capped at 1MB. Trim the scraped markdown before
 // passing to Phase 2 — design.md authoring only needs a representative
@@ -65,6 +66,7 @@ export async function runScrapeAndExtract(payload: ScrapeAndExtractPayload): Pro
         jobId,
         'processing-image',
         new Error('Upload job missing imageData / imageMimeType / brandName'),
+        job.batchId,
       );
     }
     // Synthesise a scrape-shaped object so the rest of the pipeline
@@ -91,7 +93,7 @@ export async function runScrapeAndExtract(payload: ScrapeAndExtractPayload): Pro
         imageMimeType: job.imageMimeType,
       });
     } catch (err) {
-      return failJob(jobId, 'extracting', err);
+      return failJob(jobId, 'extracting', err, job.batchId);
     }
   } else {
     // ─── 1. Scrape ───────────────────────────────────
@@ -99,7 +101,7 @@ export async function runScrapeAndExtract(payload: ScrapeAndExtractPayload): Pro
     try {
       scrape = await scrapeUrl(job.url);
     } catch (err) {
-      return failJob(jobId, 'scraping', err);
+      return failJob(jobId, 'scraping', err, job.batchId);
     }
 
     // ─── 2. Parse computed styles ────────────────────
@@ -108,7 +110,7 @@ export async function runScrapeAndExtract(payload: ScrapeAndExtractPayload): Pro
     try {
       computed = extractComputedStyles(scrape.html ?? '');
     } catch (err) {
-      return failJob(jobId, 'parsing-computed', err);
+      return failJob(jobId, 'parsing-computed', err, job.batchId);
     }
 
     // ─── 3. Gemini extraction ────────────────────────
@@ -123,7 +125,7 @@ export async function runScrapeAndExtract(payload: ScrapeAndExtractPayload): Pro
         computed,
       });
     } catch (err) {
-      return failJob(jobId, 'extracting', err);
+      return failJob(jobId, 'extracting', err, job.batchId);
     }
   }
 
@@ -135,7 +137,7 @@ export async function runScrapeAndExtract(payload: ScrapeAndExtractPayload): Pro
   try {
     brand = resolveOrphans(brand);
   } catch (err) {
-    return failJob(jobId, 'resolving-orphans', err);
+    return failJob(jobId, 'resolving-orphans', err, job.batchId);
   }
 
   // ─── 4. Persist draft bundle ──────────────────────────
@@ -144,7 +146,7 @@ export async function runScrapeAndExtract(payload: ScrapeAndExtractPayload): Pro
   try {
     bundleId = await writeDraftBundle({ job, scrape, brand });
   } catch (err) {
-    return failJob(jobId, 'persisting', err);
+    return failJob(jobId, 'persisting', err, job.batchId);
   }
 
   // ─── 5. Hand off to Phase 2 ────────────────────────────
@@ -162,9 +164,10 @@ export async function runScrapeAndExtract(payload: ScrapeAndExtractPayload): Pro
       brand,
       isRerun: Boolean(job.targetBundleId),
       autoPublish: Boolean(job.autoPublish),
+      batchId: job.batchId ?? null,
     });
   } catch (err) {
-    return failJob(jobId, 'enqueueing-author', err);
+    return failJob(jobId, 'enqueueing-author', err, job.batchId);
   }
 
   // Phase 1 ends here. The job stays `running` with currentStep='persisting'
@@ -180,7 +183,7 @@ async function setJobStep(jobId: string, step: string): Promise<void> {
     .where(eq(generationJobs.id, jobId));
 }
 
-async function failJob(jobId: string, step: string, err: unknown): Promise<void> {
+async function failJob(jobId: string, step: string, err: unknown, batchId?: string | null): Promise<void> {
   const message = err instanceof Error ? err.message : String(err);
   console.error(`[scrape-and-extract] job ${jobId} failed at ${step}:`, message);
   await db
@@ -192,6 +195,7 @@ async function failJob(jobId: string, step: string, err: unknown): Promise<void>
       updatedAt: new Date(),
     })
     .where(eq(generationJobs.id, jobId));
+  await advanceBatch(batchId);
 }
 
 async function writeDraftBundle(input: {

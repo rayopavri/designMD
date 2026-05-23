@@ -451,6 +451,12 @@ export const generationJobs = pgTable(
     errorMessage: text('error_message'),
     errorStep: text('error_step'),
 
+    // Batch grouping for sequential bulk-upload processing. All jobs created
+    // by a single /api/admin/bulk-upload call share the same batchId.
+    // Only the first job is enqueued immediately; each job chains to the next
+    // on completion or failure.
+    batchId: uuid('batch_id'),
+
     // Auto-publish flag: when true the author-design-md worker skips the
     // quality gate and publishes the bundle directly (used by bulk-upload).
     autoPublish: boolean('auto_publish').notNull().default(false),
@@ -466,6 +472,7 @@ export const generationJobs = pgTable(
     index('idx_jobs_user').on(table.userId, table.createdAt),
     index('idx_jobs_normalized_url').on(table.normalizedUrl),
     index('idx_jobs_image_hash').on(table.imageHash, table.userId),
+    index('idx_jobs_batch_id').on(table.batchId),
   ],
 );
 

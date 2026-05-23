@@ -1,24 +1,22 @@
 /**
  * POST /api/admin/bulk-upload
  *
- * Editor-only. Accepts a list of URLs, creates a generation job for each,
- * and enqueues them staggered through QStash. Jobs are created with
- * autoPublish=true so the pipeline skips the quality gate and publishes
- * directly (no pending_review step).
+ * Editor-only. Accepts a list of URLs, creates all generation jobs sharing
+ * a batchId, and enqueues ONLY the first one. Each job chains to the next
+ * (via advanceBatch) after it completes or fails, with a 10s gap.
  *
  * Skips:
- *  - URLs that are invalid / not parseable
+ *  - Invalid URLs
  *  - Duplicates within the submitted list (first occurrence wins)
  *  - URLs that already have a bundle in any status
  *  - URLs that already have a queued/running job
  *
  * Body:  { urls: string[] }  (max 150)
- * Response (202):
- *  { enqueued, skipped: { duplicate, alreadyExists, alreadyInFlight, invalid }, outcomes, etaSeconds }
+ * Response (202): { batchId, enqueued, skipped, outcomes, etaSeconds }
  */
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, inArray } from 'drizzle-orm';
 import { requireEditor } from '@/lib/auth/session';
 import { db } from '@/lib/db/client';
 import { bundles, generationJobs } from '@/lib/db/schema';
@@ -29,8 +27,6 @@ export const runtime = 'nodejs';
 export const maxDuration = 60;
 
 const MAX_BATCH = 150;
-const STAGGER_SECONDS = 30;
-const ENQUEUE_CONCURRENCY = 4;
 
 const BodySchema = z.object({
   urls: z.array(z.string().min(1).max(2048)).min(1).max(MAX_BATCH),
@@ -38,28 +34,8 @@ const BodySchema = z.object({
 
 type SkipReason = 'invalid' | 'duplicate' | 'alreadyExists' | 'alreadyInFlight';
 type Outcome =
-  | { url: string; status: 'enqueued'; jobId: string; delaySeconds: number }
+  | { url: string; status: 'enqueued'; jobId: string }
   | { url: string; status: 'skipped'; reason: SkipReason };
-
-async function runWithConcurrency<T, R>(
-  items: T[],
-  limit: number,
-  fn: (item: T, idx: number) => Promise<R>,
-): Promise<R[]> {
-  const results: R[] = new Array(items.length);
-  let cursor = 0;
-  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
-    while (true) {
-      const idx = cursor++;
-      if (idx >= items.length) return;
-      const item = items[idx];
-      if (item === undefined) return;
-      results[idx] = await fn(item, idx);
-    }
-  });
-  await Promise.all(workers);
-  return results;
-}
 
 export async function POST(req: NextRequest) {
   let editor;
@@ -97,7 +73,6 @@ export async function POST(req: NextRequest) {
     let normalized: string;
     try {
       normalized = normalizeUrl(raw);
-      // Sanity-check that it's a real http/https URL after normalization.
       const u = new URL(normalized);
       if (u.protocol !== 'http:' && u.protocol !== 'https:') throw new Error('not http(s)');
     } catch {
@@ -114,8 +89,10 @@ export async function POST(req: NextRequest) {
   }
 
   if (candidates.length === 0) {
-    const skipped = buildSkipCounts(outcomes);
-    return NextResponse.json({ enqueued: 0, skipped, outcomes, etaSeconds: 0 }, { status: 202 });
+    return NextResponse.json(
+      { batchId: null, enqueued: 0, skipped: buildSkipCounts(outcomes), outcomes, etaSeconds: 0 },
+      { status: 202 },
+    );
   }
 
   // ── 2. Check for existing bundles (any status) ────────────────────────────
@@ -142,7 +119,7 @@ export async function POST(req: NextRequest) {
     inFlightJobs.map((j) => j.normalizedUrl).filter(Boolean) as string[],
   );
 
-  // ── 4. Partition into skip / enqueue ────────────────────────────────────
+  // ── 4. Partition into skip / enqueue ─────────────────────────────────────
   const toEnqueue: Candidate[] = [];
   for (const c of candidates) {
     if (existingNormalized.has(c.normalized)) {
@@ -156,56 +133,61 @@ export async function POST(req: NextRequest) {
     toEnqueue.push(c);
   }
 
-  // ── 5. Enqueue with concurrency=4 ────────────────────────────────────────
-  const enqueued = await runWithConcurrency(
-    toEnqueue,
-    ENQUEUE_CONCURRENCY,
-    async (candidate, idx) => {
-      const delaySeconds = idx * STAGGER_SECONDS;
+  if (toEnqueue.length === 0) {
+    return NextResponse.json(
+      { batchId: null, enqueued: 0, skipped: buildSkipCounts(outcomes), outcomes, etaSeconds: 0 },
+      { status: 202 },
+    );
+  }
 
-      const [job] = await db
-        .insert(generationJobs)
-        .values({
-          url: candidate.raw,
-          normalizedUrl: candidate.normalized,
-          sourceType: 'url',
-          status: 'queued',
-          currentStep: 'queued',
-          userId: editor.id,
-          autoPublish: true,
-        })
-        .returning({ id: generationJobs.id });
+  // ── 5. Insert all jobs sharing one batchId, enqueue only the first ────────
+  const batchId = crypto.randomUUID();
 
-      if (!job) {
-        return { url: candidate.raw, status: 'skipped' as const, reason: 'invalid' as SkipReason };
-      }
+  const insertedJobs = await db
+    .insert(generationJobs)
+    .values(
+      toEnqueue.map((c) => ({
+        url: c.raw,
+        normalizedUrl: c.normalized,
+        sourceType: 'url' as const,
+        status: 'queued' as const,
+        currentStep: 'queued',
+        userId: editor.id,
+        autoPublish: true,
+        batchId,
+      })),
+    )
+    .returning({ id: generationJobs.id, normalizedUrl: generationJobs.normalizedUrl });
 
-      try {
-        await enqueueTask('scrape-and-extract', { jobId: job.id }, { delaySeconds });
-      } catch (err) {
-        await db
-          .update(generationJobs)
-          .set({
-            status: 'failed',
-            errorStep: 'enqueue',
-            errorMessage: (err instanceof Error ? err.message : String(err)).slice(0, 1000),
-            updatedAt: new Date(),
-          })
-          .where(eq(generationJobs.id, job.id));
-        return { url: candidate.raw, status: 'skipped' as const, reason: 'invalid' as SkipReason };
-      }
+  // Build outcome entries for all inserted jobs
+  const urlToJobId = new Map(insertedJobs.map((j) => [j.normalizedUrl, j.id]));
+  for (const c of toEnqueue) {
+    const jobId = urlToJobId.get(c.normalized);
+    if (jobId) {
+      outcomes.push({ url: c.raw, status: 'enqueued', jobId });
+    }
+  }
 
-      return { url: candidate.raw, status: 'enqueued' as const, jobId: job.id, delaySeconds };
-    },
-  );
+  // Enqueue only the first job — it chains to the rest on completion/failure
+  const firstJob = insertedJobs[0];
+  if (firstJob) {
+    try {
+      await enqueueTask('scrape-and-extract', { jobId: firstJob.id });
+    } catch (err) {
+      console.error('[bulk-upload] failed to enqueue first job:', err);
+      return NextResponse.json(
+        { error: 'Failed to start pipeline', details: err instanceof Error ? err.message : String(err) },
+        { status: 500 },
+      );
+    }
+  }
 
-  for (const o of enqueued) outcomes.push(o);
-
-  const enqueuedCount = outcomes.filter((o) => o.status === 'enqueued').length;
-  const etaSeconds = enqueuedCount > 0 ? (enqueuedCount - 1) * STAGGER_SECONDS + 60 : 0;
+  const enqueuedCount = toEnqueue.length;
+  // ETA: first job starts now, each subsequent adds ~3 min processing + 10s gap
+  const etaSeconds = enqueuedCount > 0 ? enqueuedCount * 180 + (enqueuedCount - 1) * 10 : 0;
 
   return NextResponse.json(
-    { enqueued: enqueuedCount, skipped: buildSkipCounts(outcomes), outcomes, etaSeconds },
+    { batchId, enqueued: enqueuedCount, skipped: buildSkipCounts(outcomes), outcomes, etaSeconds },
     { status: 202 },
   );
 }

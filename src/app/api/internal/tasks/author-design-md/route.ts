@@ -24,6 +24,7 @@ const PayloadSchema = z.object({
   brand: z.unknown(),
   isRerun: z.boolean(),
   autoPublish: z.boolean().default(false),
+  batchId: z.string().uuid().nullable().default(null),
 });
 
 export async function POST(req: NextRequest) {
@@ -55,6 +56,7 @@ export async function POST(req: NextRequest) {
       brand: parsed.brand as any,
       isRerun: parsed.isRerun,
       autoPublish: parsed.autoPublish,
+      batchId: parsed.batchId,
     });
     return NextResponse.json({ ok: true });
   } catch (err) {

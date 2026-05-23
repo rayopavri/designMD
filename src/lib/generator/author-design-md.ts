@@ -23,6 +23,7 @@ import { bundles, generationJobs } from '@/lib/db/schema';
 import type { ExtractedBrand } from '@/lib/ai/gemini';
 import { generateDesignMd } from '@/lib/ai/generate-design-md';
 import { enqueueTask } from '@/lib/queue';
+import { advanceBatch } from '@/lib/generator/batch';
 import { scoreFromLint } from '@/lib/generator/coverage';
 import {
   lintDesignMd,
@@ -41,10 +42,12 @@ export interface AuthorDesignMdPayload {
   isRerun: boolean;
   /** True when triggered by bulk-upload — skips quality gate and publishes directly. */
   autoPublish: boolean;
+  /** Batch ID for sequential processing — chains to next queued job on completion/failure. */
+  batchId: string | null;
 }
 
 export async function runAuthorDesignMd(payload: AuthorDesignMdPayload): Promise<void> {
-  const { jobId, bundleId, url, scrapedMarkdown, brand, isRerun, autoPublish } = payload;
+  const { jobId, bundleId, url, scrapedMarkdown, brand, isRerun, autoPublish, batchId } = payload;
 
   // For auto-publish jobs we need the submitting editor's userId to populate
   // reviewedBy. Fetch lazily — only one extra round-trip per bulk job.
@@ -68,7 +71,7 @@ export async function runAuthorDesignMd(payload: AuthorDesignMdPayload): Promise
     });
     designMdContent = generated.content;
   } catch (err) {
-    return failJob(jobId, 'writing-design-md', err);
+    return failJob(jobId, 'writing-design-md', err, batchId);
   }
 
   // Persist design.md immediately + fire companion task so it runs in
@@ -83,7 +86,7 @@ export async function runAuthorDesignMd(payload: AuthorDesignMdPayload): Promise
       })
       .where(eq(bundles.id, bundleId));
   } catch (err) {
-    return failJob(jobId, 'persisting-design-md', err);
+    return failJob(jobId, 'persisting-design-md', err, batchId);
   }
   try {
     await enqueueTask('generate-companion', { bundleId });
@@ -97,7 +100,7 @@ export async function runAuthorDesignMd(payload: AuthorDesignMdPayload): Promise
   try {
     lintSummary = await lintDesignMd(designMdContent);
   } catch (err) {
-    return failJob(jobId, 'linting', err);
+    return failJob(jobId, 'linting', err, batchId);
   }
 
   await setJobStep(jobId, 'scoring');
@@ -155,7 +158,7 @@ export async function runAuthorDesignMd(payload: AuthorDesignMdPayload): Promise
       })
       .where(eq(bundles.id, bundleId));
   } catch (err) {
-    return failJob(jobId, 'scoring', err);
+    return failJob(jobId, 'scoring', err, batchId);
   }
 
   await db
@@ -176,6 +179,8 @@ export async function runAuthorDesignMd(payload: AuthorDesignMdPayload): Promise
       updatedAt: new Date(),
     })
     .where(eq(generationJobs.id, jobId));
+
+  await advanceBatch(batchId);
 }
 
 async function setJobStep(jobId: string, step: string): Promise<void> {
@@ -185,7 +190,7 @@ async function setJobStep(jobId: string, step: string): Promise<void> {
     .where(eq(generationJobs.id, jobId));
 }
 
-async function failJob(jobId: string, step: string, err: unknown): Promise<void> {
+async function failJob(jobId: string, step: string, err: unknown, batchId?: string | null): Promise<void> {
   const message = err instanceof Error ? err.message : String(err);
   console.error(`[author-design-md] job ${jobId} failed at ${step}:`, message);
   await db
@@ -197,4 +202,5 @@ async function failJob(jobId: string, step: string, err: unknown): Promise<void>
       updatedAt: new Date(),
     })
     .where(eq(generationJobs.id, jobId));
+  await advanceBatch(batchId);
 }
