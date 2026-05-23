@@ -274,6 +274,8 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-05-23** - Remove '/ 042' version tag from logo link in nav (841b53c)
+- [x] **2026-05-24** · Increase logo size 25% — nav 30→38px, footer 20→25px. (`4394035`)
 - [x] **2026-05-23** · Increase logo size 25% — nav 30→38px, footer 20→25px. (`5341999cd`)
 - [x] **2026-05-23** · Roadmap auto-update logging via PostToolUse hook: chore commit recorded latest deployments (2a8a419). (`2a8a419`)
 - [x] **2026-05-24** · Logo PNG integration shipped: replaced CSS-text U⚡X with actual logo.png (transparent bg, black letterforms) in nav and footer. Invert(1) filter flips to white for dark nav. Nav: 30px height · footer: 20px at 75% opacity. (`9ee62aa`)
