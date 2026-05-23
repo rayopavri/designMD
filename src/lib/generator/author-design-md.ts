@@ -109,6 +109,14 @@ export async function runAuthorDesignMd(payload: AuthorDesignMdPayload): Promise
   // already curated this bundle).
   const shouldPromote = lintSummary.counts.errors === 0 && coverage.overall >= 40;
 
+  // Bulk-upload jobs auto-publish only when they clear this coverage bar.
+  // Below it they land in pending_review for editorial review.
+  const AUTO_PUBLISH_COVERAGE_THRESHOLD = 50;
+  const meetsAutoPublishBar =
+    autoPublish &&
+    lintSummary.counts.errors === 0 &&
+    coverage.overall >= AUTO_PUBLISH_COVERAGE_THRESHOLD;
+
   try {
     await db
       .update(bundles)
@@ -125,7 +133,7 @@ export async function runAuthorDesignMd(payload: AuthorDesignMdPayload): Promise
         accessibilityNotes: renderAccessibilityAdvisory(lintSummary),
         ...(isRerun
           ? {}
-          : autoPublish
+          : meetsAutoPublishBar
             ? {
                 status: 'published' as const,
                 submittedAt: new Date(),
@@ -134,10 +142,15 @@ export async function runAuthorDesignMd(payload: AuthorDesignMdPayload): Promise
                 reviewedBy: editorUserId,
                 isCurated: true,
               }
-            : {
-                status: shouldPromote ? ('pending_review' as const) : ('personal' as const),
-                submittedAt: shouldPromote ? new Date() : null,
-              }),
+            : autoPublish
+              ? {
+                  status: 'pending_review' as const,
+                  submittedAt: new Date(),
+                }
+              : {
+                  status: shouldPromote ? ('pending_review' as const) : ('personal' as const),
+                  submittedAt: shouldPromote ? new Date() : null,
+                }),
         updatedAt: new Date(),
       })
       .where(eq(bundles.id, bundleId));
@@ -151,11 +164,13 @@ export async function runAuthorDesignMd(payload: AuthorDesignMdPayload): Promise
       status: 'completed',
       currentStep: isRerun
         ? 'rerun_complete'
-        : autoPublish
+        : meetsAutoPublishBar
           ? 'published'
-          : shouldPromote
-            ? 'ready_for_review'
-            : 'held_as_draft',
+          : autoPublish
+            ? 'held_for_review'
+            : shouldPromote
+              ? 'ready_for_review'
+              : 'held_as_draft',
       resultBundleId: bundleId,
       imageData: null,
       updatedAt: new Date(),
