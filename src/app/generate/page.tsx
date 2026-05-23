@@ -812,14 +812,18 @@ function GenerateContent() {
               <>
                 <Globe className="h-4 w-4 ml-3" style={{ color: MUTED }} />
                 <input
-                  type="url"
+                  type="text"
+                  inputMode="url"
+                  autoComplete="url"
+                  autoCapitalize="none"
+                  spellCheck={false}
                   value={url}
                   onChange={(e) => {
                     setUrl(e.target.value);
                     if (!overrideTouched) setOverride(null);
                     setValidation(null);
                   }}
-                  placeholder="https://linear.app  ·  github.com/owner/skill  ·  figma.com/mcp"
+                  placeholder="linear.app  ·  github.com/owner/skill  ·  figma.com/mcp"
                   className="flex-1 h-9 bg-transparent text-[13.5px] px-1 min-w-0"
                   style={{ color: INK, fontFamily: MONO }}
                   disabled={status === "running"}
