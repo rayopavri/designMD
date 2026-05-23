@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-05-23** (Bulk URL upload with auto-publish pipeline: new `/admin/bulk-upload` page accepts plain URLs or markdown tables, deduplicates, skips existing bundles, creates jobs with autoPublish flag that bypass quality gate. `auto_publish` column added to generation_jobs schema. Propagation: scrape-and-extract → author-design-md skips gate and publishes directly. New POST endpoint handles up to 150 URLs, enqueues staggered via QStash.)
+> Last updated: **2026-05-26** (Roadmap auto-update via PostToolUse hook)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -274,6 +274,8 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-05-26** - Bulk upload: flag low-coverage bundles for review instead of auto-publishing (62ba856)
+- [x] **2026-05-23** - chore: roadmap auto-update (a915fce)
 - [x] **2026-05-23** - Add bulk URL upload with auto-publish for rapid bundle generation (781455e)
 - [x] **2026-05-23** - chore: roadmap auto-update (af85c2d)
 - [x] **2026-05-23** - chore: roadmap auto-update (41f206d)
