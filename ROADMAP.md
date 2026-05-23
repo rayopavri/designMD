@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-05-23** (Phase 1 fully closed: P1-4 voting UI shipped on top of P1-5 / P1-7 / P1-8 — Phase 2 now unblocked; logo branding entry update; review queue detail pane redesign shipped; logo fill fix shipped, roadmap auto-update PostToolUse hook wired, logo PNG integration shipped, nav version tag removal logged)
+> Last updated: **2026-05-25** (Phase 1 fully closed: P1-4 voting UI shipped on top of P1-5 / P1-7 / P1-8 — Phase 2 now unblocked; logo branding entry update; review queue detail pane redesign shipped; logo fill fix shipped, roadmap auto-update PostToolUse hook wired, logo PNG integration shipped, nav version tag removal logged)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -274,6 +274,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-05-25** - Update roadmap with favicon entry (3c38738)
 - [x] **2026-05-23** - Use uploaded favicon.ico from public/ directory (a87c104)
 - [x] **2026-05-25** - Update roadmap with doc rewrite entry (66f0ef9)
 - [x] **2026-05-24** - Rewrite README with product description and expand AGENTS.md for AI agents (f43a187)
