@@ -63,7 +63,7 @@ export function Header() {
     >
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6 lg:px-8">
         <div className="flex items-center gap-9">
-          <Link href="/" className="flex items-center" aria-label="UIUXskills">
+          <Link href="/" className="flex items-center gap-2.5" aria-label="UIUXskills">
             <Image
               src="/logo.png"
               alt="UIUXskills"
@@ -72,6 +72,7 @@ export function Header() {
               priority
               style={{ height: '38px', width: 'auto', filter: 'invert(1)' }}
             />
+            <span className="text-[15px] font-medium tracking-tight" style={{ color: INK }}>UIUXskills</span>
           </Link>
           <nav className="hidden md:flex items-center gap-7 text-[12.5px]" style={{ fontFamily: SANS, color: SUB }}>
             {NAV.map((n) => {
