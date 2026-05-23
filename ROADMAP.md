@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-05-23** (Roadmap auto-update via PostToolUse hook)
+> Last updated: **2026-05-26** (Roadmap auto-update via PostToolUse hook)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -274,6 +274,8 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-05-26** - Bulk upload: add manual refresh button to live status view (4699eac)
+- [x] **2026-05-23** - chore: roadmap auto-update (348473e)
 - [x] **2026-05-23** - Bulk upload: sequential processing with live status polling (55d76bd)
 - [x] **2026-05-26** - chore: roadmap auto-update (9d6cc7f)
 - [x] **2026-05-23** - chore: roadmap auto-update (a6c5f11)
