@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -172,6 +172,14 @@ function outcomeAccent(job: JobStatus): string {
 // ── Component ────────────────────────────────────────────────────────────────
 
 export default function BulkUploadPage() {
+  return (
+    <Suspense>
+      <BulkUploadPageInner />
+    </Suspense>
+  );
+}
+
+function BulkUploadPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const batchIdFromUrl = searchParams?.get("batch") ?? null;
