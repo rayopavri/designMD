@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CheckCircle2, Loader2, ShieldCheck, Upload, XCircle } from "lucide-react";
+import { CheckCircle2, Loader2, RefreshCw, ShieldCheck, Upload, XCircle } from "lucide-react";
 import { SectionLabel } from "@/components/ui/Shell";
 import {
   BG,
@@ -128,6 +128,7 @@ export default function BulkUploadPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [submitResult, setSubmitResult] = useState<SubmitResponse | null>(null);
   const [batchStatus, setBatchStatus] = useState<BatchStatus | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -140,7 +141,8 @@ export default function BulkUploadPage() {
     }
   }, []);
 
-  const pollStatus = useCallback(async (batchId: string) => {
+  const pollStatus = useCallback(async (batchId: string, manual = false) => {
+    if (manual) setIsRefreshing(true);
     try {
       const res = await fetch(`/api/admin/bulk-upload/status?batchId=${encodeURIComponent(batchId)}`);
       if (!res.ok) return;
@@ -152,6 +154,8 @@ export default function BulkUploadPage() {
       }
     } catch {
       // Ignore transient poll errors
+    } finally {
+      if (manual) setIsRefreshing(false);
     }
   }, [stopPolling]);
 
@@ -390,16 +394,30 @@ export default function BulkUploadPage() {
                 </span>
               )}
             </div>
-            {isDone ? (
-              <span className="text-[11px]" style={{ fontFamily: MONO, color: LIME }}>
-                batch complete
-              </span>
-            ) : (
-              <span className="text-[11px] inline-flex items-center gap-1.5" style={{ fontFamily: MONO, color: MUTED }}>
-                <Loader2 className="h-3 w-3 animate-spin" />
-                polling every 5 s…
-              </span>
-            )}
+            <div className="flex items-center gap-2">
+              {isDone ? (
+                <span className="text-[11px]" style={{ fontFamily: MONO, color: LIME }}>
+                  batch complete
+                </span>
+              ) : (
+                <span className="text-[11px] inline-flex items-center gap-1.5" style={{ fontFamily: MONO, color: MUTED }}>
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  polling every 5 s
+                </span>
+              )}
+              {batchStatus?.batchId && (
+                <button
+                  type="button"
+                  onClick={() => void pollStatus(batchStatus.batchId, true)}
+                  disabled={isRefreshing}
+                  className="h-8 rounded-md border px-2.5 text-[11px] inline-flex items-center gap-1.5 disabled:opacity-50"
+                  style={{ borderColor: BORDER, color: SUB, fontFamily: MONO, background: SURFACE_2 }}
+                >
+                  <RefreshCw className={`h-3 w-3 ${isRefreshing ? "animate-spin" : ""}`} />
+                  refresh
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Job rows */}
