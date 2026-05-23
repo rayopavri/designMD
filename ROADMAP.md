@@ -274,6 +274,8 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-05-23** - Bulk upload: sequential processing with live status polling (55d76bd)
+- [x] **2026-05-26** - chore: roadmap auto-update (9d6cc7f)
 - [x] **2026-05-23** - chore: roadmap auto-update (a6c5f11)
 - [x] **2026-05-26** - Bulk upload: flag low-coverage bundles for review instead of auto-publishing (62ba856)
 - [x] **2026-05-23** - chore: roadmap auto-update (a915fce)
