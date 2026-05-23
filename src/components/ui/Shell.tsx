@@ -22,6 +22,7 @@ import {
 } from "@/lib/ui-data/tokens";
 import { openAuthModal, useAuth, useAuthStorageSync } from "@/lib/ui-data/mockAuth";
 import { PHASE_2_SHELVES_ENABLED } from "@/lib/ui-data/featureFlags";
+import { AdminNav } from "./AdminNav";
 import { AuthModal } from "./AuthModal";
 import { UserMenu } from "./UserMenu";
 import { ClaimBundlesBanner } from "./ClaimBundlesBanner";
@@ -170,6 +171,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen flex flex-col" style={{ background: BG, color: INK, fontFamily: SANS }}>
       <Header />
+      <AdminNav />
       <ClaimBundlesBanner />
       <main className="flex-1">{children}</main>
       <Footer />

@@ -1,14 +1,15 @@
 /**
  * GET /api/admin/bulk-upload/status?batchId=...
  *
- * Editor-only. Returns per-job status for a bulk-upload batch.
- * Used by the /admin/bulk-upload page to poll live progress.
+ * Editor-only. Returns per-job status for a bulk-upload batch, including
+ * the resulting bundle's slug + status so the UI can link directly to
+ * published bundles or to the review queue.
  */
 import { NextResponse, type NextRequest } from 'next/server';
 import { eq } from 'drizzle-orm';
 import { requireEditor } from '@/lib/auth/session';
 import { db } from '@/lib/db/client';
-import { generationJobs } from '@/lib/db/schema';
+import { bundles, generationJobs } from '@/lib/db/schema';
 
 export const runtime = 'nodejs';
 
@@ -35,8 +36,12 @@ export async function GET(req: NextRequest) {
       errorMessage: generationJobs.errorMessage,
       createdAt: generationJobs.createdAt,
       updatedAt: generationJobs.updatedAt,
+      bundleSlug: bundles.slug,
+      bundleStatus: bundles.status,
+      bundleTitle: bundles.title,
     })
     .from(generationJobs)
+    .leftJoin(bundles, eq(bundles.id, generationJobs.resultBundleId))
     .where(eq(generationJobs.batchId, batchId))
     .orderBy(generationJobs.createdAt);
 

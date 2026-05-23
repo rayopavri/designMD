@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Archive,
-  ArrowUpRight,
   Check,
   ChevronRight,
   ExternalLink,
@@ -787,22 +786,6 @@ export default function AdminBundlesPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <a
-            href="/admin/bulk-upload"
-            className="h-9 rounded-full border px-3 text-[12px] inline-flex items-center gap-2"
-            style={{ borderColor: BORDER, color: SUB, fontFamily: MONO }}
-          >
-            bulk upload
-            <ArrowUpRight className="h-3.5 w-3.5" />
-          </a>
-          <a
-            href="/admin/queue"
-            className="h-9 rounded-full border px-3 text-[12px] inline-flex items-center gap-2"
-            style={{ borderColor: BORDER, color: SUB, fontFamily: MONO }}
-          >
-            reviewer queue
-            <ArrowUpRight className="h-3.5 w-3.5" />
-          </a>
           <button
             type="button"
             onClick={() => void loadList()}
