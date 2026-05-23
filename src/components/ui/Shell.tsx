@@ -67,10 +67,10 @@ export function Header() {
             <Image
               src="/logo.png"
               alt="UIUXskills"
-              height={30}
-              width={45}
+              height={38}
+              width={57}
               priority
-              style={{ height: '30px', width: 'auto', filter: 'invert(1)' }}
+              style={{ height: '38px', width: 'auto', filter: 'invert(1)' }}
             />
             <span className="text-[10px]" style={{ fontFamily: MONO, color: MUTED }}>/ 042</span>
           </Link>
@@ -142,9 +142,9 @@ export function Footer() {
           <Image
             src="/logo.png"
             alt="UIUXskills"
-            height={20}
-            width={30}
-            style={{ height: '20px', width: 'auto', filter: 'invert(1)', opacity: 0.75 }}
+            height={25}
+            width={38}
+            style={{ height: '25px', width: 'auto', filter: 'invert(1)', opacity: 0.75 }}
           />
           <span>v0.42 · 2026 · uiuxskills.com</span>
           <span className="inline-flex items-center gap-1.5">
