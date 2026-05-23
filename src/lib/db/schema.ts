@@ -451,6 +451,10 @@ export const generationJobs = pgTable(
     errorMessage: text('error_message'),
     errorStep: text('error_step'),
 
+    // Auto-publish flag: when true the author-design-md worker skips the
+    // quality gate and publishes the bundle directly (used by bulk-upload).
+    autoPublish: boolean('auto_publish').notNull().default(false),
+
     // Compliance
     compliancePassed: boolean('compliance_passed'),
     complianceBlockedReason: text('compliance_blocked_reason'),

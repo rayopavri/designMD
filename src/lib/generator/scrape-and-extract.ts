@@ -161,6 +161,7 @@ export async function runScrapeAndExtract(payload: ScrapeAndExtractPayload): Pro
       scrapedMarkdown: scrape.markdown.slice(0, PHASE_2_MARKDOWN_CAP),
       brand,
       isRerun: Boolean(job.targetBundleId),
+      autoPublish: Boolean(job.autoPublish),
     });
   } catch (err) {
     return failJob(jobId, 'enqueueing-author', err);

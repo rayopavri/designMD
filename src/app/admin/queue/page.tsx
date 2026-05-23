@@ -253,14 +253,24 @@ export default function ReviewerQueuePage() {
             with a reason so the submitter knows what to fix.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => void loadList()}
-          className="h-9 rounded-full border px-3 text-[12px] inline-flex items-center gap-2"
-          style={{ borderColor: BORDER, color: SUB, fontFamily: MONO }}
-        >
-          <RefreshCw className="h-3.5 w-3.5" /> refresh
-        </button>
+        <div className="flex items-center gap-2">
+          <a
+            href="/admin/bulk-upload"
+            className="h-9 rounded-full border px-3 text-[12px] inline-flex items-center gap-2"
+            style={{ borderColor: BORDER, color: SUB, fontFamily: MONO }}
+          >
+            bulk upload
+            <ExternalLink className="h-3.5 w-3.5" />
+          </a>
+          <button
+            type="button"
+            onClick={() => void loadList()}
+            className="h-9 rounded-full border px-3 text-[12px] inline-flex items-center gap-2"
+            style={{ borderColor: BORDER, color: SUB, fontFamily: MONO }}
+          >
+            <RefreshCw className="h-3.5 w-3.5" /> refresh
+          </button>
+        </div>
       </div>
 
       <div

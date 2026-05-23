@@ -39,10 +39,24 @@ export interface AuthorDesignMdPayload {
   brand: ExtractedBrand;
   /** True when the parent generation_jobs row is a re-run (preserves status). */
   isRerun: boolean;
+  /** True when triggered by bulk-upload — skips quality gate and publishes directly. */
+  autoPublish: boolean;
 }
 
 export async function runAuthorDesignMd(payload: AuthorDesignMdPayload): Promise<void> {
-  const { jobId, bundleId, url, scrapedMarkdown, brand, isRerun } = payload;
+  const { jobId, bundleId, url, scrapedMarkdown, brand, isRerun, autoPublish } = payload;
+
+  // For auto-publish jobs we need the submitting editor's userId to populate
+  // reviewedBy. Fetch lazily — only one extra round-trip per bulk job.
+  let editorUserId: string | null = null;
+  if (autoPublish) {
+    const [jobRow] = await db
+      .select({ userId: generationJobs.userId })
+      .from(generationJobs)
+      .where(eq(generationJobs.id, jobId))
+      .limit(1);
+    editorUserId = jobRow?.userId ?? null;
+  }
 
   await setJobStep(jobId, 'writing-design-md');
   let designMdContent: string;
@@ -111,10 +125,19 @@ export async function runAuthorDesignMd(payload: AuthorDesignMdPayload): Promise
         accessibilityNotes: renderAccessibilityAdvisory(lintSummary),
         ...(isRerun
           ? {}
-          : {
-              status: shouldPromote ? ('pending_review' as const) : ('personal' as const),
-              submittedAt: shouldPromote ? new Date() : null,
-            }),
+          : autoPublish
+            ? {
+                status: 'published' as const,
+                submittedAt: new Date(),
+                publishedAt: new Date(),
+                reviewedAt: new Date(),
+                reviewedBy: editorUserId,
+                isCurated: true,
+              }
+            : {
+                status: shouldPromote ? ('pending_review' as const) : ('personal' as const),
+                submittedAt: shouldPromote ? new Date() : null,
+              }),
         updatedAt: new Date(),
       })
       .where(eq(bundles.id, bundleId));
@@ -128,9 +151,11 @@ export async function runAuthorDesignMd(payload: AuthorDesignMdPayload): Promise
       status: 'completed',
       currentStep: isRerun
         ? 'rerun_complete'
-        : shouldPromote
-          ? 'ready_for_review'
-          : 'held_as_draft',
+        : autoPublish
+          ? 'published'
+          : shouldPromote
+            ? 'ready_for_review'
+            : 'held_as_draft',
       resultBundleId: bundleId,
       imageData: null,
       updatedAt: new Date(),

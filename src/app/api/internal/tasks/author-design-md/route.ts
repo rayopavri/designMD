@@ -23,6 +23,7 @@ const PayloadSchema = z.object({
   scrapedMarkdown: z.string(),
   brand: z.unknown(),
   isRerun: z.boolean(),
+  autoPublish: z.boolean().default(false),
 });
 
 export async function POST(req: NextRequest) {
@@ -53,6 +54,7 @@ export async function POST(req: NextRequest) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       brand: parsed.brand as any,
       isRerun: parsed.isRerun,
+      autoPublish: parsed.autoPublish,
     });
     return NextResponse.json({ ok: true });
   } catch (err) {
