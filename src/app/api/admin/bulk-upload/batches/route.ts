@@ -12,7 +12,7 @@ import { db } from '@/lib/db/client';
 
 export const runtime = 'nodejs';
 
-interface BatchRow {
+type BatchRow = {
   batch_id: string;
   created_at: string;
   total: number;
@@ -21,7 +21,7 @@ interface BatchRow {
   running: number;
   queued: number;
   first_url: string;
-}
+} & Record<string, unknown>;
 
 export async function GET() {
   let editor;
