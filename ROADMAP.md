@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-05-23** (Phase 1 fully closed: P1-4 voting UI shipped on top of P1-5 / P1-7 / P1-8 — Phase 2 now unblocked; logo branding entry update; review queue detail pane redesign shipped; logo fill fix shipped, roadmap auto-update PostToolUse hook wired, logo PNG integration shipped)
+> Last updated: **2026-05-23** (Phase 1 fully closed: P1-4 voting UI shipped on top of P1-5 / P1-7 / P1-8 — Phase 2 now unblocked; logo branding entry update; review queue detail pane redesign shipped; logo fill fix shipped, roadmap auto-update PostToolUse hook wired, logo PNG integration shipped, nav version tag removal logged)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -274,6 +274,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-05-23** - Remove '/ 042' version tag from logo link in nav (f7875fb)
 - [x] **2026-05-23** - Remove '/ 042' version tag from logo link in nav (841b53c)
 - [x] **2026-05-24** · Increase logo size 25% — nav 30→38px, footer 20→25px. (`4394035`)
 - [x] **2026-05-23** · Increase logo size 25% — nav 30→38px, footer 20→25px. (`5341999cd`)
