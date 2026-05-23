@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { Command } from "lucide-react";
@@ -63,19 +64,14 @@ export function Header() {
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6 lg:px-8">
         <div className="flex items-center gap-9">
           <Link href="/" className="flex items-center gap-2.5" aria-label="UIUXskills">
-            <span
-              className="leading-none select-none"
-              style={{
-                fontFamily: "'Arial Black', 'Impact', 'Inter', system-ui, sans-serif",
-                fontWeight: 900,
-                fontSize: '22px',
-                letterSpacing: '-0.03em',
-                color: INK,
-                textShadow: `1.5px 1.5px 0 rgba(255,255,255,0.15), 3px 3px 0 rgba(255,255,255,0.06)`,
-              }}
-            >
-              U⚡X
-            </span>
+            <Image
+              src="/logo.png"
+              alt="UIUXskills"
+              height={30}
+              width={45}
+              priority
+              style={{ height: '30px', width: 'auto', filter: 'invert(1)' }}
+            />
             <span className="text-[10px]" style={{ fontFamily: MONO, color: MUTED }}>/ 042</span>
           </Link>
           <nav className="hidden md:flex items-center gap-7 text-[12.5px]" style={{ fontFamily: SANS, color: SUB }}>
@@ -143,18 +139,13 @@ export function Footer() {
         style={{ color: MUTED, fontFamily: MONO }}
       >
         <div className="flex items-center gap-4 flex-wrap">
-          <span
-            style={{
-              fontFamily: "'Arial Black', 'Impact', 'Inter', system-ui, sans-serif",
-              fontWeight: 900,
-              fontSize: '15px',
-              letterSpacing: '-0.03em',
-              color: 'transparent',
-              WebkitTextStroke: `1.4px ${INK}`,
-            }}
-          >
-            U⚡X
-          </span>
+          <Image
+            src="/logo.png"
+            alt="UIUXskills"
+            height={20}
+            width={30}
+            style={{ height: '20px', width: 'auto', filter: 'invert(1)', opacity: 0.75 }}
+          />
           <span>v0.42 · 2026 · uiuxskills.com</span>
           <span className="inline-flex items-center gap-1.5">
             <span className="h-1.5 w-1.5 rounded-full" style={{ background: LIME }} />
