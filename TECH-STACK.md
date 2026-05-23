@@ -1,6 +1,6 @@
 # UIUXskills · Tech Stack Report
 
-> Snapshot as of 2026-05-21 (Supabase migration + Phase 1 shelf hiding)
+> Snapshot as of 2026-05-23
 > Production URL: https://uiuxskills.com
 
 ---
@@ -90,7 +90,7 @@ Nothing here is on a paid tier. Everything sits inside generous free allowances 
 - **Constraints driving architecture:**
   - 60s function timeout. Drives the 3-worker pipeline split (`scrape-and-extract` → `author-design-md` → `generate-companion`).
   - Cron jobs limited to once-per-day (tightened ~2026-05-21). Triggered the migration to GitHub Actions cron.
-- **GitHub auto-deploy currently broken** — pushes to `main` don't fire the webhook. Workaround: `pnpm dlx vercel --prod` from the local checkout. Linked project lives at `~/.vercel/`.
+- **GitHub auto-deploy** — pushes to `main` trigger production builds automatically. If the webhook stops firing, the fallback is `pnpm dlx vercel --prod` from the local checkout (linked project lives at `~/.vercel/`).
 
 ### Supabase Postgres (Free plan, current)
 - Migrated from Neon on 2026-05-21. Postgres 17, project `uiuxskills` (ref `ppvqdkvpyuntbncdhwtm`, region `us-east-1`).
@@ -101,7 +101,7 @@ Nothing here is on a paid tier. Everything sits inside generous free allowances 
 - 15 tables, 9 triggers (vote counting, slug uniqueness, accessibility check). All preserved across the migration.
 - Migrations going forward: still `pnpm tsx scripts/migrate-*.ts`, just hitting `DATABASE_URL` (Supabase pooler) instead of Neon.
 - **Network constraint:** Deloitte corporate WiFi blocks outbound 5432/6543. Direct `psql`/`pg_dump` from the work Mac on Deloitte network will time out. Tether to a phone hotspot for any direct DB ops. The Vercel-hosted app is unaffected.
-- Old Neon project (`ep-patient-mode-aqtwblo0.c-8.us-east-1.aws.neon.tech`) is intact but no longer used by any code. Can be deleted after a week of stable Supabase operation.
+- Old Neon project (`ep-patient-mode-aqtwblo0.c-8.us-east-1.aws.neon.tech`) is no longer used by any code and can be deleted.
 
 ### Upstash QStash (Free tier)
 - Durable HTTP task queue. Replaces a previous `void fetch()` fire-and-forget pattern that lost ~1 in N companion jobs.
