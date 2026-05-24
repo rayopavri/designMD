@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-05-26** (Roadmap auto-update via PostToolUse hook)
+> Last updated: **2026-05-27** (Roadmap auto-update via PostToolUse hook)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -274,6 +274,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-05-27** - Roadmap auto-update via PostToolUse hook (9e421b6)
 - [x] **2026-05-26** - Fix Worker 1 timeout causing watchdog failures (ae72730)
 - [x] **2026-05-24** - chore: roadmap auto-update (c0fa2a2)
 - [x] **2026-05-27** - Add re-run button to bulk upload UI + coverage-guided pipeline (29a8ce8)
