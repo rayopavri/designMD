@@ -43,45 +43,53 @@ const ALLOWED_MIME = new Set(['image/png', 'image/jpeg', 'image/webp']);
 const BRAND_NAME_MAX = 120;
 
 export async function POST(req: NextRequest) {
-  // Sign-in is optional now. Signed-in users still get attribution
-  // (created_by = user.id); anonymous gets null.
-  const user = await getCurrentUser();
-  const userId = user?.id ?? null;
-  const isEditor = user?.isEditor ?? false;
+  try {
+    // Sign-in is optional now. Signed-in users still get attribution
+    // (created_by = user.id); anonymous gets null.
+    const user = await getCurrentUser();
+    const userId = user?.id ?? null;
+    const isEditor = user?.isEditor ?? false;
 
-  // Rate-limit gate. Editors are unmetered, signed-in get 10/hour by
-  // userId, anonymous get 3/hour by IP. Returns 429 if exceeded.
-  const rl = await rateLimitGenerate({ req, userId, isEditor });
-  if (!rl.ok) {
-    return NextResponse.json(
-      {
-        error: 'rate_limited',
-        message: `You've hit the generation limit (${rl.limit} per hour). Try again in ~${Math.ceil(rl.retryAfter / 60)}m${userId ? '' : ' — or sign in for higher limits.'}`,
-        retryAfter: rl.retryAfter,
-        limit: rl.limit,
-        remaining: rl.remaining,
-        tier: rl.tier,
-      },
-      {
-        status: 429,
-        headers: {
-          'Retry-After': String(rl.retryAfter),
-          'X-RateLimit-Limit': String(rl.limit),
-          'X-RateLimit-Remaining': String(rl.remaining),
+    // Rate-limit gate. Editors are unmetered, signed-in get 10/hour by
+    // userId, anonymous get 3/hour by IP. Returns 429 if exceeded.
+    const rl = await rateLimitGenerate({ req, userId, isEditor });
+    if (!rl.ok) {
+      return NextResponse.json(
+        {
+          error: 'rate_limited',
+          message: `You've hit the generation limit (${rl.limit} per hour). Try again in ~${Math.ceil(rl.retryAfter / 60)}m${userId ? '' : ' — or sign in for higher limits.'}`,
+          retryAfter: rl.retryAfter,
+          limit: rl.limit,
+          remaining: rl.remaining,
+          tier: rl.tier,
         },
-      },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': String(rl.retryAfter),
+            'X-RateLimit-Limit': String(rl.limit),
+            'X-RateLimit-Remaining': String(rl.remaining),
+          },
+        },
+      );
+    }
+
+    const { token: anonToken, isNew } = await getOrCreateAnonToken(userId);
+
+    const contentType = req.headers.get('content-type') ?? '';
+    const res = contentType.startsWith('multipart/form-data')
+      ? await handleUpload(req, userId, anonToken)
+      : await handleUrl(req, userId, anonToken);
+
+    if (isNew && anonToken) attachAnonToken(res, anonToken);
+    return res;
+  } catch (err) {
+    console.error('[/api/generate] unhandled error:', err);
+    return NextResponse.json(
+      { error: 'Internal server error', details: err instanceof Error ? err.message : String(err) },
+      { status: 500 },
     );
   }
-
-  const { token: anonToken, isNew } = await getOrCreateAnonToken(userId);
-
-  const contentType = req.headers.get('content-type') ?? '';
-  const res = contentType.startsWith('multipart/form-data')
-    ? await handleUpload(req, userId, anonToken)
-    : await handleUrl(req, userId, anonToken);
-
-  if (isNew && anonToken) attachAnonToken(res, anonToken);
-  return res;
 }
 
 async function handleUrl(req: NextRequest, userId: string | null, anonToken: string | null) {
@@ -106,11 +114,20 @@ async function handleUrl(req: NextRequest, userId: string | null, anonToken: str
   }
 
   // Existing published bundle?
-  const [existing] = await db
-    .select({ id: bundles.id, slug: bundles.slug, status: bundles.status })
-    .from(bundles)
-    .where(and(eq(bundles.sourceUrlNormalized, normalized), eq(bundles.status, 'published')))
-    .limit(1);
+  let existing: { id: string; slug: string; status: string } | undefined;
+  try {
+    [existing] = await db
+      .select({ id: bundles.id, slug: bundles.slug, status: bundles.status })
+      .from(bundles)
+      .where(and(eq(bundles.sourceUrlNormalized, normalized), eq(bundles.status, 'published')))
+      .limit(1);
+  } catch (err) {
+    console.error('[/api/generate] bundles lookup failed:', err);
+    return NextResponse.json(
+      { error: 'Database error', details: err instanceof Error ? err.message : String(err) },
+      { status: 500 },
+    );
+  }
   if (existing) {
     return NextResponse.json(
       { error: 'Already exists', existingBundleSlug: existing.slug },
@@ -122,44 +139,70 @@ async function handleUrl(req: NextRequest, userId: string | null, anonToken: str
   // users — anonymous gets a fresh job each time. (Rate limiting will
   // be the abuse gate; we don't try to dedupe by IP here.)
   if (userId) {
-    const [inflight] = await db
-      .select()
-      .from(generationJobs)
-      .where(
-        and(
-          eq(generationJobs.userId, userId),
-          eq(generationJobs.normalizedUrl, normalized),
-          inArray(generationJobs.status, ['queued', 'running']),
-        ),
-      )
-      .limit(1);
-    if (inflight) {
+    try {
+      const [inflight] = await db
+        .select()
+        .from(generationJobs)
+        .where(
+          and(
+            eq(generationJobs.userId, userId),
+            eq(generationJobs.normalizedUrl, normalized),
+            inArray(generationJobs.status, ['queued', 'running']),
+          ),
+        )
+        .limit(1);
+      if (inflight) {
+        return NextResponse.json(
+          { jobId: inflight.id, status: inflight.status, currentStep: inflight.currentStep ?? null },
+          { status: 202 },
+        );
+      }
+    } catch (err) {
+      console.error('[/api/generate] inflight job lookup failed:', err);
       return NextResponse.json(
-        { jobId: inflight.id, status: inflight.status, currentStep: inflight.currentStep ?? null },
-        { status: 202 },
+        { error: 'Database error', details: err instanceof Error ? err.message : String(err) },
+        { status: 500 },
       );
     }
   }
 
-  const [job] = await db
-    .insert(generationJobs)
-    .values({
-      url: body.url,
-      normalizedUrl: normalized,
-      status: 'queued',
-      currentStep: 'queued',
-      userId,
-      sourceType: 'url',
-      anonToken: userId ? null : anonToken,
-      autoPublish: false,
-    })
-    .returning({ id: generationJobs.id });
+  let job: { id: string } | undefined;
+  try {
+    [job] = await db
+      .insert(generationJobs)
+      .values({
+        url: body.url,
+        normalizedUrl: normalized,
+        status: 'queued',
+        currentStep: 'queued',
+        userId,
+        sourceType: 'url',
+        anonToken: userId ? null : anonToken,
+        autoPublish: false,
+      })
+      .returning({ id: generationJobs.id });
+  } catch (err) {
+    console.error('[/api/generate] job insert failed:', err);
+    return NextResponse.json(
+      { error: 'Database error', details: err instanceof Error ? err.message : String(err) },
+      { status: 500 },
+    );
+  }
 
   if (!job) {
     return NextResponse.json({ error: 'Failed to create job' }, { status: 500 });
   }
 
-  await enqueueTask('scrape-and-extract', { jobId: job.id });
+  try {
+    await enqueueTask('scrape-and-extract', { jobId: job.id });
+  } catch (err) {
+    console.error('[/api/generate] enqueueTask failed:', err);
+    return NextResponse.json(
+      { error: 'Queue error', details: err instanceof Error ? err.message : String(err) },
+      { status: 500 },
+    );
+  }
+
   return NextResponse.json(
     { jobId: job.id, status: 'queued', currentStep: 'queued' },
     { status: 202 },
