@@ -21,7 +21,7 @@ import {
   extractBrandFromMarkdown,
   type ExtractedBrand,
 } from '@/lib/ai/gemini';
-import { scrapeUrl, type ScrapeResult } from '@/lib/ai/firecrawl';
+import { scrapeUrlSmart, type ScrapeResult } from '@/lib/ai/firecrawl';
 import { enqueueTask } from '@/lib/queue';
 import {
   extractComputedStyles,
@@ -100,7 +100,7 @@ export async function runScrapeAndExtract(payload: ScrapeAndExtractPayload): Pro
     // ─── 1. Scrape ───────────────────────────────────
     await setJobStep(jobId, 'scraping');
     try {
-      scrape = await scrapeUrl(job.url);
+      scrape = await scrapeUrlSmart(job.url);
     } catch (err) {
       return failJob(jobId, 'scraping', err, job.batchId);
     }

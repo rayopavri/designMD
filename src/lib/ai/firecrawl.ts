@@ -82,6 +82,114 @@ export interface ScrapeResult {
 
 const MAX_MARKDOWN_CHARS = 80_000; // ~20k tokens; Gemini Flash handles plenty more, but we cap for cost/safety
 
+// ─── URL relevance scoring ───────────────────────────────────
+
+const DESIGN_SCORE: Array<[RegExp, number]> = [
+  [/brand(?:ing)?|design-(?:system|language)|visual-identity/i, 10],
+  [/style-?guide|guidelines|design(?!-)/i, 8],
+  [/typograph|colou?rs|palette|icons?|fonts?|a11y|accessibility/i, 8],
+  [/\bui\b|\bux\b|interface/i, 6],
+  [/about(?:-us)?/i, 4],
+  [/blog|news|press|articles?|posts?/i, -10],
+  [/jobs|careers?|team|hiring/i, -10],
+  [/legal|terms|privacy|cookie/i, -10],
+  [/login|sign-?up|auth|register|\bapi\b/i, -10],
+];
+
+/**
+ * Score and filter a list of discovered URLs for design relevance.
+ * Returns same-domain URLs with positive scores, sorted best-first.
+ */
+export function rankDesignUrls(urls: string[], baseUrl: string): string[] {
+  let baseHost: string;
+  try {
+    baseHost = new URL(baseUrl).hostname;
+  } catch {
+    return [];
+  }
+
+  const scored: Array<{ url: string; score: number }> = [];
+  for (const raw of urls) {
+    let parsed: URL;
+    try {
+      parsed = new URL(raw);
+    } catch {
+      continue;
+    }
+    // Same domain only, no file extensions, not the homepage itself.
+    if (parsed.hostname !== baseHost) continue;
+    if (/\.[a-z]{2,4}$/i.test(parsed.pathname) && !/\.html?$/i.test(parsed.pathname)) continue;
+    const normalized = parsed.origin + parsed.pathname.replace(/\/$/, '');
+    const base = new URL(baseUrl).origin + new URL(baseUrl).pathname.replace(/\/$/, '');
+    if (normalized === base) continue;
+
+    const path = parsed.pathname + parsed.search;
+    let score = 0;
+    for (const [pattern, delta] of DESIGN_SCORE) {
+      if (pattern.test(path)) score += delta;
+    }
+    if (score > 0) scored.push({ url: raw, score });
+  }
+
+  return scored.sort((a, b) => b.score - a.score).map((s) => s.url);
+}
+
+// ─── Smart multi-page scrape ─────────────────────────────────
+
+/**
+ * Smart scrape: always starts with a full single-page scrape, then
+ * discovers design-relevant subpages via mapUrl and batch-scrapes the
+ * top 3. Subpage markdown is merged into the primary result so Gemini
+ * receives richer context for token extraction.
+ *
+ * Both the discovery and batch steps are best-effort — any failure
+ * returns the primary result unchanged so the job never fails because
+ * of the enrichment path.
+ */
+export async function scrapeUrlSmart(url: string): Promise<ScrapeResult> {
+  // Step 1: Full primary scrape (screenshot + html + branding — unchanged).
+  const primary = await scrapeUrl(url);
+
+  // Step 2: Discover subpages. Fast (~2-3s), best-effort.
+  let rankedUrls: string[] = [];
+  try {
+    const mapped = await client().mapUrl(url, { limit: 20, timeout: 5000 });
+    if (mapped.success && mapped.links?.length) {
+      rankedUrls = rankDesignUrls(mapped.links, url);
+    }
+  } catch {
+    return primary;
+  }
+
+  if (rankedUrls.length === 0) return primary;
+
+  // Step 3: Batch-scrape top 3 subpages in parallel (markdown only).
+  let extraMarkdown = '';
+  try {
+    const batch = await client().batchScrapeUrls(
+      rankedUrls.slice(0, 3),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      { formats: ['markdown'] as any, onlyMainContent: true, timeout: 20_000 },
+      2000, // pollInterval ms
+    );
+    if (batch.success && (batch as { data?: unknown[] }).data?.length) {
+      const docs = (batch as { data: Array<{ url?: string; markdown?: string; metadata?: { title?: string } }> }).data;
+      extraMarkdown = docs
+        .filter((d) => d.markdown?.trim())
+        .map((d) => `\n\n---\n\n**${d.metadata?.title ?? d.url ?? ''}** (${d.url ?? ''}):\n\n${d.markdown}`)
+        .join('');
+    }
+  } catch {
+    return primary;
+  }
+
+  if (!extraMarkdown) return primary;
+
+  // Step 4: Merge and cap.
+  const merged = (primary.markdown + extraMarkdown).slice(0, MAX_MARKDOWN_CHARS);
+  return { ...primary, markdown: merged };
+}
+
 export async function scrapeUrl(url: string): Promise<ScrapeResult> {
   // blockAds skips third-party trackers and speeds first paint.
   // waitFor gives web fonts and hero animations time to settle so the
