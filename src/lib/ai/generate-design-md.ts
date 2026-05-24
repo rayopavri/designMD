@@ -31,7 +31,10 @@ gives the tokens human-readable rationale and context.
 
 You will be given:
 - The structured tokens (already in YAML), so you can reference token names accurately.
-- The brand's extracted overview, layout notes, elevation notes, shapes notes, and dos/donts.
+- The brand's extracted overview, layout notes, elevation notes, shapes notes, dos/donts.
+- Optional: voiceAndContent (CTA + heading + copy style), imageryStyle (treatment + notes),
+  pagePatterns (section order, hero pattern, responsive behaviour).
+- Per-token confidence flags (observed vs inferred) on colors / typography / components.
 - The raw scraped markdown for grounding.
 
 Produce ONLY the markdown body (no YAML, no --- delimiters). Use this exact section order
@@ -49,17 +52,24 @@ designer voice. No tokens here.>
 <Bulleted list of the most important colors with their hex and role. Reference the YAML
 token name in the prose, e.g. "Primary (#1A1C1E): Deep ink for headlines.">
 
+<For any color whose source token has confidence: "inferred", append "(inferred)" to the
+bullet's role label, e.g. "Primary (inferred) (#1A1C1E): Deep ink for headlines." Skip the
+annotation when confidence is "observed" or missing — only mark the ones that are guesses.>
+
 ## Typography
 
 <1-2 sentence intro on font choices and rationale.>
 
 <Bulleted list of key typography levels. Reference families and roles, NOT exhaustive
-sizes — the tokens have those.>
+sizes — the tokens have those. Apply the same "(inferred)" rule as Colors.>
 
 ## Layout
 
 <1 paragraph or 3-5 bullets on grid + spacing strategy. Reference the spacing scale by
-name when relevant ("8px base unit", "16px gutter").>
+name when relevant ("8px base unit", "16px gutter"). When pagePatterns is provided, also
+cover: the observed section order top-to-bottom (one line listing the slugs), the hero
+composition pattern, and any responsive behaviour notes. Keep all of this tight — 1
+paragraph total or 5-7 bullets max.>
 
 ## Elevation & Depth
 
@@ -83,6 +93,23 @@ name when relevant ("8px base unit", "16px gutter").>
 | <specific rule> | <opposite> |
 | ... | ... |
 
+## Content Style
+
+<Required when voiceAndContent is provided; if not provided, write a single line:
+"No distinct voice patterns observed — match the brand tone described in Overview." Otherwise,
+3 short paragraphs OR bullets covering:
+- CTA style — how button labels read (verb form, casing, length).
+- Heading tone — how headlines are phrased (benefit-led, declarative, etc.).
+- Copy density — paragraph rhythm, bullet usage, whitespace.>
+
+## Imagery & Icons
+
+<Required when imageryStyle is provided; if not provided, write a single line:
+"No distinctive imagery observed — defer to the brand's existing asset library." Otherwise,
+1 short paragraph describing the treatment (photographic / illustrated / isometric /
+abstract / minimal-icons / mixed) plus icon shape language, illustration style, photo
+treatment, and any logo lockup constraints from the imageryStyle.notes field.>
+
 RULES:
 - No emojis. No marketing copy. No "stunning", "beautiful", "modern".
 - Reference token names (e.g. \`{colors.primary}\` or "primary") rather than restating hex
@@ -91,7 +118,7 @@ RULES:
 - If a section has nothing to say (e.g. brand has no shadows), keep it short and explicit:
   "This brand uses flat surfaces; depth is conveyed through color contrast and borders."
 - Section order is fixed: Overview → Colors → Typography → Layout → Elevation & Depth →
-  Shapes → Components → Do's and Don'ts.
+  Shapes → Components → Do's and Don'ts → Content Style → Imagery & Icons.
 - DO NOT output YAML or --- delimiters. Just the markdown body.`;
 
 interface Input {
@@ -232,9 +259,22 @@ async function generateMarkdownBody(input: Input, yaml: string): Promise<string>
       shapesNotes: brand.shapesNotes,
       dos: brand.dos,
       donts: [...brand.donts, ...(input.derivedDonts ?? [])],
-      colorsByName: brand.colors.map((c) => ({ name: c.name, hex: c.hex, rationale: c.rationale })),
-      typographyByName: brand.typography.map((t) => ({ name: t.name, fontFamily: t.fontFamily, rationale: t.rationale })),
+      colorsByName: brand.colors.map((c) => ({
+        name: c.name,
+        hex: c.hex,
+        rationale: c.rationale,
+        confidence: c.confidence,
+      })),
+      typographyByName: brand.typography.map((t) => ({
+        name: t.name,
+        fontFamily: t.fontFamily,
+        rationale: t.rationale,
+        confidence: t.confidence,
+      })),
       componentNames: brand.components.map((c) => c.name),
+      voiceAndContent: brand.voiceAndContent ?? null,
+      imageryStyle: brand.imageryStyle ?? null,
+      pagePatterns: brand.pagePatterns ?? null,
     },
     null,
     2,

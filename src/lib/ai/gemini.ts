@@ -37,6 +37,10 @@ const MODEL = 'gemini-2.5-flash';
 
 // ─── Output schema (Gemini → JSON) ──────────────────────────
 
+/** Token extraction confidence. `observed` = grounded in computed CSS or Firecrawl
+ *  branding; `inferred` = visual guess from screenshot only. Undefined when unknown. */
+export type ExtractionConfidence = 'observed' | 'inferred';
+
 export interface ExtractedColor {
   /** Token name (kebab-case). Use canonical roles when applicable:
    *  primary, secondary, tertiary, neutral, surface, on-surface, outline, error, etc. */
@@ -45,6 +49,7 @@ export interface ExtractedColor {
   hex: string;
   /** Where this color is used and why. Becomes prose bullet in Colors section. */
   rationale: string;
+  confidence?: ExtractionConfidence;
 }
 
 export interface ExtractedTypography {
@@ -59,6 +64,7 @@ export interface ExtractedTypography {
   letterSpacing?: string;
   /** Plain-language role for this level. */
   rationale: string;
+  confidence?: ExtractionConfidence;
 }
 
 export interface ExtractedComponent {
@@ -74,11 +80,13 @@ export interface ExtractedComponent {
   width?: string;
   borderColor?: string; // focus rings, hover/active borders, card borders
   outlineOffset?: string; // focus outline offset ("2px", "4px")
+  confidence?: ExtractionConfidence;
 }
 
 export interface ExtractedScale {
   name: string;
   value: string;
+  confidence?: ExtractionConfidence;
 }
 
 export interface ExtractedMotion {
@@ -86,6 +94,45 @@ export interface ExtractedMotion {
   name: string;
   /** CSS value string: "150ms", "cubic-bezier(0.4,0,0.2,1)", "ease-in-out" */
   value: string;
+  confidence?: ExtractionConfidence;
+}
+
+/** Voice & content patterns observed on the page. Drives the ## Content Style section. */
+export interface ExtractedVoiceAndContent {
+  /** CTA wording pattern. Example: "Imperative verbs; sentence case; no exclamation." */
+  ctaStyle: string;
+  /** Heading tone. Example: "Concrete benefit-led; punchy; no marketing fluff." */
+  headingTone: string;
+  /** Copy density. Example: "Short scannable paragraphs; generous whitespace; bullet-heavy." */
+  copyDensity: string;
+}
+
+/** Allowed imagery treatments. `mixed` is the catch-all when the page combines styles. */
+export const IMAGERY_TREATMENTS = [
+  'photographic',
+  'illustrated',
+  'isometric',
+  'abstract',
+  'minimal-icons',
+  'mixed',
+] as const;
+export type ImageryTreatment = (typeof IMAGERY_TREATMENTS)[number];
+
+/** Imagery & icon language observed on the page. Drives the ## Imagery & Icons section. */
+export interface ExtractedImageryStyle {
+  treatment: ImageryTreatment;
+  /** Free-form notes on icon shape, illustration style, photo cropping, logo constraints. */
+  notes: string;
+}
+
+/** Page structure patterns observable from the scrape. Drives expanded ## Layout section. */
+export interface ExtractedPagePatterns {
+  /** Section names in observed order, e.g. ["nav", "hero", "social-proof", "features", "pricing", "footer"]. */
+  sectionOrder: string[];
+  /** Hero pattern description, e.g. "Centred text with asymmetric product screenshot below." */
+  heroPattern: string;
+  /** Responsive notes, e.g. "Mobile-first; nav collapses to drawer below 768px." */
+  responsiveNotes: string;
 }
 
 export interface ExtractedBrand {
@@ -124,7 +171,19 @@ export interface ExtractedBrand {
   designStyles: string[];
   /** DB category slug if confident. */
   category: string | null;
+  /** Brand voice & content patterns. Optional; drives ## Content Style section. */
+  voiceAndContent?: ExtractedVoiceAndContent;
+  /** Imagery / icon style. Optional; drives ## Imagery & Icons section. */
+  imageryStyle?: ExtractedImageryStyle;
+  /** Page structure patterns. Optional; expands ## Layout section. */
+  pagePatterns?: ExtractedPagePatterns;
 }
+
+const confidenceFieldSchema: Schema = {
+  type: SchemaType.STRING,
+  enum: ['observed', 'inferred'],
+  nullable: true,
+};
 
 const colorItemSchema: Schema = {
   type: SchemaType.OBJECT,
@@ -132,6 +191,7 @@ const colorItemSchema: Schema = {
     name: { type: SchemaType.STRING },
     hex: { type: SchemaType.STRING },
     rationale: { type: SchemaType.STRING },
+    confidence: confidenceFieldSchema,
   },
   required: ['name', 'hex', 'rationale'],
 };
@@ -146,6 +206,7 @@ const typographyItemSchema: Schema = {
     lineHeight: { type: SchemaType.STRING, nullable: true },
     letterSpacing: { type: SchemaType.STRING, nullable: true },
     rationale: { type: SchemaType.STRING },
+    confidence: confidenceFieldSchema,
   },
   required: ['name', 'fontFamily', 'fontSize', 'rationale'],
 };
@@ -155,6 +216,7 @@ const scaleItemSchema: Schema = {
   properties: {
     name: { type: SchemaType.STRING },
     value: { type: SchemaType.STRING },
+    confidence: confidenceFieldSchema,
   },
   required: ['name', 'value'],
 };
@@ -173,6 +235,7 @@ const componentItemSchema: Schema = {
     width: { type: SchemaType.STRING, nullable: true },
     borderColor: { type: SchemaType.STRING, nullable: true },
     outlineOffset: { type: SchemaType.STRING, nullable: true },
+    confidence: confidenceFieldSchema,
   },
   required: ['name'],
 };
@@ -182,8 +245,47 @@ const motionItemSchema: Schema = {
   properties: {
     name: { type: SchemaType.STRING },
     value: { type: SchemaType.STRING },
+    confidence: confidenceFieldSchema,
   },
   required: ['name', 'value'],
+};
+
+const voiceAndContentSchema: Schema = {
+  type: SchemaType.OBJECT,
+  properties: {
+    ctaStyle: { type: SchemaType.STRING },
+    headingTone: { type: SchemaType.STRING },
+    copyDensity: { type: SchemaType.STRING },
+  },
+  required: ['ctaStyle', 'headingTone', 'copyDensity'],
+  nullable: true,
+};
+
+const imageryStyleSchema: Schema = {
+  type: SchemaType.OBJECT,
+  properties: {
+    treatment: {
+      type: SchemaType.STRING,
+      enum: [...IMAGERY_TREATMENTS],
+    },
+    notes: { type: SchemaType.STRING },
+  },
+  required: ['treatment', 'notes'],
+  nullable: true,
+};
+
+const pagePatternsSchema: Schema = {
+  type: SchemaType.OBJECT,
+  properties: {
+    sectionOrder: {
+      type: SchemaType.ARRAY,
+      items: { type: SchemaType.STRING },
+    },
+    heroPattern: { type: SchemaType.STRING },
+    responsiveNotes: { type: SchemaType.STRING },
+  },
+  required: ['sectionOrder', 'heroPattern', 'responsiveNotes'],
+  nullable: true,
 };
 
 const EXTRACTION_SCHEMA: Schema = {
@@ -221,6 +323,9 @@ const EXTRACTION_SCHEMA: Schema = {
       ],
       // No `nullable: true` — Gemini MUST pick one of the nine slugs.
     },
+    voiceAndContent: voiceAndContentSchema,
+    imageryStyle: imageryStyleSchema,
+    pagePatterns: pagePatternsSchema,
   },
   required: [
     'name',
@@ -313,6 +418,44 @@ GENERAL RULES:
      Trust these over markdown text.
   3. Screenshot — visual inference. Use when the above sources lack a token.
   4. Markdown — lowest priority for design tokens; useful for naming and context only.
+
+TOKEN CONFIDENCE — mark each color, typography level, scale entry, component, and motion
+token with a "confidence" field:
+- "observed" — the token's value is grounded in Firecrawl branding data OR the computed-style
+  snapshot (CSS variables, dominant hexes, font-family declarations). Use this when you can
+  point to a specific CSS value backing the token.
+- "inferred" — the value is a visual guess from the screenshot or a reasonable approximation
+  drawn from context. Use this honestly — downstream agents will treat inferred tokens as
+  ones to sanity-check before shipping.
+- Omit the field entirely if you genuinely cannot tell (rare — pick one).
+
+VOICE & CONTENT — fill the voiceAndContent object when the page text exposes a clear pattern:
+- ctaStyle: how the brand writes button labels and call-to-actions. Example: "Imperative
+  verbs, sentence case, no exclamation. Often 2–3 words. ('Get started', 'Talk to sales')."
+- headingTone: how headlines are phrased. Example: "Concrete benefit statements, no marketing
+  superlatives. Mix of declaratives and product-named features."
+- copyDensity: paragraph length and rhythm. Example: "Short scannable paragraphs (1–3
+  sentences). Heavy use of bullet lists and inline product names."
+Omit the field entirely if the page is too sparse to characterise voice.
+
+IMAGERY & ICONS — fill the imageryStyle object when imagery is visible in the screenshot:
+- treatment: pick ONE of {photographic, illustrated, isometric, abstract, minimal-icons,
+  mixed}. Use "mixed" for pages that combine more than one treatment.
+- notes: free-form description — icon shape language (stroke vs filled, rounded vs sharp),
+  illustration style (flat / 3D / hand-drawn), photo cropping conventions, logo lockup rules
+  when observable.
+Omit the field entirely if the screenshot lacks meaningful imagery.
+
+PAGE PATTERNS — fill the pagePatterns object when the scraped structure is observable:
+- sectionOrder: array of section names in the order they appear from top to bottom. Use
+  short kebab-case slugs ("nav", "hero", "social-proof", "features", "use-cases",
+  "pricing", "faq", "footer"). 4–8 entries typical.
+- heroPattern: one sentence describing the hero composition. Example: "Centred headline
+  and subhead with a single primary CTA; asymmetric product screenshot offset to the right."
+- responsiveNotes: one sentence on responsive behaviour you can infer from the markup
+  (media queries in computed styles, mobile-toggle nav, viewport meta). Example: "Mobile-
+  first; nav collapses to a hamburger drawer below 768px."
+Omit the field entirely if the page is single-section or you cannot observe structure.
 - Design styles drawn from this enum only: dark-mode, minimal, bold, playful, enterprise,
   accessible.
 - If you can't observe a section confidently (e.g. no shadows), say so in the prose
@@ -473,6 +616,25 @@ typography levels, kebab-case keys, "#RRGGBB" uppercase hex, dimension strings w
 If the screenshot does not contain enough signal to identify a token group with confidence,
 return an empty array for that group rather than guessing.
 
+TOKEN CONFIDENCE — mark each color, typography, scale, component, and motion token with a
+"confidence" field. Since you only have a screenshot, nearly every token will be
+"inferred" — that's expected and honest. Use "observed" sparingly, only when the screenshot
+contains a literal color swatch chip, a visible CSS class label, or other unambiguous
+evidence. Omit confidence entirely only when you genuinely cannot judge.
+
+VOICE & CONTENT (voiceAndContent) — fill from observable text in the screenshot when
+present: ctaStyle (button label conventions), headingTone (headline phrasing), copyDensity
+(paragraph rhythm). Omit if the screenshot has too little text.
+
+IMAGERY & ICONS (imageryStyle) — fill when imagery is visible. Choose one treatment from
+{photographic, illustrated, isometric, abstract, minimal-icons, mixed} and add a notes
+string describing icon shape language, illustration style, photo treatment.
+
+PAGE PATTERNS (pagePatterns) — fill when section order is observable from the screenshot
+layout: sectionOrder (top-to-bottom section slugs), heroPattern (one-sentence composition
+description), responsiveNotes (one sentence; mark as inferred since you can't see media
+queries). Omit if the screenshot is a single section.
+
 CATEGORY — MANDATORY. Output the slug, never the display name. Pick the single best fit:
 - productivity-saas         — productivity, SaaS, work tools
 - developer-tools-ides      — dev tools, IDEs, hosting, CI/CD
@@ -591,6 +753,16 @@ async function fetchImageAsPart(url: string): Promise<Part | null> {
   }
 }
 
+const CONFIDENCE_VALUES = new Set<ExtractionConfidence>(['observed', 'inferred']);
+const ALLOWED_TREATMENTS = new Set<string>(IMAGERY_TREATMENTS);
+
+function normaliseConfidence<T extends { confidence?: ExtractionConfidence }>(item: T): T {
+  if (item.confidence && !CONFIDENCE_VALUES.has(item.confidence)) {
+    delete item.confidence;
+  }
+  return item;
+}
+
 function sanitize(parsed: ExtractedBrand): ExtractedBrand {
   // Colors: validate hex, uppercase, dedupe by name.
   const seen = new Set<string>();
@@ -598,22 +770,34 @@ function sanitize(parsed: ExtractedBrand): ExtractedBrand {
     .filter((c) => c && /^#[0-9a-fA-F]{6}$/.test(c.hex) && c.name && !seen.has(c.name))
     .map((c) => {
       seen.add(c.name);
-      return { ...c, name: kebab(c.name), hex: c.hex.toUpperCase() };
+      return normaliseConfidence({ ...c, name: kebab(c.name), hex: c.hex.toUpperCase() });
     })
     .slice(0, 32);
   // Typography names kebab.
   parsed.typography = (parsed.typography ?? [])
     .filter((t) => t && t.name && t.fontFamily && t.fontSize)
-    .map((t) => ({ ...t, name: kebab(t.name) }))
+    .map((t) => normaliseConfidence({ ...t, name: kebab(t.name) }))
     .slice(0, 16);
   // Scales.
-  parsed.rounded = (parsed.rounded ?? []).filter((s) => s.name && s.value).slice(0, 8);
-  parsed.spacing = (parsed.spacing ?? []).filter((s) => s.name && s.value).slice(0, 12);
+  parsed.rounded = (parsed.rounded ?? [])
+    .filter((s) => s.name && s.value)
+    .map(normaliseConfidence)
+    .slice(0, 8);
+  parsed.spacing = (parsed.spacing ?? [])
+    .filter((s) => s.name && s.value)
+    .map(normaliseConfidence)
+    .slice(0, 12);
   // Components.
-  parsed.components = (parsed.components ?? []).filter((c) => c.name).slice(0, 24);
+  parsed.components = (parsed.components ?? [])
+    .filter((c) => c.name)
+    .map(normaliseConfidence)
+    .slice(0, 24);
   // Motion.
   if (parsed.motion) {
-    parsed.motion = parsed.motion.filter((m) => m.name && m.value).slice(0, 12);
+    parsed.motion = parsed.motion
+      .filter((m) => m.name && m.value)
+      .map(normaliseConfidence)
+      .slice(0, 12);
     if (parsed.motion.length === 0) delete parsed.motion;
   }
   // Lists.
@@ -623,6 +807,50 @@ function sanitize(parsed: ExtractedBrand): ExtractedBrand {
   parsed.designStyles = (parsed.designStyles ?? [])
     .map((s) => s.trim().toLowerCase())
     .filter((s) => ALLOWED_STYLES.has(s));
+
+  // Voice & content: trim long strings, drop the block if entirely empty.
+  if (parsed.voiceAndContent) {
+    const v = parsed.voiceAndContent;
+    const trimmed = {
+      ctaStyle: (v.ctaStyle ?? '').trim().slice(0, 400),
+      headingTone: (v.headingTone ?? '').trim().slice(0, 400),
+      copyDensity: (v.copyDensity ?? '').trim().slice(0, 400),
+    };
+    if (!trimmed.ctaStyle && !trimmed.headingTone && !trimmed.copyDensity) {
+      delete parsed.voiceAndContent;
+    } else {
+      parsed.voiceAndContent = trimmed;
+    }
+  }
+
+  // Imagery style: coerce treatment to allowed enum, fall back to 'mixed'.
+  if (parsed.imageryStyle) {
+    const raw = (parsed.imageryStyle.treatment ?? '').toString().trim().toLowerCase();
+    const treatment = (ALLOWED_TREATMENTS.has(raw) ? raw : 'mixed') as ImageryTreatment;
+    const notes = (parsed.imageryStyle.notes ?? '').trim().slice(0, 600);
+    if (!notes) {
+      delete parsed.imageryStyle;
+    } else {
+      parsed.imageryStyle = { treatment, notes };
+    }
+  }
+
+  // Page patterns: clip section order, trim prose, drop block if entirely empty.
+  if (parsed.pagePatterns) {
+    const p = parsed.pagePatterns;
+    const sectionOrder = (Array.isArray(p.sectionOrder) ? p.sectionOrder : [])
+      .map((s) => (typeof s === 'string' ? kebab(s) : ''))
+      .filter((s) => s.length > 0)
+      .slice(0, 12);
+    const heroPattern = (p.heroPattern ?? '').trim().slice(0, 400);
+    const responsiveNotes = (p.responsiveNotes ?? '').trim().slice(0, 400);
+    if (sectionOrder.length === 0 && !heroPattern && !responsiveNotes) {
+      delete parsed.pagePatterns;
+    } else {
+      parsed.pagePatterns = { sectionOrder, heroPattern, responsiveNotes };
+    }
+  }
+
   return parsed;
 }
 
