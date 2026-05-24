@@ -274,6 +274,8 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-05-26** - Bump batch subpage scrape 2->3 now that Firecrawl is on Hobby plan (54311b6)
+- [x] **2026-05-24** - Roadmap auto-update via PostToolUse hook (07f0bb5)
 - [x] **2026-05-26** - Roadmap auto-update via PostToolUse hook (077e1dc)
 - [x] **2026-05-24** - Add markdown-only fallback for slow-rendering sites (cae20e5)
 - [x] **2026-05-24** - chore: roadmap auto-update (d90bf2f)
