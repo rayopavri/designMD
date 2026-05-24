@@ -274,6 +274,8 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-05-24** - Add markdown-only fallback for slow-rendering sites (cae20e5)
+- [x] **2026-05-24** - chore: roadmap auto-update (d90bf2f)
 - [x] **2026-05-24** - chore: roadmap auto-update (dd1500b)
 - [x] **2026-05-26** - chore: roadmap auto-update (b5e581d)
 - [x] **2026-05-24** - chore: roadmap auto-update (2105920)
