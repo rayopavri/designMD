@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-05-24** (Roadmap auto-update via PostToolUse hook)
+> Last updated: **2026-05-26** (Roadmap auto-update via PostToolUse hook)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -274,6 +274,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-05-26** - Roadmap auto-update via PostToolUse hook (077e1dc)
 - [x] **2026-05-24** - Add markdown-only fallback for slow-rendering sites (cae20e5)
 - [x] **2026-05-24** - chore: roadmap auto-update (d90bf2f)
 - [x] **2026-05-24** - chore: roadmap auto-update (dd1500b)
