@@ -151,6 +151,7 @@ async function handleUrl(req: NextRequest, userId: string | null, anonToken: str
       userId,
       sourceType: 'url',
       anonToken: userId ? null : anonToken,
+      autoPublish: false,
     })
     .returning({ id: generationJobs.id });
 
@@ -240,6 +241,7 @@ async function handleUpload(req: NextRequest, userId: string | null, anonToken: 
       imageHash: hash,
       brandName,
       anonToken: userId ? null : anonToken,
+      autoPublish: false,
     })
     .returning({ id: generationJobs.id });
 

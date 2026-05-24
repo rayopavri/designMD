@@ -89,6 +89,7 @@ export async function POST(_req: NextRequest, ctx: RouteContext) {
       status: 'queued',
       userId: editor.id,
       targetBundleId: bundle.id,
+      autoPublish: false,
     })
     .returning({ id: generationJobs.id });
 

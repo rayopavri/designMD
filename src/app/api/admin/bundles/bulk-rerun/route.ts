@@ -182,6 +182,7 @@ export async function POST(req: NextRequest) {
         status: 'queued',
         userId: editor.id,
         targetBundleId: bundle.id,
+        autoPublish: false,
       })
       .returning({ id: generationJobs.id });
 
