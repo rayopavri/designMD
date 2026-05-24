@@ -586,6 +586,18 @@ function BatchStatusView({
   onRefresh: () => void;
 }) {
   const isDone = batchStatus.done;
+  const [rerunningIds, setRerunningIds] = useState<Set<string>>(new Set());
+
+  async function handleRerun(job: JobStatus) {
+    if (!job.bundleSlug) return;
+    setRerunningIds((prev) => new Set(prev).add(job.id));
+    try {
+      await fetch(`/api/admin/bundles/${job.bundleSlug}/rerun-pipeline`, { method: 'POST' });
+      onRefresh();
+    } finally {
+      setRerunningIds((prev) => { const s = new Set(prev); s.delete(job.id); return s; });
+    }
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -699,13 +711,29 @@ function BatchStatusView({
                         view <ExternalLink className="h-3 w-3" />
                       </Link>
                     ) : isHeld ? (
-                      <Link
-                        href="/admin/queue"
-                        className="inline-flex items-center gap-1 text-[11px]"
-                        style={{ color: PEACH }}
-                      >
-                        review <ExternalLink className="h-3 w-3" />
-                      </Link>
+                      <div className="inline-flex items-center gap-2.5">
+                        <Link
+                          href="/admin/queue"
+                          className="inline-flex items-center gap-1 text-[11px]"
+                          style={{ color: PEACH }}
+                        >
+                          review <ExternalLink className="h-3 w-3" />
+                        </Link>
+                        {job.bundleSlug && (
+                          <button
+                            type="button"
+                            onClick={() => void handleRerun(job)}
+                            disabled={rerunningIds.has(job.id)}
+                            className="inline-flex items-center gap-1 text-[11px] disabled:opacity-50"
+                            style={{ color: VIOLET }}
+                          >
+                            {rerunningIds.has(job.id)
+                              ? <Loader2 className="h-3 w-3 animate-spin" />
+                              : <RefreshCw className="h-3 w-3" />}
+                            re-run
+                          </button>
+                        )}
+                      </div>
                     ) : null}
                   </td>
                 </tr>

@@ -505,6 +505,8 @@ export interface GeminiExtractionInput {
   /** Firecrawl CSS-parsed branding data. When present, treat as higher confidence
    *  than computed-style snapshot for colorScheme, font families, and primary colors. */
   branding?: FirecrawlBranding | null;
+  /** On re-runs: per-section instructions focusing Gemini on coverage gaps from the previous run. */
+  gapHints?: string;
 }
 
 export async function extractBrandFromMarkdown(
@@ -559,6 +561,14 @@ export async function extractBrandFromMarkdown(
     '```',
     input.markdown,
     '```',
+    ...(input.gapHints
+      ? [
+          '',
+          'COVERAGE FOCUS — these sections scored below threshold in the previous run.',
+          'Pay extra attention to filling gaps here:',
+          input.gapHints,
+        ]
+      : []),
   ]
     .filter(Boolean)
     .join('\n');

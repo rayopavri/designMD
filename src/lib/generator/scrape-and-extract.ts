@@ -55,6 +55,68 @@ export async function runScrapeAndExtract(payload: ScrapeAndExtractPayload): Pro
 
   const isUpload = job.sourceType === 'upload';
 
+  // ─── 0. Coverage gap analysis (re-run mode only) ─────────
+  // Load the existing bundle's per-section scores and derive focused hints
+  // for Gemini + a search query to bias mapUrl toward missing content.
+  let gapHints: string | undefined;
+  let searchQuery: string | undefined;
+
+  if (!isUpload && job.targetBundleId) {
+    const [cov] = await db
+      .select({
+        coverageColors: bundles.coverageColors,
+        coverageTypography: bundles.coverageTypography,
+        coverageLayout: bundles.coverageLayout,
+        coverageElevation: bundles.coverageElevation,
+        coverageShapes: bundles.coverageShapes,
+        coverageComponents: bundles.coverageComponents,
+        coverageDosDonts: bundles.coverageDosDonts,
+      })
+      .from(bundles)
+      .where(eq(bundles.id, job.targetBundleId))
+      .limit(1);
+
+    if (cov) {
+      const GAP_THRESHOLD = 40;
+      const gaps: string[] = [];
+      const searchTerms: string[] = [];
+
+      if ((cov.coverageColors ?? 0) < GAP_THRESHOLD) {
+        gaps.push('- Colors: extract more role-bound tokens (primary, secondary, neutral, surface, error, etc.) with hex values and rationale');
+        searchTerms.push('colors palette brand');
+      }
+      if ((cov.coverageTypography ?? 0) < GAP_THRESHOLD) {
+        gaps.push('- Typography: identify display, headline, body, label scale levels with font families, sizes, and weights');
+        searchTerms.push('typography fonts type');
+      }
+      if ((cov.coverageLayout ?? 0) < GAP_THRESHOLD) {
+        gaps.push('- Layout: describe grid system, max-width, spacing rhythm, responsive breakpoints');
+        searchTerms.push('layout grid spacing');
+      }
+      if ((cov.coverageElevation ?? 0) < GAP_THRESHOLD) {
+        gaps.push('- Elevation: describe shadow scale, z-index layers, depth hierarchy');
+        searchTerms.push('elevation shadow depth');
+      }
+      if ((cov.coverageShapes ?? 0) < GAP_THRESHOLD) {
+        gaps.push('- Shapes: extract border-radius tokens at each scale (sm, md, lg, full)');
+        searchTerms.push('shapes radius corners');
+      }
+      if ((cov.coverageComponents ?? 0) < GAP_THRESHOLD) {
+        gaps.push('- Components: identify buttons, cards, inputs, badges, navigation with full token specs');
+        searchTerms.push('components buttons forms inputs');
+      }
+      if ((cov.coverageDosDonts ?? 0) < GAP_THRESHOLD) {
+        gaps.push("- Do's and Don'ts: extract at least 3 dos and 3 don'ts for using this design system");
+        searchTerms.push('guidelines usage rules');
+      }
+
+      if (gaps.length > 0) {
+        gapHints = gaps.join('\n');
+        searchQuery = searchTerms.join(' ');
+      }
+    }
+  }
+
   let scrape: ScrapeResult;
   let brand: ExtractedBrand;
 
@@ -100,7 +162,7 @@ export async function runScrapeAndExtract(payload: ScrapeAndExtractPayload): Pro
     // ─── 1. Scrape ───────────────────────────────────
     await setJobStep(jobId, 'scraping');
     try {
-      scrape = await scrapeUrlSmart(job.url);
+      scrape = await scrapeUrlSmart(job.url, { searchQuery });
     } catch (err) {
       return failJob(jobId, 'scraping', err, job.batchId);
     }
@@ -125,6 +187,7 @@ export async function runScrapeAndExtract(payload: ScrapeAndExtractPayload): Pro
         screenshotUrl: scrape.screenshotUrl,
         computed,
         branding: scrape.branding,
+        gapHints,
       });
     } catch (err) {
       return failJob(jobId, 'extracting', err, job.batchId);

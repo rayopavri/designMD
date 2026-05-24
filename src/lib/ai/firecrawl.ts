@@ -146,14 +146,21 @@ export function rankDesignUrls(urls: string[], baseUrl: string): string[] {
  * returns the primary result unchanged so the job never fails because
  * of the enrichment path.
  */
-export async function scrapeUrlSmart(url: string): Promise<ScrapeResult> {
+export async function scrapeUrlSmart(
+  url: string,
+  opts?: { searchQuery?: string },
+): Promise<ScrapeResult> {
   // Step 1: Full primary scrape (screenshot + html + branding — unchanged).
   const primary = await scrapeUrl(url);
 
   // Step 2: Discover subpages. Fast (~2-3s), best-effort.
   let rankedUrls: string[] = [];
   try {
-    const mapped = await client().mapUrl(url, { limit: 20, timeout: 5000 });
+    const mapped = await client().mapUrl(url, {
+      limit: 20,
+      timeout: 5000,
+      ...(opts?.searchQuery ? { search: opts.searchQuery } : {}),
+    });
     if (mapped.success && mapped.links?.length) {
       rankedUrls = rankDesignUrls(mapped.links, url);
     }
