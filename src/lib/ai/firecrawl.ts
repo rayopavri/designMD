@@ -152,8 +152,10 @@ export async function scrapeUrlSmart(
 ): Promise<ScrapeResult> {
   // Vercel Hobby caps functions at 60s. Phase 1 also runs Gemini (~10s),
   // orphan resolution, DB writes, and QStash enqueue. Keep the total
-  // Firecrawl budget to 40s so those steps always have headroom.
-  const FIRECRAWL_BUDGET_MS = 40_000;
+  // Firecrawl budget to 45s so those steps always have headroom. Primary
+  // scrape alone can take 22s on JS-heavy sites (binance, apple); leave
+  // ~20s for mapUrl + batch enrichment.
+  const FIRECRAWL_BUDGET_MS = 45_000;
   const start = Date.now();
 
   // Step 1: Full primary scrape (screenshot + html + branding — unchanged).
@@ -221,6 +223,33 @@ export async function scrapeUrl(url: string): Promise<ScrapeResult> {
   // screenshot (viewport) replaces screenshot@fullPage: the hero area
   // is the primary brand signal for Gemini; full-page mode forces
   // Firecrawl to capture every pixel of a potentially very tall page.
+  //
+  // Two-pass strategy: try with full features (screenshot + branding +
+  // html) at 22s. If Firecrawl times out on a JS-heavy site, retry
+  // once with markdown only and a tighter timeout — slower sites still
+  // produce usable data for Gemini text extraction even without screenshot.
+  try {
+    return await scrapeUrlOnce(url, {
+      formats: ['markdown', 'html', 'screenshot', 'branding'] as never,
+      waitFor: 800,
+      timeout: 22_000,
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (!/408|timed out|timeout/i.test(msg)) throw err;
+    console.warn(`[firecrawl] Primary scrape timed out for ${url}; retrying markdown-only.`);
+    return await scrapeUrlOnce(url, {
+      formats: ['markdown', 'html'] as never,
+      waitFor: 0,
+      timeout: 10_000,
+    });
+  }
+}
+
+async function scrapeUrlOnce(
+  url: string,
+  opts: { formats: never; waitFor: number; timeout: number },
+): Promise<ScrapeResult> {
   const res = await client().scrapeUrl(url, {
     // 'branding' requests Firecrawl's CSS-parsed design tokens (colorScheme,
     // primary/secondary colors, font families, font sizes, border radius,
@@ -230,10 +259,10 @@ export async function scrapeUrl(url: string): Promise<ScrapeResult> {
     // Note: @mendable/firecrawl-js v1's types don't include 'branding' yet
     // (the runtime API supports it; the official branding cookbook also
     // casts around this). Drop the cast once SDK types catch up.
-    formats: ['markdown', 'html', 'screenshot', 'branding'] as never,
+    formats: opts.formats,
     onlyMainContent: true,
-    waitFor: 800,
-    timeout: 15_000,
+    waitFor: opts.waitFor,
+    timeout: opts.timeout,
     blockAds: true,
   });
 
