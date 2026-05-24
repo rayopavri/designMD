@@ -83,19 +83,15 @@ export interface ScrapeResult {
 const MAX_MARKDOWN_CHARS = 80_000; // ~20k tokens; Gemini Flash handles plenty more, but we cap for cost/safety
 
 export async function scrapeUrl(url: string): Promise<ScrapeResult> {
-  // Heavy animated landing pages (Lando Norris, etc.) need:
-  //  1. Time for web fonts + hero animations to settle (text invisible
-  //     without fonts, looks "broken" in screenshots otherwise).
-  //  2. A full scroll through the page to trigger IntersectionObserver
-  //     lazy-loaded images and below-fold content. Without this the
-  //     screenshot captures empty grey placeholder boxes.
-  //  3. A scroll back to the top so the final full-page screenshot
-  //     starts from the hero instead of mid-page.
-  // blockAds: true also speeds first paint by skipping third-party trackers.
-  // Aggregate budget for actions: ~6-7s. Have to stay tight because the
-  // whole pipeline (scrape + Gemini + Sonnet + lint) runs in a single
-  // 60s Vercel Hobby function. Two scroll-cycles is enough to fire
-  // IntersectionObserver lazy-loads on most landing pages.
+  // blockAds skips third-party trackers and speeds first paint.
+  // waitFor gives web fonts and hero animations time to settle so the
+  // viewport screenshot captures styled content. No scroll actions —
+  // the scroll dance saved lazy-loads below the fold but added ~3.6s of
+  // hard waits; Firecrawl's branding extractor runs on the full render
+  // tree regardless of scroll position, so the only cost was latency.
+  // screenshot (viewport) replaces screenshot@fullPage: the hero area
+  // is the primary brand signal for Gemini; full-page mode forces
+  // Firecrawl to capture every pixel of a potentially very tall page.
   const res = await client().scrapeUrl(url, {
     // 'branding' requests Firecrawl's CSS-parsed design tokens (colorScheme,
     // primary/secondary colors, font families, font sizes, border radius,
@@ -105,24 +101,11 @@ export async function scrapeUrl(url: string): Promise<ScrapeResult> {
     // Note: @mendable/firecrawl-js v1's types don't include 'branding' yet
     // (the runtime API supports it; the official branding cookbook also
     // casts around this). Drop the cast once SDK types catch up.
-    formats: ['markdown', 'html', 'screenshot@fullPage', 'branding'] as never,
+    formats: ['markdown', 'html', 'screenshot', 'branding'] as never,
     onlyMainContent: true,
-    waitFor: 1500,
-    // Heavier sites (long pages + many lazy images) routinely take 20-35s
-    // including our scroll-through actions. 45s gives margin without
-    // jeopardising the 60s Vercel function cap because Phase 1 now only
-    // contains Firecrawl + Gemini (~15s) + DB writes (~1s).
-    timeout: 45_000,
+    waitFor: 1000,
+    timeout: 30_000,
     blockAds: true,
-    actions: [
-      { type: 'wait', milliseconds: 1200 },
-      { type: 'scroll', direction: 'down' },
-      { type: 'wait', milliseconds: 800 },
-      { type: 'scroll', direction: 'down' },
-      { type: 'wait', milliseconds: 800 },
-      { type: 'scroll', direction: 'up' },
-      { type: 'wait', milliseconds: 800 },
-    ],
   });
 
   if (!res.success) {

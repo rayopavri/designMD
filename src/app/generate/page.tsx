@@ -4,6 +4,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Check, ChevronDown, Copy, Globe, Image as ImageIcon, Loader2, Lock, RefreshCw, Send, ShieldCheck, Upload, X as XIcon } from "lucide-react";
 import { SectionLabel } from "@/components/ui/Shell";
+import { saveActiveGenJob, clearActiveGenJob, readStoredJob } from "@/hooks/useActiveGenJob";
 import { CodePanel } from "@/components/ui/CodePanel";
 import {
   BG,
@@ -386,6 +387,19 @@ function GenerateContent() {
   const [uploadPreview, setUploadPreview] = useState<string | null>(null);
   const [brandName, setBrandName] = useState("");
 
+  // On mount, check if there's an active generation job from a previous
+  // page visit and reconnect to it so the user doesn't lose progress.
+  useEffect(() => {
+    const stored = readStoredJob();
+    if (!stored) return;
+    setUrl(stored.url);
+    setJobId(stored.jobId);
+    setStatus("running");
+    setStepIdx(0);
+    pollJob(stored.jobId);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const detection = useMemo(() => detectType(url), [url]);
   const typeResolved: boolean = !!override || !!detection;
   const activeType: ItemType = override ?? detection?.type ?? "bundle";
@@ -519,6 +533,7 @@ function GenerateContent() {
         return;
       }
       const body = (await res.json()) as { jobId: string; currentStep: string | null };
+      saveActiveGenJob(body.jobId, submitUrl);
       setJobId(body.jobId);
       pollJob(body.jobId);
     } catch (err) {
@@ -550,6 +565,7 @@ function GenerateContent() {
         return;
       }
       const body = (await res.json()) as { jobId: string };
+      saveActiveGenJob(body.jobId, `upload:${name}`);
       setJobId(body.jobId);
       pollJob(body.jobId);
     } catch (err) {
@@ -575,6 +591,7 @@ function GenerateContent() {
         const job = (await res.json()) as JobPollResult;
         applyJobUpdate(job);
         if (job.status === "completed") {
+          clearActiveGenJob();
           setStatus("done");
           // Redirect straight to the bundle's library detail page. The
           // library page loads its own data and handles all statuses
@@ -589,6 +606,7 @@ function GenerateContent() {
           return;
         }
         if (job.status === "failed") {
+          clearActiveGenJob();
           setErrorMsg(job.errorMessage || `Failed at ${job.errorStep ?? "unknown step"}`);
           setStatus("failed");
           return;
@@ -632,6 +650,7 @@ function GenerateContent() {
   function reset() {
     clearTimers();
     stopPolling();
+    clearActiveGenJob();
     setStatus("idle");
     setStepIdx(-1);
     setPalette([]);

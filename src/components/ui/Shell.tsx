@@ -4,7 +4,8 @@ import { useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { Command } from "lucide-react";
+import { Command, Loader2 } from "lucide-react";
+import { useActiveGenJob } from "@/hooks/useActiveGenJob";
 import { BG_SOFT_HEADER } from "@/lib/ui-data/constants";
 import {
   BG,
@@ -15,6 +16,7 @@ import {
   LIME,
   MONO,
   MUTED,
+  PEACH,
   SANS,
   SUB,
   SURFACE,
@@ -40,6 +42,67 @@ const NAV: NavItem[] = [
     ? [{ label: "CLI", href: "/docs/cli", matches: (p: string) => basePath(p).startsWith("/docs/cli") }]
     : []),
 ];
+
+const STEP_LABELS: Record<string, string> = {
+  "scraping": "crawling",
+  "parsing-computed": "parsing styles",
+  "extracting": "extracting brand",
+  "resolving-orphans": "wiring tokens",
+  "persisting": "saving draft",
+  "writing-design-md": "writing design.md",
+  "linting": "linting",
+  "scoring": "scoring",
+  "processing-image": "processing image",
+};
+
+function GenPill() {
+  const job = useActiveGenJob();
+  const location = usePathname();
+  // Generate page shows its own full progress UI — no need to duplicate.
+  if (!job || location.startsWith("/generate")) return null;
+
+  if (job.status === "completed") {
+    return (
+      <Link
+        href={job.resultBundleSlug ? `/library/${job.resultBundleSlug}` : "/library"}
+        className="hidden sm:flex h-7 items-center gap-1.5 rounded-full border px-3 text-[11px] font-medium"
+        style={{ borderColor: LIME, color: LIME, background: SURFACE }}
+      >
+        <span className="h-1.5 w-1.5 rounded-full" style={{ background: LIME }} />
+        Done · View bundle
+      </Link>
+    );
+  }
+
+  if (job.status === "failed") {
+    return (
+      <Link
+        href="/generate"
+        className="hidden sm:flex h-7 items-center gap-1.5 rounded-full border px-3 text-[11px]"
+        style={{ borderColor: PEACH, color: PEACH, background: SURFACE }}
+      >
+        <span className="h-1.5 w-1.5 rounded-full" style={{ background: PEACH }} />
+        Generation failed
+      </Link>
+    );
+  }
+
+  const stepLabel = job.currentStep ? (STEP_LABELS[job.currentStep] ?? job.currentStep) : "starting";
+
+  return (
+    <Link
+      href="/generate"
+      className="hidden sm:flex h-7 items-center gap-1.5 rounded-full border px-3 text-[11px]"
+      style={{ borderColor: BORDER, color: SUB, background: SURFACE }}
+      title="Generation in progress — click to view"
+    >
+      <Loader2 className="h-3 w-3 animate-spin" style={{ color: VIOLET }} aria-hidden="true" />
+      <span style={{ color: INK }}>Generating</span>
+      <span>·</span>
+      <span>{stepLabel}</span>
+    </Link>
+  );
+}
 
 export function Header() {
   const location = usePathname();
@@ -93,6 +156,7 @@ export function Header() {
           </nav>
         </div>
         <div className="flex items-center gap-3" style={{ fontFamily: SANS }}>
+          <GenPill />
           <Link
             href="/library"
             aria-label="Search the library (Cmd/Ctrl+K)"
