@@ -185,12 +185,13 @@ export async function scrapeUrlSmart(
   // Budget check before the batch scrape.
   if (Date.now() - start > FIRECRAWL_BUDGET_MS - 9_000) return primary;
 
-  // Step 3: Batch-scrape top 2 subpages in parallel (markdown only).
-  // Capped at 2 (down from 3) and 8s timeout to stay well within budget.
+  // Step 3: Batch-scrape top 3 subpages in parallel (markdown only).
+  // Firecrawl Hobby supports 5 concurrent scrapes, so 3 in parallel
+  // leaves headroom. Tighter timeout (8s each) stays well within budget.
   let extraMarkdown = '';
   try {
     const batch = await client().batchScrapeUrls(
-      rankedUrls.slice(0, 2),
+      rankedUrls.slice(0, 3),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       { formats: ['markdown'] as any, onlyMainContent: true, timeout: 8_000 },
       1000, // pollInterval ms
