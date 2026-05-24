@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-05-24** (Roadmap auto-update via PostToolUse hook)
+> Last updated: **2026-05-27** (Roadmap auto-update via PostToolUse hook)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -274,6 +274,8 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-05-27** - Add re-run button to bulk upload UI + coverage-guided pipeline (29a8ce8)
+- [x] **2026-05-24** - chore: roadmap auto-update (9e8c5a3)
 - [x] **2026-05-24** - feat: smart multi-page scraping for better first-run coverage (eab0103)
 - [x] **2026-05-26** - Swap Gemini 2.5 Flash → 3.1 Flash Lite for brand extraction (6ad47e4)
 - [x] **2026-05-24** - chore: roadmap auto-update (e3c5e29)
