@@ -69,7 +69,7 @@ Nothing here is on a paid tier. Everything sits inside generous free allowances 
 - **Cost shape:** ~$3 per 1M input tokens, $15 per 1M output. A typical bundle's two Claude calls (design.md + companion) cost roughly **$0.02-$0.08**.
 
 ### Google Gemini
-- **Model:** `gemini-2.0-flash-exp` (Gemini 2.5 Flash) for both markdown extraction and image-only extraction.
+- **Model:** `gemini-3.1-flash-lite` (Gemini 3.1 Flash Lite) for both markdown extraction and image-only extraction.
 - **API:** `@google/generative-ai` SDK.
 - **Used for:** multi-modal brand extraction (palette, typography, components, design styles, **category**) from URL scrape OR uploaded screenshot.
 - **Category extraction is enum-constrained** to the 9 canonical domain slugs — the schema rejects anything else.

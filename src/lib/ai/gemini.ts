@@ -1,5 +1,5 @@
 /**
- * Gemini 2.5 Flash extraction — canonical design.md spec aligned.
+ * Gemini 3.1 Flash Lite extraction — canonical design.md spec aligned.
  *
  * Produces structured tokens whose shape closely mirrors the official
  * @google/design.md schema, plus prose for each canonical section
@@ -33,7 +33,7 @@ function client(): GoogleGenerativeAI {
   return _client;
 }
 
-const MODEL = 'gemini-2.5-flash';
+const MODEL = 'gemini-3.1-flash-lite';
 
 // ─── Output schema (Gemini → JSON) ──────────────────────────
 
