@@ -66,7 +66,7 @@ interface BundleDetail {
 
 type LoadState = "loading" | "ready" | "forbidden" | "error";
 
-type ActionState = "idle" | "publishing" | "rejecting";
+type ActionState = "idle" | "publishing" | "rejecting" | "rerunning";
 
 export default function ReviewerQueuePage() {
   const [loadState, setLoadState] = useState<LoadState>("loading");
@@ -157,6 +157,32 @@ export default function ReviewerQueuePage() {
         return;
       }
       // Refresh and clear selection.
+      setSelectedSlug(null);
+      setDetail(null);
+      await loadList();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Network error");
+    } finally {
+      setActionState("idle");
+    }
+  };
+
+  const onRerun = async () => {
+    if (!detail) return;
+    setActionState("rerunning");
+    setActionError(null);
+    try {
+      const res = await fetch(
+        `/api/admin/bundles/${encodeURIComponent(detail.slug)}/rerun-pipeline`,
+        { method: "POST" },
+      );
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({ error: res.statusText }));
+        setActionError(body.error || `Re-run failed (${res.status})`);
+        return;
+      }
+      // Bundle stays pending_review while the new pipeline runs. Clear
+      // selection so the reviewer moves on to other items in the queue.
       setSelectedSlug(null);
       setDetail(null);
       await loadList();
@@ -363,6 +389,7 @@ export default function ReviewerQueuePage() {
               setApproveNotes={setApproveNotes}
               onApprove={onApprove}
               onReject={onReject}
+              onRerun={onRerun}
             />
           )}
         </div>
@@ -381,6 +408,7 @@ interface DetailViewProps {
   setApproveNotes: (v: string) => void;
   onApprove: () => void;
   onReject: () => void;
+  onRerun: () => void;
 }
 
 function DetailView({
@@ -393,6 +421,7 @@ function DetailView({
   setApproveNotes,
   onApprove,
   onReject,
+  onRerun,
 }: DetailViewProps) {
   const [tab, setTab] = useState<"design.md" | "companion">("design.md");
 
@@ -774,6 +803,39 @@ function DetailView({
               )}
             </button>
           </div>
+        </div>
+
+        {/* Re-run pipeline — for bundles that need another extraction pass
+            before they're publish-ready. Sends coverage gap hints into the
+            scraper so weak sections get extra attention this time around. */}
+        <div className="flex items-center justify-between gap-3 mt-2 pt-4" style={{ borderTop: `1px solid ${BORDER_SOFT}` }}>
+          <div className="text-[11.5px]" style={{ color: MUTED, fontFamily: MONO }}>
+            not ready to publish but worth retrying? re-run the pipeline with coverage gap hints.
+          </div>
+          <button
+            type="button"
+            onClick={onRerun}
+            disabled={actionState !== "idle"}
+            className="h-8 rounded-full px-3.5 text-[11.5px] font-medium inline-flex items-center gap-1.5 disabled:opacity-50"
+            style={{
+              background: SURFACE_2,
+              color: INK,
+              border: `1px solid ${VIOLET}55`,
+              fontFamily: MONO,
+            }}
+          >
+            {actionState === "rerunning" ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Queueing
+              </>
+            ) : (
+              <>
+                <RefreshCw className="h-3.5 w-3.5" style={{ color: VIOLET }} />
+                Re-run pipeline
+              </>
+            )}
+          </button>
         </div>
       </div>
     </div>
