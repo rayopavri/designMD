@@ -274,6 +274,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-05-24** - chore: roadmap auto-update (e3c5e29)
 - [x] **2026-05-24** - Fix: make 0001 migration idempotent (IF NOT EXISTS everywhere) (6bb1a8b)
 - [x] **2026-05-24** - Fix: explicitly set autoPublish=false on all non-bulk-upload job inserts (b14a6a7)
 - [x] **2026-05-23** - Roadmap auto-update via PostToolUse hook (4c8c9b0)
