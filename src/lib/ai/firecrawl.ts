@@ -9,6 +9,51 @@ import FirecrawlApp from '@mendable/firecrawl-js';
 import { env } from '@/lib/env';
 import { extractBrandLogoUrl } from './logo-extract';
 
+/**
+ * Structured branding data returned by Firecrawl's `branding` format.
+ * Extracted from the live browser render — highest-confidence source for
+ * color scheme, primary colors, typography families, and border radius.
+ */
+export interface FirecrawlBranding {
+  colorScheme?: 'dark' | 'light';
+  colors?: {
+    primary?: string;
+    secondary?: string;
+    accent?: string;
+    background?: string;
+    textPrimary?: string;
+    textSecondary?: string;
+    [key: string]: string | undefined;
+  };
+  typography?: {
+    fontFamilies?: {
+      primary?: string;
+      heading?: string;
+      code?: string;
+    };
+    fontSizes?: {
+      h1?: string;
+      h2?: string;
+      body?: string;
+      [key: string]: string | undefined;
+    };
+    fontWeights?: {
+      regular?: number;
+      medium?: number;
+      bold?: number;
+    };
+  };
+  spacing?: {
+    baseUnit?: number;
+    borderRadius?: string;
+  };
+  images?: {
+    logo?: string;
+    favicon?: string;
+    ogImage?: string;
+  };
+}
+
 let _client: FirecrawlApp | null = null;
 
 function client(): FirecrawlApp {
@@ -31,6 +76,8 @@ export interface ScrapeResult {
   brandLogoUrl: string | null;
   language: string | null;
   statusCode: number | null;
+  /** Firecrawl CSS-parsed branding data — highest-confidence design tokens. */
+  branding: FirecrawlBranding | null;
 }
 
 const MAX_MARKDOWN_CHARS = 80_000; // ~20k tokens; Gemini Flash handles plenty more, but we cap for cost/safety
@@ -50,7 +97,11 @@ export async function scrapeUrl(url: string): Promise<ScrapeResult> {
   // 60s Vercel Hobby function. Two scroll-cycles is enough to fire
   // IntersectionObserver lazy-loads on most landing pages.
   const res = await client().scrapeUrl(url, {
-    formats: ['markdown', 'html', 'screenshot@fullPage'],
+    // 'branding' requests Firecrawl's CSS-parsed design tokens (colorScheme,
+    // primary/secondary colors, font families, font sizes, border radius,
+    // logo/favicon URLs). This is extracted from the live browser renderer
+    // and is higher fidelity than our regex-based extractComputedStyles().
+    formats: ['markdown', 'html', 'screenshot@fullPage', 'branding'],
     onlyMainContent: true,
     waitFor: 1500,
     // Heavier sites (long pages + many lazy images) routinely take 20-35s
@@ -78,8 +129,16 @@ export async function scrapeUrl(url: string): Promise<ScrapeResult> {
   const html = res.html ?? null;
   const metadata = res.metadata ?? {};
 
+  // Firecrawl's branding format is not yet typed in @mendable/firecrawl-js v1;
+  // access it via a safe cast. Returns null if the format wasn't supported.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const branding = ((res as any).branding as FirecrawlBranding | undefined) ?? null;
+
   const ogImageUrl = typeof metadata.ogImage === 'string' ? metadata.ogImage : null;
   const extractedLogo = extractBrandLogoUrl(html, url);
+
+  // Logo priority: Firecrawl's renderer-extracted logo > our HTML head parsing > og:image.
+  const brandLogoUrl = branding?.images?.logo ?? extractedLogo ?? ogImageUrl;
 
   return {
     url,
@@ -89,8 +148,9 @@ export async function scrapeUrl(url: string): Promise<ScrapeResult> {
     html,
     screenshotUrl: res.screenshot ?? null,
     ogImageUrl,
-    brandLogoUrl: extractedLogo ?? ogImageUrl,
+    brandLogoUrl,
     language: typeof metadata.language === 'string' ? metadata.language : null,
     statusCode: typeof metadata.statusCode === 'number' ? metadata.statusCode : null,
+    branding,
   };
 }

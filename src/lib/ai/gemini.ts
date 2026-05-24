@@ -22,6 +22,7 @@ import {
 } from '@google/generative-ai';
 import { env } from '@/lib/env';
 import type { ComputedStyleSnapshot } from '@/lib/generator/extract-computed-styles';
+import type { FirecrawlBranding } from '@/lib/ai/firecrawl';
 
 let _client: GoogleGenerativeAI | null = null;
 
@@ -304,8 +305,14 @@ Prose sections — be terse, factual, designer-focused. No marketing copy.
 - dos / donts: 3-6 entries each. Specific, actionable.
 
 GENERAL RULES:
-- Be conservative. Don't invent tokens. The computed-style snapshot lists ACTUAL CSS
-  variables and dominant hexes — TRUST these over markdown text when they disagree.
+- Be conservative. Don't invent tokens. Trust the provided data sources in this order:
+  1. Firecrawl branding data (when present) — CSS-parsed by a live browser renderer.
+     Prefer its colorScheme, font families, font sizes, borderRadius, and primary colors
+     over any other source.
+  2. Computed-style snapshot — ACTUAL CSS variables and dominant hexes from the HTML.
+     Trust these over markdown text.
+  3. Screenshot — visual inference. Use when the above sources lack a token.
+  4. Markdown — lowest priority for design tokens; useful for naming and context only.
 - Design styles drawn from this enum only: dark-mode, minimal, bold, playful, enterprise,
   accessible.
 - If you can't observe a section confidently (e.g. no shadows), say so in the prose
@@ -352,6 +359,9 @@ export interface GeminiExtractionInput {
   markdown: string;
   screenshotUrl: string | null;
   computed: ComputedStyleSnapshot;
+  /** Firecrawl CSS-parsed branding data. When present, treat as higher confidence
+   *  than computed-style snapshot for colorScheme, font families, and primary colors. */
+  branding?: FirecrawlBranding | null;
 }
 
 export async function extractBrandFromMarkdown(
@@ -379,11 +389,24 @@ export async function extractBrandFromMarkdown(
     2,
   );
 
+  const brandingBlock = input.branding
+    ? JSON.stringify(input.branding, null, 2)
+    : null;
+
   const textPrompt = [
     `URL: ${input.url}`,
     input.title ? `Title: ${input.title}` : '',
     input.description ? `Meta description: ${input.description}` : '',
     '',
+    ...(brandingBlock
+      ? [
+          'Firecrawl branding data (CSS-parsed from live browser render — HIGHEST CONFIDENCE):',
+          '```json',
+          brandingBlock,
+          '```',
+          '',
+        ]
+      : []),
     'Computed-style snapshot (CSS variables and Tailwind classes pulled from the rendered HTML — TRUST these):',
     '```json',
     computedBlock,
