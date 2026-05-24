@@ -101,7 +101,11 @@ export async function scrapeUrl(url: string): Promise<ScrapeResult> {
     // primary/secondary colors, font families, font sizes, border radius,
     // logo/favicon URLs). This is extracted from the live browser renderer
     // and is higher fidelity than our regex-based extractComputedStyles().
-    formats: ['markdown', 'html', 'screenshot@fullPage', 'branding'],
+    //
+    // Note: @mendable/firecrawl-js v1's types don't include 'branding' yet
+    // (the runtime API supports it; the official branding cookbook also
+    // casts around this). Drop the cast once SDK types catch up.
+    formats: ['markdown', 'html', 'screenshot@fullPage', 'branding'] as never,
     onlyMainContent: true,
     waitFor: 1500,
     // Heavier sites (long pages + many lazy images) routinely take 20-35s
