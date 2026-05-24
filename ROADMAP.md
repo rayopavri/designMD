@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-05-24** (Roadmap auto-update via PostToolUse hook)
+> Last updated: **2026-05-26** (Roadmap auto-update via PostToolUse hook)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -274,6 +274,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-05-26** - Swap Gemini 2.5 Flash → 3.1 Flash Lite for brand extraction (6ad47e4)
 - [x] **2026-05-24** - chore: roadmap auto-update (e3c5e29)
 - [x] **2026-05-24** - Fix: make 0001 migration idempotent (IF NOT EXISTS everywhere) (6bb1a8b)
 - [x] **2026-05-24** - Fix: explicitly set autoPublish=false on all non-bulk-upload job inserts (b14a6a7)
