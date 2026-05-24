@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-05-23** (Roadmap auto-update via PostToolUse hook)
+> Last updated: **2026-05-24** (Roadmap auto-update via PostToolUse hook)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -274,6 +274,8 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-05-24** - Fix: explicitly set autoPublish=false on all non-bulk-upload job inserts (b14a6a7)
+- [x] **2026-05-23** - Roadmap auto-update via PostToolUse hook (4c8c9b0)
 - [x] **2026-05-23** - Fix: BatchRow type must satisfy Record<string, unknown> for db.execute (f6de66e)
 - [x] **2026-05-26** - Roadmap auto-update via PostToolUse hook (a2f4e43)
 - [x] **2026-05-25** - Fix: wrap useSearchParams in Suspense boundary to unblock Vercel build (10d006f)
