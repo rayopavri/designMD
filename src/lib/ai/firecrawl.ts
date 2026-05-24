@@ -150,15 +150,25 @@ export async function scrapeUrlSmart(
   url: string,
   opts?: { searchQuery?: string },
 ): Promise<ScrapeResult> {
+  // Vercel Hobby caps functions at 60s. Phase 1 also runs Gemini (~10s),
+  // orphan resolution, DB writes, and QStash enqueue. Keep the total
+  // Firecrawl budget to 40s so those steps always have headroom.
+  const FIRECRAWL_BUDGET_MS = 40_000;
+  const start = Date.now();
+
   // Step 1: Full primary scrape (screenshot + html + branding — unchanged).
   const primary = await scrapeUrl(url);
+
+  // Budget check — a slow primary (complex JS-heavy site) eats most of
+  // the window; skip enrichment rather than risk a function timeout.
+  if (Date.now() - start > FIRECRAWL_BUDGET_MS - 6_000) return primary;
 
   // Step 2: Discover subpages. Fast (~2-3s), best-effort.
   let rankedUrls: string[] = [];
   try {
     const mapped = await client().mapUrl(url, {
       limit: 20,
-      timeout: 5000,
+      timeout: 3000,
       ...(opts?.searchQuery ? { search: opts.searchQuery } : {}),
     });
     if (mapped.success && mapped.links?.length) {
@@ -170,14 +180,18 @@ export async function scrapeUrlSmart(
 
   if (rankedUrls.length === 0) return primary;
 
-  // Step 3: Batch-scrape top 3 subpages in parallel (markdown only).
+  // Budget check before the batch scrape.
+  if (Date.now() - start > FIRECRAWL_BUDGET_MS - 9_000) return primary;
+
+  // Step 3: Batch-scrape top 2 subpages in parallel (markdown only).
+  // Capped at 2 (down from 3) and 8s timeout to stay well within budget.
   let extraMarkdown = '';
   try {
     const batch = await client().batchScrapeUrls(
-      rankedUrls.slice(0, 3),
+      rankedUrls.slice(0, 2),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      { formats: ['markdown'] as any, onlyMainContent: true, timeout: 20_000 },
-      2000, // pollInterval ms
+      { formats: ['markdown'] as any, onlyMainContent: true, timeout: 8_000 },
+      1000, // pollInterval ms
     );
     if (batch.success && (batch as { data?: unknown[] }).data?.length) {
       const docs = (batch as { data: Array<{ url?: string; markdown?: string; metadata?: { title?: string } }> }).data;
@@ -218,8 +232,8 @@ export async function scrapeUrl(url: string): Promise<ScrapeResult> {
     // casts around this). Drop the cast once SDK types catch up.
     formats: ['markdown', 'html', 'screenshot', 'branding'] as never,
     onlyMainContent: true,
-    waitFor: 1000,
-    timeout: 30_000,
+    waitFor: 800,
+    timeout: 15_000,
     blockAds: true,
   });
 
