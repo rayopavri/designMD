@@ -274,6 +274,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-05-25** - chore: roadmap auto-update (6cda1cb)
 - [x] **2026-05-25** - Use Gemini 3.1 Flash for brand extraction (1a3b0e0)
 - [x] **2026-05-28** - Add re-run pipeline button to reviewer queue (110e981)
 - [x] **2026-05-27** - Roadmap auto-update via PostToolUse hook (a58a6d7)
