@@ -274,6 +274,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-05-25** - chore: roadmap auto-update (38dbd06)
 - [x] **2026-05-25** - Fix Vercel build: cast system block past stale SDK types (957ded0)
 - [x] **2026-05-25** - chore: roadmap auto-update (4fe1356)
 - [x] **2026-05-25** - chore: roadmap auto-update (c47236e)
