@@ -134,7 +134,7 @@ interface Input {
   derivedDonts?: string[];
 }
 
-const MAX_OUTPUT_TOKENS = 8192;
+const MAX_OUTPUT_TOKENS = 4096;
 
 export interface GeneratedDesignMd {
   /** The full file: YAML front-matter + markdown body. */
@@ -304,7 +304,7 @@ async function generateMarkdownBody(input: Input, yaml: string): Promise<string>
     '',
     'Source page (scraped markdown, truncated):',
     '```',
-    input.scrapedMarkdown.slice(0, 30_000),
+    input.scrapedMarkdown.slice(0, 15_000),
     '```',
     '',
     'Produce the markdown body only — no YAML, no --- delimiters, no preamble. Start with `## Overview`.',
@@ -312,12 +312,14 @@ async function generateMarkdownBody(input: Input, yaml: string): Promise<string>
     .filter(Boolean)
     .join('\n');
 
-  const res = await anthropic().messages.create({
-    model: ANTHROPIC_MODELS.sonnet,
-    max_tokens: MAX_OUTPUT_TOKENS,
-    system: SYSTEM_PROMPT,
-    messages: [{ role: 'user', content: userPrompt }],
-  });
+  const res = await anthropic()
+    .messages.stream({
+      model: ANTHROPIC_MODELS.sonnet,
+      max_tokens: MAX_OUTPUT_TOKENS,
+      system: SYSTEM_PROMPT,
+      messages: [{ role: 'user', content: userPrompt }],
+    })
+    .finalMessage();
 
   if (res.stop_reason === 'max_tokens') {
     console.warn('[generate-design-md] Claude hit max_tokens — output may be truncated');
