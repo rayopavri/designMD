@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-05-25** (Roadmap auto-update via PostToolUse hook)
+> Last updated: **2026-05-26** (Roadmap auto-update via PostToolUse hook)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -274,6 +274,8 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-05-26** - Speed up DESIGN.md authoring to fit Vercel's 60s function cap (0cc82d7)
+- [x] **2026-05-25** - chore: roadmap auto-update (169787d)
 - [x] **2026-05-25** - chore: roadmap auto-update (0607c4e)
 - [x] **2026-05-25** - Switch Gemini extraction model to 3.5 Flash (7347097)
 - [x] **2026-05-25** - chore: roadmap auto-update (4956c1c)
