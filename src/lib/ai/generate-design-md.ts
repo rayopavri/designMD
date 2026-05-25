@@ -316,7 +316,9 @@ async function generateMarkdownBody(input: Input, yaml: string): Promise<string>
     .messages.stream({
       model: ANTHROPIC_MODELS.sonnet,
       max_tokens: MAX_OUTPUT_TOKENS,
-      system: SYSTEM_PROMPT,
+      system: [
+        { type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } },
+      ],
       messages: [{ role: 'user', content: userPrompt }],
     })
     .finalMessage();
