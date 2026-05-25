@@ -274,6 +274,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-05-25** - chore: roadmap auto-update (c47236e)
 - [x] **2026-05-25** - Cache Sonnet system prompt to cut DESIGN.md authoring TTFT (142ee76)
 - [x] **2026-05-25** - chore: roadmap auto-update (0003d94)
 - [x] **2026-05-26** - Speed up DESIGN.md authoring to fit Vercel's 60s function cap (0cc82d7)
