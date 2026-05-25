@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-05-28** (Roadmap auto-update via PostToolUse hook)
+> Last updated: **2026-05-25** (Roadmap auto-update via PostToolUse hook)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -274,6 +274,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-05-25** - Use Gemini 3.1 Flash for brand extraction (1a3b0e0)
 - [x] **2026-05-28** - Add re-run pipeline button to reviewer queue (110e981)
 - [x] **2026-05-27** - Roadmap auto-update via PostToolUse hook (a58a6d7)
 - [x] **2026-05-26** - Bump batch subpage scrape 2->3 now that Firecrawl is on Hobby plan (54311b6)
