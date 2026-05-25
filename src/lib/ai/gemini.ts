@@ -583,7 +583,7 @@ export async function extractBrandFromMarkdown(
     '',
     'Rendered markdown:',
     '```',
-    input.markdown,
+    input.markdown.slice(0, MAX_EXTRACTION_MARKDOWN_CHARS),
     '```',
     ...(input.gapHints
       ? [
@@ -739,10 +739,19 @@ export async function extractBrandFromImage(
 // Full-page screenshots can be 10,000+ px tall. Gemini downscales aggressively
 // past ~3MP, which turns text/components into mush and tanks extraction
 // quality. Clamp dimensions before sending — we keep the original full-page
-// version in Vercel Blob for the home gallery hover-scroll.
+// version in Vercel Blob for the home gallery hover-scroll. The 2400px cap
+// keeps total vision-token budget low (hero + 2-3 sections) so the call
+// stays well under the 60s Vercel function timeout.
 const MAX_EXTRACTION_WIDTH = 1600;
-const MAX_EXTRACTION_HEIGHT = 4000;
+const MAX_EXTRACTION_HEIGHT = 2400;
 const EXTRACTION_JPEG_QUALITY = 88;
+
+// Cap the scraped markdown injected into the Gemini prompt. Firecrawl already
+// trims to 80k chars for storage, but that's ~20k tokens of text the model
+// has to chew through alongside the screenshot and the structured-output
+// schema. 12k chars (~3k tokens) is enough representative copy for category,
+// voice, and component naming without inflating TTFT.
+const MAX_EXTRACTION_MARKDOWN_CHARS = 12_000;
 
 async function fetchImageAsPart(url: string): Promise<Part | null> {
   const res = await fetch(url);
