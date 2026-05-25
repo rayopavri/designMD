@@ -22,7 +22,7 @@ import {
 } from '@google/generative-ai';
 import { env } from '@/lib/env';
 import type { ComputedStyleSnapshot } from '@/lib/generator/extract-computed-styles';
-import type { FirecrawlBranding } from '@/lib/ai/firecrawl';
+import type { FirecrawlBranding, FirecrawlDesignExtract } from '@/lib/ai/firecrawl';
 
 let _client: GoogleGenerativeAI | null = null;
 
@@ -33,7 +33,7 @@ function client(): GoogleGenerativeAI {
   return _client;
 }
 
-const MODEL = 'gemini-3.1-flash-lite';
+const MODEL = 'gemini-3.1-flash';
 
 // ─── Output schema (Gemini → JSON) ──────────────────────────
 
@@ -407,7 +407,7 @@ Prose sections — be terse, factual, designer-focused. No marketing copy.
 - layoutNotes: 1-2 short paragraphs OR bullets on grid + spacing strategy.
 - elevationNotes: 1-2 paragraphs on how depth is conveyed.
 - shapesNotes: 1-2 paragraphs on radius philosophy and component shape.
-- dos / donts: 3-6 entries each. Specific, actionable.
+- dos / donts: 6-8 entries each. Specific, actionable. Avoid duplicates and vague rules.
 
 GENERAL RULES:
 - Be conservative. Don't invent tokens. Trust the provided data sources in this order:
@@ -418,6 +418,18 @@ GENERAL RULES:
      Trust these over markdown text.
   3. Screenshot — visual inference. Use when the above sources lack a token.
   4. Markdown — lowest priority for design tokens; useful for naming and context only.
+
+TOKEN EXTRACTION MINIMUMS — only infer below these counts when the observed data is
+genuinely too sparse. Mark inferred tokens honestly; a wrong token that breaks linter
+reference checks is worse than a missing one.
+- Colors: aim for 8+. Add surface, neutral, and on-X text-color variants when observed.
+- Typography: aim for 5+ levels. Infer display/headline/body/label tiers from visible
+  size contrasts; mark as "inferred".
+- Spacing: aim for 5+ tokens. If only a base unit is visible, derive xs/sm/md/lg/xl
+  from it (e.g. base=8px → xs=4px, sm=8px, md=16px, lg=24px, xl=32px) — mark inferred.
+- Rounded: aim for 4+ tokens. Derive scale from the observed radius value — mark inferred.
+- Components: always cover the 5 required primitives plus their interactive states
+  before adding supplementary components.
 
 TOKEN CONFIDENCE — mark each color, typography level, scale entry, component, and motion
 token with a "confidence" field:
@@ -505,6 +517,9 @@ export interface GeminiExtractionInput {
   /** Firecrawl CSS-parsed branding data. When present, treat as higher confidence
    *  than computed-style snapshot for colorScheme, font families, and primary colors. */
   branding?: FirecrawlBranding | null;
+  /** Firecrawl LLM-extracted design tokens (when FIRECRAWL_EXTRACT_ENABLED=true).
+   *  More comprehensive than branding (full scales, not just primaries) but text-only. */
+  designExtract?: FirecrawlDesignExtract | null;
   /** On re-runs: per-section instructions focusing Gemini on coverage gaps from the previous run. */
   gapHints?: string;
 }
@@ -548,6 +563,15 @@ export async function extractBrandFromMarkdown(
           'Firecrawl branding data (CSS-parsed from live browser render — HIGHEST CONFIDENCE):',
           '```json',
           brandingBlock,
+          '```',
+          '',
+        ]
+      : []),
+    ...(input.designExtract
+      ? [
+          'Firecrawl LLM-extracted design tokens (high confidence — use to fill gaps in branding data):',
+          '```json',
+          JSON.stringify(input.designExtract, null, 2),
           '```',
           '',
         ]

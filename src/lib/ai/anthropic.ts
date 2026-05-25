@@ -17,6 +17,6 @@ export function anthropic(): Anthropic {
 }
 
 export const ANTHROPIC_MODELS = {
-  sonnet: 'claude-sonnet-4-5-20250929',
+  sonnet: 'claude-sonnet-4-6',
   haiku: 'claude-haiku-4-5-20251001',
 } as const;

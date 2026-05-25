@@ -46,6 +46,8 @@ const EnvSchema = z.object({
 
   // Cloud Tasks (skip for local dev)
   INLINE_TASKS: z.coerce.boolean().default(true),
+  // Feature flags
+  FIRECRAWL_EXTRACT_ENABLED: z.coerce.boolean().default(false),
   INTERNAL_TASK_TOKEN: z.string().min(16).optional(),
   CLOUD_TASKS_QUEUE_GENERATOR: z.string().optional(),
   CLOUD_TASKS_QUEUE_DISCOVERY: z.string().optional(),

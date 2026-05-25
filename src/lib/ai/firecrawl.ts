@@ -7,7 +7,21 @@
  */
 import FirecrawlApp from '@mendable/firecrawl-js';
 import { env } from '@/lib/env';
+
 import { extractBrandLogoUrl } from './logo-extract';
+
+/**
+ * Structured design tokens returned by Firecrawl's LLM `extract` format.
+ * More comprehensive than `branding` (covers full scales, not just primaries)
+ * but text-based — no visual inference from screenshots.
+ * Gated by FIRECRAWL_EXTRACT_ENABLED=true env flag.
+ */
+export interface FirecrawlDesignExtract {
+  colors?: Array<{ name: string; hex: string; role?: string }>;
+  typography?: Array<{ level: string; fontFamily?: string; fontSize?: string; fontWeight?: number }>;
+  spacing?: Array<{ name: string; value: string }>;
+  rounded?: Array<{ name: string; value: string }>;
+}
 
 /**
  * Structured branding data returned by Firecrawl's `branding` format.
@@ -78,6 +92,8 @@ export interface ScrapeResult {
   statusCode: number | null;
   /** Firecrawl CSS-parsed branding data — highest-confidence design tokens. */
   branding: FirecrawlBranding | null;
+  /** Firecrawl LLM-extracted design tokens (requires FIRECRAWL_EXTRACT_ENABLED=true). */
+  designExtract: FirecrawlDesignExtract | null;
 }
 
 const MAX_MARKDOWN_CHARS = 80_000; // ~20k tokens; Gemini Flash handles plenty more, but we cap for cost/safety
@@ -214,6 +230,19 @@ export async function scrapeUrlSmart(
   return { ...primary, markdown: merged };
 }
 
+// Opt-in feature flag: run Firecrawl's LLM extract pass for richer design token
+// pre-extraction. Adds ~4 Firecrawl credits per generation. Disabled by default.
+// Enable via FIRECRAWL_EXTRACT_ENABLED=true in Vercel environment variables.
+const EXTRACT_ENABLED = env.FIRECRAWL_EXTRACT_ENABLED;
+
+const EXTRACT_PROMPT =
+  'Extract design system tokens from this page: ' +
+  '(1) colors — all brand colors with hex codes (#RRGGBB) and their semantic role (primary, secondary, surface, on-surface, outline, error, etc.); ' +
+  '(2) typography — each visible type level with font family, font size in px or rem, and font weight; ' +
+  '(3) spacing — spacing scale values with names (xs/sm/md/lg/xl or specific roles like gutter, container-padding); ' +
+  '(4) rounded — border-radius values with scale names (sm/md/lg/full). ' +
+  'Prioritize values observable in CSS variables and computed styles over visual guesses.';
+
 export async function scrapeUrl(url: string): Promise<ScrapeResult> {
   // blockAds skips third-party trackers and speeds first paint.
   // waitFor gives web fonts and hero animations time to settle so the
@@ -229,16 +258,22 @@ export async function scrapeUrl(url: string): Promise<ScrapeResult> {
   // html) at 22s. If Firecrawl times out on a JS-heavy site, retry
   // once with markdown only and a tighter timeout — slower sites still
   // produce usable data for Gemini text extraction even without screenshot.
+  const primaryFormats = EXTRACT_ENABLED
+    ? (['markdown', 'html', 'screenshot', 'branding', 'extract'] as never)
+    : (['markdown', 'html', 'screenshot', 'branding'] as never);
+
   try {
     return await scrapeUrlOnce(url, {
-      formats: ['markdown', 'html', 'screenshot', 'branding'] as never,
+      formats: primaryFormats,
       waitFor: 800,
       timeout: 22_000,
+      extractPrompt: EXTRACT_ENABLED ? EXTRACT_PROMPT : undefined,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     if (!/408|timed out|timeout/i.test(msg)) throw err;
     console.warn(`[firecrawl] Primary scrape timed out for ${url}; retrying markdown-only.`);
+    // Fallback never requests extract — keep the retry path fast.
     return await scrapeUrlOnce(url, {
       formats: ['markdown', 'html'] as never,
       waitFor: 0,
@@ -249,23 +284,29 @@ export async function scrapeUrl(url: string): Promise<ScrapeResult> {
 
 async function scrapeUrlOnce(
   url: string,
-  opts: { formats: never; waitFor: number; timeout: number },
+  opts: { formats: never; waitFor: number; timeout: number; extractPrompt?: string },
 ): Promise<ScrapeResult> {
-  const res = await client().scrapeUrl(url, {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const scrapeOpts: any = {
     // 'branding' requests Firecrawl's CSS-parsed design tokens (colorScheme,
     // primary/secondary colors, font families, font sizes, border radius,
     // logo/favicon URLs). This is extracted from the live browser renderer
     // and is higher fidelity than our regex-based extractComputedStyles().
     //
-    // Note: @mendable/firecrawl-js v1's types don't include 'branding' yet
-    // (the runtime API supports it; the official branding cookbook also
-    // casts around this). Drop the cast once SDK types catch up.
+    // Note: @mendable/firecrawl-js v1's types don't include 'branding' or
+    // 'extract' yet (the runtime API supports both). Drop casts once SDK types
+    // catch up.
     formats: opts.formats,
     onlyMainContent: true,
     waitFor: opts.waitFor,
     timeout: opts.timeout,
     blockAds: true,
-  });
+  };
+  if (opts.extractPrompt) {
+    scrapeOpts.extract = { prompt: opts.extractPrompt };
+  }
+
+  const res = await client().scrapeUrl(url, scrapeOpts);
 
   if (!res.success) {
     throw new Error(`Firecrawl scrape failed: ${res.error ?? 'unknown error'}`);
@@ -275,10 +316,12 @@ async function scrapeUrlOnce(
   const html = res.html ?? null;
   const metadata = res.metadata ?? {};
 
-  // Firecrawl's branding format is not yet typed in @mendable/firecrawl-js v1;
-  // access it via a safe cast. Returns null if the format wasn't supported.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const branding = ((res as any).branding as FirecrawlBranding | undefined) ?? null;
+  const resAny = res as any;
+  const branding = (resAny.branding as FirecrawlBranding | undefined) ?? null;
+  const designExtract = opts.extractPrompt
+    ? ((resAny.extract as FirecrawlDesignExtract | undefined) ?? null)
+    : null;
 
   const ogImageUrl = typeof metadata.ogImage === 'string' ? metadata.ogImage : null;
   const extractedLogo = extractBrandLogoUrl(html, url);
@@ -298,5 +341,6 @@ async function scrapeUrlOnce(
     language: typeof metadata.language === 'string' ? metadata.language : null,
     statusCode: typeof metadata.statusCode === 'number' ? metadata.statusCode : null,
     branding,
+    designExtract,
   };
 }

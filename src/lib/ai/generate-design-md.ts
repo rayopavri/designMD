@@ -86,7 +86,9 @@ paragraph total or 5-7 bullets max.>
 
 ## Do's and Don'ts
 
-<A 2-column table:>
+<A 2-column table with at least 8 data rows. Be specific — concrete, measurable rules
+score better than abstract style preferences. Cover token usage, layout decisions,
+typography choices, component variants, and brand voice.>
 
 | Do | Don't |
 | --- | --- |
@@ -119,6 +121,9 @@ RULES:
   "This brand uses flat surfaces; depth is conveyed through color contrast and borders."
 - Section order is fixed: Overview → Colors → Typography → Layout → Elevation & Depth →
   Shapes → Components → Do's and Don'ts → Content Style → Imagery & Icons.
+- ALL 8 canonical sections are REQUIRED: Overview, Colors, Typography, Layout,
+  Elevation & Depth, Shapes, Components, Do's and Don'ts. Never omit one. If the brand
+  provides no signal for a section, write a factual short paragraph explaining the absence.
 - DO NOT output YAML or --- delimiters. Just the markdown body.`;
 
 interface Input {
@@ -129,7 +134,7 @@ interface Input {
   derivedDonts?: string[];
 }
 
-const MAX_OUTPUT_TOKENS = 4096;
+const MAX_OUTPUT_TOKENS = 8192;
 
 export interface GeneratedDesignMd {
   /** The full file: YAML front-matter + markdown body. */
@@ -313,6 +318,10 @@ async function generateMarkdownBody(input: Input, yaml: string): Promise<string>
     system: SYSTEM_PROMPT,
     messages: [{ role: 'user', content: userPrompt }],
   });
+
+  if (res.stop_reason === 'max_tokens') {
+    console.warn('[generate-design-md] Claude hit max_tokens — output may be truncated');
+  }
 
   const text = res.content
     .filter((c): c is { type: 'text'; text: string } => c.type === 'text')

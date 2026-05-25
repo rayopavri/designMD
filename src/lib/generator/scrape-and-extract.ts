@@ -145,6 +145,7 @@ export async function runScrapeAndExtract(payload: ScrapeAndExtractPayload): Pro
       language: null,
       statusCode: null,
       branding: null,
+      designExtract: null,
     };
 
     // ─── 2u. Gemini image-only extraction ──────────────
@@ -187,6 +188,7 @@ export async function runScrapeAndExtract(payload: ScrapeAndExtractPayload): Pro
         screenshotUrl: scrape.screenshotUrl,
         computed,
         branding: scrape.branding,
+        designExtract: scrape.designExtract,
         gapHints,
       });
     } catch (err) {
