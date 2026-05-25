@@ -14,6 +14,7 @@
  * authority deterministic.
  */
 import { dump as yamlDump } from 'js-yaml';
+import type Anthropic from '@anthropic-ai/sdk';
 import { anthropic, ANTHROPIC_MODELS } from './anthropic';
 import type {
   ExtractedBrand,
@@ -316,9 +317,11 @@ async function generateMarkdownBody(input: Input, yaml: string): Promise<string>
     .messages.stream({
       model: ANTHROPIC_MODELS.sonnet,
       max_tokens: MAX_OUTPUT_TOKENS,
+      // cache_control isn't typed on TextBlockParam in @anthropic-ai/sdk@0.32 but
+      // is accepted at runtime — prompt caching is GA on the API.
       system: [
         { type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } },
-      ],
+      ] as unknown as Anthropic.TextBlockParam[],
       messages: [{ role: 'user', content: userPrompt }],
     })
     .finalMessage();
