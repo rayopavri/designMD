@@ -777,6 +777,60 @@ export async function extractBrandFromImage(
   return sanitize(parsed);
 }
 
+// ─── Plain-text generation (author step uses this for DESIGN.md body) ───
+
+export interface GeminiTextInput {
+  systemPrompt: string;
+  userPrompt: string;
+  /** Hard timeout — aborts the underlying fetch when exceeded. */
+  timeoutMs: number;
+  /** Max output tokens. */
+  maxOutputTokens?: number;
+  /** Sampling temperature. Lower = more deterministic. */
+  temperature?: number;
+}
+
+export interface GeminiTextResult {
+  content: string;
+  modelUsed: string;
+  latencyMs: number;
+}
+
+/**
+ * Plain-text Gemini generation via the direct Google API. Used by the
+ * author step (generate-design-md.ts) where we want markdown out, not
+ * the structured JSON the extraction calls request. Reuses the existing
+ * GoogleGenAI client singleton so this shares connection pooling and
+ * the same GEMINI_API_KEY billing surface as extraction.
+ *
+ * The author step prefers this over OpenRouter because it skips a
+ * routing hop (~50-200ms latency overhead, plus OpenRouter's small
+ * fee). OpenRouter remains the fallback for the rare case where
+ * Google's API has an outage or transient failure.
+ */
+export async function generateTextFromGemini(input: GeminiTextInput): Promise<GeminiTextResult> {
+  const startedAt = Date.now();
+  const result = await client().models.generateContent({
+    model: MODEL,
+    contents: [{ role: 'user', parts: [{ text: input.userPrompt }] }],
+    config: {
+      systemInstruction: input.systemPrompt,
+      temperature: input.temperature ?? 0.4,
+      maxOutputTokens: input.maxOutputTokens ?? 6144,
+      abortSignal: AbortSignal.timeout(input.timeoutMs),
+    },
+  });
+  const content = result.text ?? '';
+  if (!content.trim()) {
+    throw new Error(`Gemini direct returned empty content (model=${MODEL})`);
+  }
+  return {
+    content,
+    modelUsed: MODEL,
+    latencyMs: Date.now() - startedAt,
+  };
+}
+
 // Full-page screenshots can be 10,000+ px tall. Gemini downscales aggressively
 // past ~3MP, which turns text/components into mush and tanks extraction
 // quality. Clamp dimensions before sending — we keep the original full-page

@@ -13,20 +13,22 @@
  * This is more reliable than asking it to emit YAML, and keeps the token
  * authority deterministic.
  *
- * Model: Gemini 2.5 Flash via OpenRouter (configurable in openrouter.ts).
- * Was Claude Sonnet 4.6 directly via @anthropic-ai/sdk — switched to gain
- * ~3x latency reduction and diversify provider risk (an Anthropic outage
- * no longer takes the author step down). The companion-prompt worker
- * stays on Anthropic Sonnet because its task is shorter and more
- * voice-sensitive.
+ * Provider chain: Gemini 2.5 Flash direct (primary) -> OpenRouter (fallback).
+ * Direct call is preferred — same model, fewer hops, same GEMINI_API_KEY
+ * billing surface as extraction. OpenRouter is the safety net for the
+ * rare case where Google's API has an outage; same Flash model on the
+ * other side so output characteristics are equivalent. Companion-prompt
+ * worker stays on Anthropic Sonnet because its task is shorter and
+ * more voice-sensitive.
  */
 import { dump as yamlDump } from 'js-yaml';
 import { chatCompletion, OPENROUTER_AUTHOR_MODEL } from './openrouter';
-import type {
-  ExtractedBrand,
-  ExtractedColor,
-  ExtractedTypography,
-  ExtractedMotion,
+import {
+  generateTextFromGemini,
+  type ExtractedBrand,
+  type ExtractedColor,
+  type ExtractedTypography,
+  type ExtractedMotion,
 } from './gemini';
 
 const SYSTEM_PROMPT = `You write the markdown body of canonical Google DESIGN.md files.
@@ -162,16 +164,6 @@ interface Input {
 }
 
 const MAX_OUTPUT_TOKENS = 6144;
-
-// Per-request timeout. Vercel kills the author-design-md function at 60s.
-// 50s gives the OpenRouter client time to throw inside the worker's
-// try/catch and let failJob() mark the row `failed` before the platform
-// SIGKILLs us. A healthy Gemini 2.5 Flash run completes in ~10-15s so this
-// is ~3-4x headroom — generous enough to absorb cold-start jitter while
-// still firing well inside maxDuration. Enforced via AbortSignal.timeout
-// in chatCompletion(); aborts the underlying fetch for the entire
-// request lifecycle (no streaming-idle blind spot).
-const AUTHOR_TIMEOUT_MS = 50_000;
 
 export interface GeneratedDesignMd {
   /** The full file: YAML front-matter + markdown body. */
@@ -349,28 +341,7 @@ async function generateMarkdownBody(input: Input, yaml: string): Promise<string>
     .filter(Boolean)
     .join('\n');
 
-  const startedAt = Date.now();
-  const res = await chatCompletion({
-    model: OPENROUTER_AUTHOR_MODEL,
-    max_tokens: MAX_OUTPUT_TOKENS,
-    temperature: 0.4,
-    messages: [
-      { role: 'system', content: SYSTEM_PROMPT },
-      { role: 'user', content: userPrompt },
-    ],
-    timeoutMs: AUTHOR_TIMEOUT_MS,
-  });
-  const elapsedMs = Date.now() - startedAt;
-  console.log(
-    `[generate-design-md] ${res.modelUsed} ${elapsedMs}ms finish=${res.finishReason} in=${res.usage.promptTokens} out=${res.usage.completionTokens}`,
-  );
-
-  if (res.finishReason === 'length') {
-    console.warn('[generate-design-md] hit max_tokens — output may be truncated');
-  }
-
-  const text = res.content.trim();
-  if (!text) throw new Error('Author model returned empty markdown body');
+  const text = await callAuthorModel(userPrompt);
 
   // Strip any accidental leading YAML or H1 the model may have emitted, plus
   // any Markdown code-fence wrapper (e.g. ```markdown ... ```) that Gemini
@@ -381,4 +352,63 @@ async function generateMarkdownBody(input: Input, yaml: string): Promise<string>
     .replace(/^---[\s\S]*?---\s*/m, '')
     .replace(/^#\s+[^\n]+\n+/m, '')
     .trim();
+}
+
+/**
+ * Author-model call with provider fallback chain:
+ *
+ *   1. Gemini direct via @google/genai (primary)
+ *   2. OpenRouter on Gemini 2.5 Flash (fallback on any error)
+ *
+ * Time budget is split so a slow primary doesn't starve the fallback:
+ * 30s for the direct attempt, 18s for the fallback. Together that's
+ * 48s, comfortably inside the 55s worker watchdog and 60s Vercel
+ * maxDuration. If the primary succeeds quickly (~8-12s typical), the
+ * fallback never fires and the user gets the fast path.
+ */
+async function callAuthorModel(userPrompt: string): Promise<string> {
+  const PRIMARY_TIMEOUT_MS = 30_000;
+  const FALLBACK_TIMEOUT_MS = 18_000;
+
+  // Primary: Gemini direct.
+  try {
+    const res = await generateTextFromGemini({
+      systemPrompt: SYSTEM_PROMPT,
+      userPrompt,
+      timeoutMs: PRIMARY_TIMEOUT_MS,
+      maxOutputTokens: MAX_OUTPUT_TOKENS,
+      temperature: 0.4,
+    });
+    console.log(
+      `[generate-design-md] primary=gemini-direct ${res.modelUsed} ${res.latencyMs}ms`,
+    );
+    const text = res.content.trim();
+    if (!text) throw new Error('Gemini direct returned empty markdown body');
+    return text;
+  } catch (primaryErr) {
+    const msg = primaryErr instanceof Error ? primaryErr.message : String(primaryErr);
+    console.warn(`[generate-design-md] gemini-direct failed: ${msg} — falling back to OpenRouter`);
+  }
+
+  // Fallback: OpenRouter (same Gemini Flash model, different routing path).
+  const fallbackStart = Date.now();
+  const res = await chatCompletion({
+    model: OPENROUTER_AUTHOR_MODEL,
+    max_tokens: MAX_OUTPUT_TOKENS,
+    temperature: 0.4,
+    messages: [
+      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'user', content: userPrompt },
+    ],
+    timeoutMs: FALLBACK_TIMEOUT_MS,
+  });
+  console.log(
+    `[generate-design-md] fallback=openrouter ${res.modelUsed} ${Date.now() - fallbackStart}ms finish=${res.finishReason} in=${res.usage.promptTokens} out=${res.usage.completionTokens}`,
+  );
+  if (res.finishReason === 'length') {
+    console.warn('[generate-design-md] fallback hit max_tokens — output may be truncated');
+  }
+  const text = res.content.trim();
+  if (!text) throw new Error('OpenRouter fallback returned empty markdown body');
+  return text;
 }
