@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-05-25** (Roadmap auto-update via PostToolUse hook)
+> Last updated: **2026-05-26** (Roadmap auto-update via PostToolUse hook)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -274,6 +274,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-05-26** - Add client-side timeout to Firecrawl SDK calls — fixes 220s stuck UI (8352da)
 - [x] **2026-05-25** - chore: roadmap auto-update (38dbd06)
 - [x] **2026-05-25** - Fix Vercel build: cast system block past stale SDK types (957ded0)
 - [x] **2026-05-25** - chore: roadmap auto-update (4fe1356)
