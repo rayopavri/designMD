@@ -419,17 +419,61 @@ GENERAL RULES:
   3. Screenshot — visual inference. Use when the above sources lack a token.
   4. Markdown — lowest priority for design tokens; useful for naming and context only.
 
-TOKEN EXTRACTION MINIMUMS — only infer below these counts when the observed data is
-genuinely too sparse. Mark inferred tokens honestly; a wrong token that breaks linter
-reference checks is worse than a missing one.
-- Colors: aim for 8+. Add surface, neutral, and on-X text-color variants when observed.
-- Typography: aim for 5+ levels. Infer display/headline/body/label tiers from visible
-  size contrasts; mark as "inferred".
-- Spacing: aim for 5+ tokens. If only a base unit is visible, derive xs/sm/md/lg/xl
-  from it (e.g. base=8px → xs=4px, sm=8px, md=16px, lg=24px, xl=32px) — mark inferred.
-- Rounded: aim for 4+ tokens. Derive scale from the observed radius value — mark inferred.
-- Components: always cover the 5 required primitives plus their interactive states
-  before adding supplementary components.
+TOKEN COVERAGE — STRICT MINIMUMS. The downstream coverage scorer
+grades each section on resolved token counts; falling short of these
+numbers produces a "thin" or "missing" rating. Hitting these is
+non-negotiable. When you can't observe a value directly, INFER it
+from the available signal using the canonical scales below and mark
+the entry confidence: "inferred". A clearly-marked inferred token is
+always better than a missing one.
+
+Colors — MINIMUM 10 entries. Cover these tiers:
+  brand:    primary, secondary OR accent (1-3 entries)
+  surface:  background, surface, surface-container, surface-bright (2-4)
+  semantic: error, success, warning, info (include the ones visible —
+            most brands have at least 2)
+  on-X:     on-primary, on-surface, on-error pairs (2-3)
+  utility:  outline, divider, focus-ring (1-2)
+  If observation is sparse, derive surface variants by tinting the
+  observed background ±5% (light brands → lighten container, darken
+  bright; dark brands → vice-versa) and synthesize on-X text colors
+  from contrast principles (white or near-white on dark backgrounds,
+  near-black on light). Mark these "inferred".
+
+Typography — MINIMUM 7 levels. Cover this canonical scale:
+  display-lg (3rem), display-md (2.25rem)
+  headline-lg (1.875rem), headline-md (1.5rem), headline-sm (1.25rem)
+  body-md (1rem), body-sm (0.875rem)
+  label-md (0.875rem), label-sm (0.75rem)
+  If only one body size is observable, derive the rest from that base
+  using the multipliers above (×3 for display-lg, ×2.25 for display-md,
+  ×1.875 for headline-lg, etc.). Mark inferred.
+
+Spacing — MINIMUM 6 entries named exactly: xs, sm, md, lg, xl, 2xl.
+  Default scale: xs=4px, sm=8px, md=16px, lg=24px, xl=32px, 2xl=48px.
+  If the brand exposes a different base unit (4px or 16px), scale all
+  six accordingly. Mark inferred unless explicitly observed as a CSS
+  variable or computed value.
+
+Rounded — MINIMUM 5 entries named exactly: sm, md, lg, xl, full.
+  Default scale: sm=4px, md=8px, lg=12px, xl=24px, full=9999px.
+  Sharper brands (sharp corners visible) → sm=2px md=4px lg=8px.
+  Pill-button or fully-rounded brands → bias all values larger.
+  NEVER omit this scale entirely; downstream the Shapes section
+  scores 20 (MISSING) when rounded.length === 0.
+
+Components — MINIMUM 12 entries. Baseline always included:
+  button-primary, button-primary-hover, button-secondary
+  card, card-elevated
+  input-field, input-field-focus
+  link, link-hover
+  badge
+  divider
+  Add semantic variants (badge-error, badge-success) and surface
+  variants (card-container, card-bright) when their colors exist.
+
+Motion — optional. If CSS transitions are observable, include 3+
+  entries: duration-short, duration-medium, easing-standard.
 
 TOKEN CONFIDENCE — mark each color, typography level, scale entry, component, and motion
 token with a "confidence" field:
@@ -487,7 +531,8 @@ COMPONENT COVERAGE — CRITICAL:
   matching backgroundColor component.
 - Outline/border colors lack a dedicated sub-token in the spec — reference them as
   backgroundColor on a divider/separator component (height: 1px).
-- Aim for 10–18 components total. More is fine. Fewer than 8 risks orphan warnings.
+- Aim for 12-18 components total. More is fine. Fewer than 12 produces
+  THIN coverage downstream.
 
 CATEGORY — MANDATORY. Output the slug (kebab-case), never the display name. Pick the
 single best fit from this taxonomy:
@@ -815,13 +860,19 @@ function normaliseConfidence<T extends { confidence?: ExtractionConfidence }>(it
 }
 
 function sanitize(parsed: ExtractedBrand): ExtractedBrand {
-  // Colors: validate hex, uppercase, dedupe by name.
+  // Colors: normalize hex (accept #RGB, #RRGGBB, #RRGGBBAA), uppercase,
+  // dedupe by name. Previously a strict /^#[0-9a-fA-F]{6}$/ regex silently
+  // dropped entries from models that occasionally returned the shorthand
+  // or alpha forms — losing tokens we already paid extraction for.
   const seen = new Set<string>();
   parsed.colors = (parsed.colors ?? [])
-    .filter((c) => c && /^#[0-9a-fA-F]{6}$/.test(c.hex) && c.name && !seen.has(c.name))
+    .map((c) => (c ? { ...c, hex: normalizeHex(c.hex) } : c))
+    .filter((c): c is typeof c & { hex: string } =>
+      Boolean(c && c.hex && c.name && !seen.has(c.name)),
+    )
     .map((c) => {
       seen.add(c.name);
-      return normaliseConfidence({ ...c, name: kebab(c.name), hex: c.hex.toUpperCase() });
+      return normaliseConfidence({ ...c, name: kebab(c.name) });
     })
     .slice(0, 32);
   // Typography names kebab.
@@ -903,6 +954,28 @@ function sanitize(parsed: ExtractedBrand): ExtractedBrand {
   }
 
   return parsed;
+}
+
+/**
+ * Normalize a hex color to canonical "#RRGGBB" uppercase form.
+ * Accepts:
+ *   - "#RGB"      → "#RRGGBB" (e.g. "#fff" → "#FFFFFF")
+ *   - "#RRGGBB"   → "#RRGGBB" (uppercased)
+ *   - "#RRGGBBAA" → "#RRGGBB" (alpha stripped — token YAML is opaque)
+ * Returns null for any other shape so caller can drop the entry.
+ */
+function normalizeHex(hex: unknown): string | null {
+  if (typeof hex !== 'string') return null;
+  const cleaned = hex.trim();
+  if (/^#[0-9a-fA-F]{6}$/.test(cleaned)) return cleaned.toUpperCase();
+  if (/^#[0-9a-fA-F]{3}$/.test(cleaned)) {
+    const r = cleaned[1];
+    const g = cleaned[2];
+    const b = cleaned[3];
+    return `#${r}${r}${g}${g}${b}${b}`.toUpperCase();
+  }
+  if (/^#[0-9a-fA-F]{8}$/.test(cleaned)) return cleaned.slice(0, 7).toUpperCase();
+  return null;
 }
 
 function kebab(s: string): string {
