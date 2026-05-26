@@ -79,6 +79,35 @@ function client(): FirecrawlApp {
   return _client;
 }
 
+/**
+ * Hard client-side timeout for Firecrawl SDK calls. The SDK's own `timeout`
+ * option is server-side — Firecrawl honors it for the headless render but
+ * the underlying fetch can still hang indefinitely if the server keeps the
+ * connection open (observed on JS-heavy marketing sites like framer.com).
+ * Without this, the only thing that catches a hang is the worker-level
+ * 110s watchdog, and QStash's 1 retry then doubles that to ~220s of "stuck"
+ * UI before the row gets marked failed.
+ *
+ * The underlying SDK promise is intentionally left unresolved — Node will
+ * GC it once the worker returns. Worst case we pay one extra Firecrawl
+ * credit; the alternative (hung worker) is much worse.
+ */
+async function withClientTimeout<T>(
+  op: () => Promise<T>,
+  budgetMs: number,
+  label: string,
+): Promise<T> {
+  return Promise.race([
+    op(),
+    new Promise<never>((_, reject) =>
+      setTimeout(
+        () => reject(new Error(`${label} timed out after ${budgetMs}ms (client-side)`)),
+        budgetMs,
+      ).unref(),
+    ),
+  ]);
+}
+
 export interface ScrapeResult {
   url: string;
   title: string;
@@ -184,11 +213,16 @@ export async function scrapeUrlSmart(
   // Step 2: Discover subpages. Fast (~2-3s), best-effort.
   let rankedUrls: string[] = [];
   try {
-    const mapped = await client().mapUrl(url, {
-      limit: 20,
-      timeout: 3000,
-      ...(opts?.searchQuery ? { search: opts.searchQuery } : {}),
-    });
+    const mapped = await withClientTimeout(
+      () =>
+        client().mapUrl(url, {
+          limit: 20,
+          timeout: 3000,
+          ...(opts?.searchQuery ? { search: opts.searchQuery } : {}),
+        }),
+      5_000,
+      `firecrawl mapUrl(${url})`,
+    );
     if (mapped.success && mapped.links?.length) {
       rankedUrls = rankDesignUrls(mapped.links, url);
     }
@@ -206,11 +240,16 @@ export async function scrapeUrlSmart(
   // leaves headroom. Tighter timeout (8s each) stays well within budget.
   let extraMarkdown = '';
   try {
-    const batch = await client().batchScrapeUrls(
-      rankedUrls.slice(0, 3),
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      { formats: ['markdown'] as any, onlyMainContent: true, timeout: 8_000 },
-      1000, // pollInterval ms
+    const batch = await withClientTimeout(
+      () =>
+        client().batchScrapeUrls(
+          rankedUrls.slice(0, 3),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          { formats: ['markdown'] as any, onlyMainContent: true, timeout: 8_000 },
+          1000, // pollInterval ms
+        ),
+      14_000,
+      `firecrawl batchScrapeUrls(${rankedUrls.length})`,
     );
     if (batch.success && (batch as { data?: unknown[] }).data?.length) {
       const docs = (batch as { data: Array<{ url?: string; markdown?: string; metadata?: { title?: string } }> }).data;
@@ -306,7 +345,14 @@ async function scrapeUrlOnce(
     scrapeOpts.extract = { prompt: opts.extractPrompt };
   }
 
-  const res = await client().scrapeUrl(url, scrapeOpts);
+  // Cap the local promise at server timeout + 8s grace. If Firecrawl's
+  // server hangs past its own timeout, we reject with a "timed out" message
+  // so the primary→fallback path in scrapeUrl() picks it up.
+  const res = await withClientTimeout(
+    () => client().scrapeUrl(url, scrapeOpts),
+    opts.timeout + 8_000,
+    `firecrawl scrapeUrl(${url})`,
+  );
 
   if (!res.success) {
     throw new Error(`Firecrawl scrape failed: ${res.error ?? 'unknown error'}`);
