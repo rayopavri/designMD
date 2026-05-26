@@ -6,7 +6,7 @@
  * x-internal-task-token (local dev).
  */
 import { NextResponse, type NextRequest } from 'next/server';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { assertTaskAuth } from '@/lib/queue';
 import { runAuthorDesignMd } from '@/lib/generator/author-design-md';
@@ -87,13 +87,25 @@ export async function POST(req: NextRequest) {
     // If the watchdog fired, runAuthorDesignMd never reached its own failJob
     // path — mark the row failed AND kick the next batch job (otherwise a
     // bulk-upload batch stalls forever at this job since no advanceBatch
-    // fires). Mirrors the scrape-and-extract route's watchdog cleanup. Each
-    // DB call races a 3s timeout so a hung DB can't hold us past
-    // maxDuration. The payload already carries batchId so we don't need a
-    // lookup round-trip here.
+    // fires).
+    //
+    // The UPDATE is CAS-guarded on status='running': if runAuthorDesignMd
+    // already committed status='completed' or 'failed' before the watchdog
+    // tripped (e.g. the trailing await advanceBatch was the slow path, not
+    // the AI call), the UPDATE affects zero rows and we DON'T call
+    // advanceBatch here — the in-process handler already enqueued the next
+    // job. Without this guard the watchdog would (a) flip completed → failed,
+    // (b) clobber a specific errorStep with generic 'watchdog', (c)
+    // double-enqueue the next batch job since the in-process advanceBatch
+    // is still in flight.
+    //
+    // Each DB call races a 3s timeout so a hung DB can't hold us past
+    // maxDuration. The payload already carries batchId so no lookup
+    // round-trip is needed when we do need to advance.
     if (watchdogFired) {
+      let affectedCount = 0;
       try {
-        await Promise.race([
+        const rows = await Promise.race([
           db
             .update(generationJobs)
             .set({
@@ -102,23 +114,31 @@ export async function POST(req: NextRequest) {
               errorMessage: message.slice(0, 1000),
               updatedAt: new Date(),
             })
-            .where(eq(generationJobs.id, parsed.jobId)),
+            .where(and(eq(generationJobs.id, parsed.jobId), eq(generationJobs.status, 'running')))
+            .returning({ id: generationJobs.id }),
           new Promise<never>((_, reject) =>
             setTimeout(() => reject(new Error('failJob db timeout')), 3_000).unref(),
           ),
         ]);
+        affectedCount = rows.length;
       } catch (failErr) {
         console.error('[task:author-design-md] watchdog failJob failed:', failErr);
       }
-      try {
-        await Promise.race([
-          advanceBatch(parsed.batchId),
-          new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error('advanceBatch timeout')), 3_000).unref(),
-          ),
-        ]);
-      } catch (advErr) {
-        console.error('[task:author-design-md] watchdog advanceBatch failed:', advErr);
+      if (affectedCount > 0) {
+        try {
+          await Promise.race([
+            advanceBatch(parsed.batchId),
+            new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error('advanceBatch timeout')), 3_000).unref(),
+            ),
+          ]);
+        } catch (advErr) {
+          console.error('[task:author-design-md] watchdog advanceBatch failed:', advErr);
+        }
+      } else {
+        console.warn(
+          '[task:author-design-md] watchdog fired but row no longer running — skipping advanceBatch (in-process handler already terminated)',
+        );
       }
     }
     return NextResponse.json({ error: message }, { status: 500 });

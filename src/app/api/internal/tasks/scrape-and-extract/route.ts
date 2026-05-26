@@ -5,7 +5,7 @@
  * x-internal-task-token (local dev).
  */
 import { NextResponse, type NextRequest } from 'next/server';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { assertTaskAuth } from '@/lib/queue';
 import { runScrapeAndExtract } from '@/lib/generator/scrape-and-extract';
@@ -66,28 +66,25 @@ export async function POST(req: NextRequest) {
     console.error('[task:scrape-and-extract] uncaught:', message);
     // If the watchdog fired, runScrapeAndExtract never reached failJob —
     // mark the row failed AND kick the next batch job (otherwise the
-    // entire bulk batch stalls forever). Both DB calls race a tight
-    // timeout so a hung DB connection can't hold us past maxDuration.
+    // entire bulk batch stalls forever).
+    //
+    // The UPDATE is CAS-guarded on status='running': if runScrapeAndExtract
+    // already committed a terminal status (its in-process failJob ran,
+    // or the success path enqueued the next worker) before the watchdog
+    // tripped, the UPDATE affects zero rows and we DON'T call advanceBatch
+    // here — the in-process handler already did. Without this guard the
+    // watchdog would clobber a specific errorStep with 'watchdog' AND
+    // double-enqueue the next batch job. The .returning() also gives us
+    // batchId in the same round-trip when we DO need to advance, avoiding
+    // a separate lookup.
+    //
+    // Each DB call races a 3s timeout so a hung connection can't hold us
+    // past maxDuration.
     if (watchdogFired) {
       const jobId = parsed.jobId;
-      let batchId: string | null = null;
+      let advancedBatchId: string | null | undefined = undefined;
       try {
-        const [row] = await Promise.race([
-          db
-            .select({ batchId: generationJobs.batchId })
-            .from(generationJobs)
-            .where(eq(generationJobs.id, jobId))
-            .limit(1),
-          new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error('watchdog batch lookup timeout')), 3_000).unref(),
-          ),
-        ]);
-        batchId = row?.batchId ?? null;
-      } catch (lookupErr) {
-        console.error('[task:scrape-and-extract] watchdog batch lookup failed:', lookupErr);
-      }
-      try {
-        await Promise.race([
+        const rows = await Promise.race([
           db
             .update(generationJobs)
             .set({
@@ -96,23 +93,31 @@ export async function POST(req: NextRequest) {
               errorMessage: message.slice(0, 1000),
               updatedAt: new Date(),
             })
-            .where(eq(generationJobs.id, jobId)),
+            .where(and(eq(generationJobs.id, jobId), eq(generationJobs.status, 'running')))
+            .returning({ batchId: generationJobs.batchId }),
           new Promise<never>((_, reject) =>
             setTimeout(() => reject(new Error('failJob db timeout')), 3_000).unref(),
           ),
         ]);
+        if (rows.length > 0) advancedBatchId = rows[0].batchId;
       } catch (failErr) {
         console.error('[task:scrape-and-extract] watchdog failJob failed:', failErr);
       }
-      try {
-        await Promise.race([
-          advanceBatch(batchId),
-          new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error('advanceBatch timeout')), 3_000).unref(),
-          ),
-        ]);
-      } catch (advErr) {
-        console.error('[task:scrape-and-extract] watchdog advanceBatch failed:', advErr);
+      if (advancedBatchId !== undefined) {
+        try {
+          await Promise.race([
+            advanceBatch(advancedBatchId),
+            new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error('advanceBatch timeout')), 3_000).unref(),
+            ),
+          ]);
+        } catch (advErr) {
+          console.error('[task:scrape-and-extract] watchdog advanceBatch failed:', advErr);
+        }
+      } else {
+        console.warn(
+          '[task:scrape-and-extract] watchdog fired but row no longer running — skipping advanceBatch (in-process handler already terminated)',
+        );
       }
     }
     return NextResponse.json({ error: message }, { status: 500 });

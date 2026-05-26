@@ -49,17 +49,22 @@ export interface AuthorDesignMdPayload {
 export async function runAuthorDesignMd(payload: AuthorDesignMdPayload): Promise<void> {
   const { jobId, bundleId, url, scrapedMarkdown, brand, isRerun, autoPublish, batchId } = payload;
 
-  // For auto-publish jobs we need the submitting editor's userId to populate
-  // reviewedBy. Fetch lazily — only one extra round-trip per bulk job.
-  let editorUserId: string | null = null;
-  if (autoPublish) {
-    const [jobRow] = await db
-      .select({ userId: generationJobs.userId })
-      .from(generationJobs)
-      .where(eq(generationJobs.id, jobId))
-      .limit(1);
-    editorUserId = jobRow?.userId ?? null;
-  }
+  // QStash retry guard — mirrors runScrapeAndExtract. If the prior
+  // invocation already committed a terminal status (watchdog cleanup
+  // marked failed, in-process failJob ran, or success path completed),
+  // bail. Without this, a watchdog-failed invocation followed by a
+  // QStash retry re-runs the AI author + lint + score and re-enqueues
+  // Phase 3 from scratch, burning credits and overwriting bundle
+  // content. Folds the existing autoPublish userId fetch into this
+  // lookup so it's still one round-trip.
+  const [jobRow] = await db
+    .select({ status: generationJobs.status, userId: generationJobs.userId })
+    .from(generationJobs)
+    .where(eq(generationJobs.id, jobId))
+    .limit(1);
+  if (!jobRow) throw new Error(`generation job ${jobId} not found`);
+  if (jobRow.status !== 'queued' && jobRow.status !== 'running') return;
+  const editorUserId: string | null = autoPublish ? (jobRow.userId ?? null) : null;
 
   await setJobStep(jobId, 'writing-design-md');
   let designMdContent: string;
