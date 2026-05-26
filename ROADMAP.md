@@ -274,6 +274,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-05-26** - chore: roadmap auto-update (d469a65)
 - [x] **2026-05-26** - chore: roadmap auto-update (a84bdae)
 - [x] **2026-05-26** - chore: roadmap auto-update (11494d2)
 - [x] **2026-05-26** - Prune unresolvable component token refs in Gemini sanitize (1b19468)
