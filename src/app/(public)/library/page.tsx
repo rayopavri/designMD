@@ -245,7 +245,7 @@ function Library() {
                 >
                   New here?
                 </div>
-                Each shelf has a short "how to use one" walkthrough at the top — three steps, no
+                Each shelf has a short &quot;how to use one&quot; walkthrough at the top — three steps, no
                 jargon. Start with{" "}
                 <Link href="/library?type=design-systems" style={{ color: VIOLET }}>
                   Design systems
@@ -364,7 +364,7 @@ function Library() {
                   {query.trim() ? (
                     <>
                       No results for{" "}
-                      <span style={{ fontFamily: MONO, color: VIOLET }}>"{query.trim()}"</span>
+                      <span style={{ fontFamily: MONO, color: VIOLET }}>&quot;{query.trim()}&quot;</span>
                       {activeCount > 0 ? " with the current filters." : "."}
                     </>
                   ) : (
@@ -453,7 +453,7 @@ function RequestCard({ label, href }: { label: string; href: string }) {
         Request a {label}
       </div>
       <div className="text-[12.5px] mb-5" style={{ color: SUB }}>
-        Can't find what you need? Paste a source URL — we'll draft it and route to the curation desk.
+        Can&apos;t find what you need? Paste a source URL — we&apos;ll draft it and route to the curation desk.
       </div>
       <div
         className="inline-flex items-center gap-1.5 text-[11.5px]"

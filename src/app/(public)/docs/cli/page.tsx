@@ -81,7 +81,7 @@ function CliDocs() {
           <SectionLabel t="Commands" />
           <h2 className="mt-3 text-[28px] leading-[1.08] font-medium tracking-[-0.018em]">
             Three commands,{" "}
-            <span style={{ color: SUB }}>that's the whole surface.</span>
+            <span style={{ color: SUB }}>that&apos;s the whole surface.</span>
           </h2>
           <ul className="mt-6 space-y-3">
             {COMMANDS.map((c) => (

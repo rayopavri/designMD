@@ -33,7 +33,7 @@ export function SectionCoverage({ coverage }: { coverage: Coverage }) {
         className={`w-full flex items-center justify-between text-[10.5px] uppercase tracking-[0.22em] ${open ? "mb-3" : ""}`}
         style={{ fontFamily: MONO, color: MUTED }}
       >
-        <span>what's covered</span>
+        <span>what&apos;s covered</span>
         <span
           aria-hidden="true"
           className="inline-block leading-none transition-transform duration-150"

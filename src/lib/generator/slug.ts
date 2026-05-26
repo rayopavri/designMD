@@ -25,7 +25,6 @@ export async function uniqueBundleSlug(base: string): Promise<string> {
   const root = slugify(base);
   let candidate = root;
   let n = 2;
-  // eslint-disable-next-line no-constant-condition
   while (true) {
     const [hit] = await db
       .select({ id: bundles.id })

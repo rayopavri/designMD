@@ -127,7 +127,7 @@ function AuthCallbackContent() {
         )}
         {status === 'error' && (
           <>
-            <h1 className="text-2xl font-medium tracking-tight mb-2">Couldn't sign in</h1>
+            <h1 className="text-2xl font-medium tracking-tight mb-2">Couldn&apos;t sign in</h1>
             <p className="text-sm opacity-70 mb-4">{errorMessage ?? 'Try requesting a new link.'}</p>
             <button
               type="button"

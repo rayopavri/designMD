@@ -36,7 +36,7 @@ function Login() {
             style={{ color: INK }}
           >
             Stop fighting <br />
-            <span style={{ color: SUB }}>the model's defaults.</span>
+            <span style={{ color: SUB }}>the model&apos;s defaults.</span>
           </h1>
 
           {/* Palette strip — the bundle-card signature, scaled up */}

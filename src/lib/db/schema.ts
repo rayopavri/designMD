@@ -27,6 +27,7 @@ import {
   uniqueIndex,
   check,
   primaryKey,
+  type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 import { sql, relations } from 'drizzle-orm';
 
@@ -152,7 +153,7 @@ export const categories = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     slug: text('slug').notNull().unique(),
     name: text('name').notNull(),
-    parentId: uuid('parent_id').references((): any => categories.id, { onDelete: 'set null' }),
+    parentId: uuid('parent_id').references((): AnyPgColumn => categories.id, { onDelete: 'set null' }),
     level: integer('level').notNull(),
     color: text('color'),
     sortOrder: integer('sort_order').notNull().default(0),

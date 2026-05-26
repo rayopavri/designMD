@@ -22,7 +22,7 @@ export default function NotFound() {
     <div className="mx-auto max-w-3xl px-6 lg:px-8 py-32 text-center">
       <SectionLabel n="404" t="Off the index" />
       <h1 className="mt-6 text-[56px] leading-[1.02] font-medium tracking-[-0.022em]">
-        That route isn't
+        That route isn&apos;t
         <br />
         <span style={{ color: SUB }}>in the catalog.</span>
       </h1>

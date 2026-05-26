@@ -427,7 +427,7 @@ function BundleView({ item }: { item: BundleItem }) {
                 className="text-[10.5px] uppercase tracking-[0.22em] mb-3"
                 style={{ fontFamily: MONO, color: MUTED }}
               >
-                What you'll get
+                What you&apos;ll get
               </div>
               <div className="grid grid-cols-1 gap-3">
                 <ArtifactChip
@@ -459,7 +459,7 @@ function BundleView({ item }: { item: BundleItem }) {
                 <SectionLabel n="02" t={`Install in ${toolLabel(tool)}`} />
                 <h2 className="mt-3 text-[28px] leading-[1.08] font-medium tracking-[-0.018em]">
                   Four steps,{" "}
-                  <span style={{ color: SUB }}>then you're shipping.</span>
+                  <span style={{ color: SUB }}>then you&apos;re shipping.</span>
                 </h2>
                 <p className="mt-5 text-[13.5px] leading-[1.6]" style={{ color: SUB }}>
                   Copy each file as you go. Switch tools above to see the steps for a different surface.
@@ -743,7 +743,7 @@ function CompanionPending() {
         Generating companion prompt…
       </div>
       <div className="text-[11px] max-w-sm" style={{ color: SUB, fontFamily: MONO }}>
-        Sonnet 4.6 is writing the tool-agnostic system prompt. Usually ~10 seconds — this page auto-refreshes when it's ready.
+        Sonnet 4.6 is writing the tool-agnostic system prompt. Usually ~10 seconds — this page auto-refreshes when it&apos;s ready.
       </div>
     </div>
   );
@@ -986,7 +986,7 @@ function NonBundleView({ item }: { item: SkillItem | AgentItem | McpItem }) {
                 className="text-[10.5px] uppercase tracking-[0.22em] mb-3"
                 style={{ fontFamily: MONO, color: MUTED }}
               >
-                What you'll get
+                What you&apos;ll get
               </div>
               <div className="grid grid-cols-1 gap-3">
                 <div
@@ -1069,7 +1069,7 @@ function NonBundleView({ item }: { item: SkillItem | AgentItem | McpItem }) {
                 <SectionLabel t={`Install in ${toolLabel(activeTool)}`} />
                 <h2 className="mt-3 text-[28px] leading-[1.08] font-medium tracking-[-0.018em]">
                   {steps.length} steps,{" "}
-                  <span style={{ color: SUB }}>then you're using it.</span>
+                  <span style={{ color: SUB }}>then you&apos;re using it.</span>
                 </h2>
                 <p className="mt-5 text-[13.5px] leading-[1.6]" style={{ color: SUB }}>
                   Switch tools above to see different steps.

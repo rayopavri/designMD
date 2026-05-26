@@ -727,7 +727,7 @@ function GenerateContent() {
           <h1 className="mt-5 text-[44px] sm:text-[56px] leading-[1.02] font-medium tracking-[-0.022em]">
             Paste any URL —
             <br />
-            <span style={{ color: SUB }}>we'll figure out the type.</span>
+            <span style={{ color: SUB }}>we&apos;ll figure out the type.</span>
           </h1>
           <p className="mt-6 text-[15px] leading-[1.65] max-w-[34rem] mx-auto" style={{ color: SUB }}>
             Brand site, GitHub repo, MCP registry link — we detect what it is, run a compliance
@@ -1354,7 +1354,7 @@ function generatePalette(seed: string): string[] {
 function hslToHex(hsl: string): string {
   const m = hsl.match(/hsl\((\d+),\s*(\d+)%?,\s*(\d+)%?\)/);
   if (!m) return hsl;
-  let h = +m[1],
+  const h = +m[1],
     s = +m[2] / 100,
     l = +m[3] / 100;
   const c = (1 - Math.abs(2 * l - 1)) * s;

@@ -250,7 +250,7 @@ export default function ReviewerQueuePage() {
   if (loadState === "error") {
     return (
       <div className="mx-auto max-w-2xl px-6 lg:px-8 py-20 text-center">
-        <h1 className="text-[22px] font-medium">Couldn't load the queue</h1>
+        <h1 className="text-[22px] font-medium">Couldn&apos;t load the queue</h1>
         <p className="mt-2 text-[13px]" style={{ color: SUB, fontFamily: MONO }}>
           {errorMsg ?? "Unknown error"}
         </p>

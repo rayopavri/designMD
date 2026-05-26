@@ -130,7 +130,7 @@ export function AuthCard({ variant = "compact", onSuccess, intent, onSkip, title
         )}
         {step === "email" && (
           <p className="mt-2 text-[13.5px] leading-[1.55]" style={{ color: SUB }}>
-            We'll email you a one-tap sign-in link. No password.
+            We&apos;ll email you a one-tap sign-in link. No password.
           </p>
         )}
         {step === "sent" && (

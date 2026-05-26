@@ -15,7 +15,7 @@ export const SESSION_COOKIE = '__session';
 // 5 days — within Firebase's 1–14 day allowed range.
 export const SESSION_DURATION_MS = 5 * 24 * 60 * 60 * 1000;
 
-export interface SessionUser extends User {}
+export type SessionUser = User;
 
 export async function getCurrentUser(): Promise<SessionUser | null> {
   const store = await cookies();
