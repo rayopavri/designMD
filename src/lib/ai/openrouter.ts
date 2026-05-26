@@ -23,19 +23,23 @@ const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
  * https://openrouter.ai/models
  *
  * Options worth considering:
- *   - google/gemini-2.5-pro      (current — best quality/speed balance, ~15-20s)
- *   - google/gemini-2.5-flash    (fastest, ~8-12s, but skips sections in long prompts)
- *   - openai/gpt-5-mini          (similar speed to Flash, OpenAI voice)
- *   - anthropic/claude-haiku-4-5 (back to Anthropic but Haiku tier)
- *   - anthropic/claude-sonnet-4-6 (original — slowest, baseline quality)
+ *   - google/gemini-2.5-flash    (current — ~10-15s, hits checklist with the
+ *                                 strong prompt from generate-design-md.ts)
+ *   - google/gemini-2.5-pro      (~60-90s via OpenRouter — too slow for our
+ *                                 50s in-process timeout, exceeded watchdog
+ *                                 in production)
+ *   - openai/gpt-5-mini          (~15-25s, OpenAI voice, strong structure)
+ *   - anthropic/claude-haiku-4-5 (~15-20s, back to Anthropic but Haiku tier)
+ *   - anthropic/claude-sonnet-4-6 (~25-35s baseline quality, original choice)
  *
- * Was on `google/gemini-2.5-flash` initially but Flash repeatedly skipped
- * required sections (Elevation & Depth, Do's and Don'ts) despite explicit
- * "ALL 8 sections REQUIRED" instruction — a known Flash limitation on
- * long instruction-heavy prompts. Pro adheres reliably and is still
- * ~50% faster than the original Sonnet 4.6.
+ * Initially used flash, then switched to pro after Flash skipped Elevation
+ * and Do's & Don'ts sections. Pro adhered to the checklist but was so slow
+ * it timed out repeatedly in prod (220s+ wall clock with QStash retries).
+ * Returning to Flash now that the system prompt has an explicit
+ * [ ] checklist of required headings — that visual checklist gives Flash
+ * the structural cue it was missing the first time.
  */
-export const OPENROUTER_AUTHOR_MODEL = 'google/gemini-2.5-pro';
+export const OPENROUTER_AUTHOR_MODEL = 'google/gemini-2.5-flash';
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';

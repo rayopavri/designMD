@@ -161,13 +161,13 @@ interface Input {
   derivedDonts?: string[];
 }
 
-const MAX_OUTPUT_TOKENS = 8192;
+const MAX_OUTPUT_TOKENS = 6144;
 
 // Per-request timeout. Vercel kills the author-design-md function at 60s.
 // 50s gives the OpenRouter client time to throw inside the worker's
 // try/catch and let failJob() mark the row `failed` before the platform
-// SIGKILLs us. A healthy Gemini 2.5 Pro run completes in ~15-20s so this
-// is ~2.5x headroom — generous enough to absorb cold-start jitter while
+// SIGKILLs us. A healthy Gemini 2.5 Flash run completes in ~10-15s so this
+// is ~3-4x headroom — generous enough to absorb cold-start jitter while
 // still firing well inside maxDuration. Enforced via AbortSignal.timeout
 // in chatCompletion(); aborts the underlying fetch for the entire
 // request lifecycle (no streaming-idle blind spot).
