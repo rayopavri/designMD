@@ -128,10 +128,30 @@ RULES:
   "This brand uses flat surfaces; depth is conveyed through color contrast and borders."
 - Section order is fixed: Overview → Colors → Typography → Layout → Elevation & Depth →
   Shapes → Components → Do's and Don'ts → Content Style → Imagery & Icons.
-- ALL 8 canonical sections are REQUIRED: Overview, Colors, Typography, Layout,
-  Elevation & Depth, Shapes, Components, Do's and Don'ts. Never omit one. If the brand
-  provides no signal for a section, write a factual short paragraph explaining the absence.
-- DO NOT output YAML or --- delimiters. Just the markdown body.`;
+- DO NOT output YAML or --- delimiters. Just the markdown body.
+
+BEFORE YOU FINISH, verify your output contains ALL EIGHT of these headings,
+in this exact form and order. NEVER omit any of them. Even if the brand
+gives you weak signal for a section, write at least 1-2 factual sentences
+explaining the absence (e.g. "This brand uses flat surfaces — no observed
+elevation system; depth is conveyed through color and borders.").
+
+REQUIRED HEADINGS CHECKLIST:
+  [ ] ## Overview
+  [ ] ## Colors
+  [ ] ## Typography
+  [ ] ## Layout
+  [ ] ## Elevation & Depth
+  [ ] ## Shapes
+  [ ] ## Components
+  [ ] ## Do's and Don'ts
+
+If voiceAndContent or imageryStyle are provided in the brand context, ALSO include:
+  [ ] ## Content Style
+  [ ] ## Imagery & Icons
+
+The "## Do's and Don'ts" section MUST include a markdown table with at least
+8 rows of concrete, specific guidance (not abstract preferences).`;
 
 interface Input {
   brand: ExtractedBrand;
@@ -141,13 +161,13 @@ interface Input {
   derivedDonts?: string[];
 }
 
-const MAX_OUTPUT_TOKENS = 4096;
+const MAX_OUTPUT_TOKENS = 8192;
 
 // Per-request timeout. Vercel kills the author-design-md function at 60s.
 // 50s gives the OpenRouter client time to throw inside the worker's
 // try/catch and let failJob() mark the row `failed` before the platform
-// SIGKILLs us. A healthy Gemini Flash run completes in ~8-12s so this
-// is ~5x headroom — generous enough to absorb cold-start jitter while
+// SIGKILLs us. A healthy Gemini 2.5 Pro run completes in ~15-20s so this
+// is ~2.5x headroom — generous enough to absorb cold-start jitter while
 // still firing well inside maxDuration. Enforced via AbortSignal.timeout
 // in chatCompletion(); aborts the underlying fetch for the entire
 // request lifecycle (no streaming-idle blind spot).
@@ -333,7 +353,7 @@ async function generateMarkdownBody(input: Input, yaml: string): Promise<string>
   const res = await chatCompletion({
     model: OPENROUTER_AUTHOR_MODEL,
     max_tokens: MAX_OUTPUT_TOKENS,
-    temperature: 0.7,
+    temperature: 0.4,
     messages: [
       { role: 'system', content: SYSTEM_PROMPT },
       { role: 'user', content: userPrompt },

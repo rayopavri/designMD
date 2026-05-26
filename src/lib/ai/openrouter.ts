@@ -23,13 +23,19 @@ const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
  * https://openrouter.ai/models
  *
  * Options worth considering:
- *   - google/gemini-2.5-flash    (current — fastest, cheapest, good prose)
- *   - google/gemini-2.5-pro      (slower, closer to Sonnet quality)
- *   - openai/gpt-5-mini          (similar speed, OpenAI voice)
+ *   - google/gemini-2.5-pro      (current — best quality/speed balance, ~15-20s)
+ *   - google/gemini-2.5-flash    (fastest, ~8-12s, but skips sections in long prompts)
+ *   - openai/gpt-5-mini          (similar speed to Flash, OpenAI voice)
  *   - anthropic/claude-haiku-4-5 (back to Anthropic but Haiku tier)
- *   - anthropic/claude-sonnet-4-6 (original, slow but baseline quality)
+ *   - anthropic/claude-sonnet-4-6 (original — slowest, baseline quality)
+ *
+ * Was on `google/gemini-2.5-flash` initially but Flash repeatedly skipped
+ * required sections (Elevation & Depth, Do's and Don'ts) despite explicit
+ * "ALL 8 sections REQUIRED" instruction — a known Flash limitation on
+ * long instruction-heavy prompts. Pro adheres reliably and is still
+ * ~50% faster than the original Sonnet 4.6.
  */
-export const OPENROUTER_AUTHOR_MODEL = 'google/gemini-2.5-flash';
+export const OPENROUTER_AUTHOR_MODEL = 'google/gemini-2.5-pro';
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';

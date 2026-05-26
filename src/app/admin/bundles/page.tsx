@@ -163,7 +163,7 @@ const RERUN_PHASES: RerunPhase[] = [
   {
     id: "author",
     label: "Design.md authored",
-    tool: "Gemini 2.5 Flash",
+    tool: "Gemini 2.5 Pro",
     steps: ["persisting", "writing-design-md", "persisting-design-md"],
   },
   {

@@ -85,7 +85,7 @@ const BUNDLE_STEPS_URL: PipelineStep[] = [
   {
     id: "author",
     label: "Design.md authored",
-    tool: "Gemini 2.5 Flash",
+    tool: "Gemini 2.5 Pro",
     detail: "Persist draft + write canonical DESIGN.md",
     durationMs: 19000,
     steps: ["persisting", "writing-design-md"],
@@ -121,7 +121,7 @@ const BUNDLE_STEPS_UPLOAD: PipelineStep[] = [
   {
     id: "author",
     label: "Design.md authored",
-    tool: "Gemini 2.5 Flash",
+    tool: "Gemini 2.5 Pro",
     detail: "Persist draft + write canonical DESIGN.md",
     durationMs: 19000,
     steps: ["persisting", "writing-design-md"],
