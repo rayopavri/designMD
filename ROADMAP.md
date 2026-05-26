@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-05-27** (Roadmap auto-update via PostToolUse hook)
+> Last updated: **2026-05-28** (Roadmap auto-update via PostToolUse hook)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -274,6 +274,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-05-28** - chore: roadmap auto-update (0fef1df)
 - [x] **2026-05-27** - chore: roadmap auto-update (d6f77de)
 - [x] **2026-05-26** - chore: roadmap auto-update (d469a65)
 - [x] **2026-05-26** - chore: roadmap auto-update (a84bdae)
