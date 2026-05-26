@@ -9,6 +9,13 @@ const isLocalDb =
 const client = postgres(env.DATABASE_URL, {
   max: env.NODE_ENV === 'production' ? 10 : 5,
   idle_timeout: 20,
+  // Cap how long postgres-js will wait for a fresh TCP+TLS connection
+  // before rejecting. On Vercel cold-starts to Supabase's PgBouncer, an
+  // unbounded connect can wedge a worker through its maxDuration ceiling
+  // and SIGKILL it before failJob() runs, stranding generation_jobs rows
+  // in `running` forever. 10s is generous for a healthy connect (<1s
+  // typical) while still letting watchdogs fire within Vercel's 60s.
+  connect_timeout: 10,
   // PgBouncer transaction-pool mode (Supabase pooler on port 6543) does not
   // support prepared statements — disable them to avoid runtime errors.
   prepare: !env.DATABASE_URL.includes(':6543'),

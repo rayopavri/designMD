@@ -140,16 +140,18 @@ const MAX_OUTPUT_TOKENS = 4096;
 // Per-request timeout. Vercel kills the author-design-md function at 60s.
 // 50s gives the SDK time to throw inside the worker's try/catch and let
 // failJob() update the row to `failed` before the platform SIGKILLs us.
-// A healthy authoring run streams in 25-35s so this is ~1.5x headroom.
+// A healthy authoring run completes in 25-35s so this is ~1.5x headroom.
 //
-// CRITICAL: passed as BOTH `timeout` (governs initial HTTP connect) AND
-// `signal: AbortSignal.timeout(...)` (governs idle mid-stream). The SDK's
-// `timeout` option alone does NOT cover stream consumption — once the
-// first chunk arrives the timeout is no longer enforced, so a stalled
-// stream would run to maxDuration (60s) and SIGKILL the function before
-// failJob() can mark the row failed. The AbortSignal aborts the
-// underlying fetch mid-stream, the SDK throws APIUserAbortError, and
-// our try/catch in author-design-md.ts cleanly fails the job.
+// Uses `messages.create` (non-streaming) intentionally. We previously used
+// `messages.stream().finalMessage()` with the same SDK timeout, but the
+// SDK's RequestOptions.timeout only governs the initial HTTP connect for
+// streaming calls — once chunks start flowing, an idle stream is no
+// longer enforced. If Anthropic slowed mid-stream, the worker would run
+// to maxDuration and get SIGKILLed before failJob() could mark the row
+// failed, leaving generation_jobs stranded in `running` indefinitely.
+// Non-streaming (`messages.create`) enforces the timeout for the entire
+// request lifecycle, matching the proven pattern in
+// generate-companion-prompt.ts which has never exhibited this hang.
 const SONNET_TIMEOUT_MS = 50_000;
 
 export interface GeneratedDesignMd {
@@ -328,24 +330,24 @@ async function generateMarkdownBody(input: Input, yaml: string): Promise<string>
     .filter(Boolean)
     .join('\n');
 
-  const res = await anthropic()
-    .messages.stream(
-      {
-        model: ANTHROPIC_MODELS.sonnet,
-        max_tokens: MAX_OUTPUT_TOKENS,
-        // cache_control isn't typed on TextBlockParam in @anthropic-ai/sdk@0.32 but
-        // is accepted at runtime — prompt caching is GA on the API.
-        system: [
-          { type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } },
-        ] as unknown as Anthropic.TextBlockParam[],
-        messages: [{ role: 'user', content: userPrompt }],
-      },
-      {
-        timeout: SONNET_TIMEOUT_MS,
-        signal: AbortSignal.timeout(SONNET_TIMEOUT_MS),
-      },
-    )
-    .finalMessage();
+  const startedAt = Date.now();
+  const res = await anthropic().messages.create(
+    {
+      model: ANTHROPIC_MODELS.sonnet,
+      max_tokens: MAX_OUTPUT_TOKENS,
+      // cache_control isn't typed on TextBlockParam in @anthropic-ai/sdk@0.32 but
+      // is accepted at runtime — prompt caching is GA on the API.
+      system: [
+        { type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } },
+      ] as unknown as Anthropic.TextBlockParam[],
+      messages: [{ role: 'user', content: userPrompt }],
+    },
+    { timeout: SONNET_TIMEOUT_MS },
+  );
+  const elapsedMs = Date.now() - startedAt;
+  console.log(
+    `[generate-design-md] sonnet ${ANTHROPIC_MODELS.sonnet} ${elapsedMs}ms stop=${res.stop_reason} in=${res.usage?.input_tokens} out=${res.usage?.output_tokens}`,
+  );
 
   if (res.stop_reason === 'max_tokens') {
     console.warn('[generate-design-md] Claude hit max_tokens — output may be truncated');
