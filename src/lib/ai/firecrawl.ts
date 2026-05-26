@@ -195,22 +195,35 @@ export async function scrapeUrlSmart(
   url: string,
   opts?: { searchQuery?: string },
 ): Promise<ScrapeResult> {
-  // Vercel Hobby caps functions at 60s. Phase 1 also runs Gemini (~10s),
-  // orphan resolution, DB writes, and QStash enqueue. Keep the total
-  // Firecrawl budget to 45s so those steps always have headroom. Primary
-  // scrape alone can take 22s on JS-heavy sites (binance, apple); leave
-  // ~20s for mapUrl + batch enrichment.
-  const FIRECRAWL_BUDGET_MS = 45_000;
+  // Total Firecrawl budget. Vercel function maxDuration is 120s for this
+  // worker; Phase 1 also runs Gemini brand extraction (~10-15s), orphan
+  // resolution (~50ms), DB writes (~200ms), and QStash enqueue (~500ms),
+  // so we keep Firecrawl under 40s. The pre-step budget checks below
+  // assume the worst-case per-step wrapper budgets and subtract them
+  // from this number — slow primaries cause enrichment to skip rather
+  // than risk pushing the worker past the watchdog.
+  const FIRECRAWL_BUDGET_MS = 40_000;
   const start = Date.now();
 
-  // Step 1: Full primary scrape (screenshot + html + branding — unchanged).
+  // Step 1: Full primary scrape (screenshot + html + branding).
   const primary = await scrapeUrl(url);
+  const afterPrimary = Date.now() - start;
 
-  // Budget check — a slow primary (complex JS-heavy site) eats most of
-  // the window; skip enrichment rather than risk a function timeout.
-  if (Date.now() - start > FIRECRAWL_BUDGET_MS - 6_000) return primary;
+  // Skip mapUrl if the primary ate enough of our budget that adding
+  // mapUrl (8s) + batch (14s) would overrun. -12s = mapUrl wrapper +
+  // small headroom; if a successful mapUrl pushes us past the batch
+  // threshold we'll skip batch on the next check.
+  if (afterPrimary > FIRECRAWL_BUDGET_MS - 12_000) {
+    console.warn(
+      `[firecrawl] skipping enrichment for ${url} — primary used ${afterPrimary}ms of ${FIRECRAWL_BUDGET_MS}ms budget`,
+    );
+    return primary;
+  }
 
-  // Step 2: Discover subpages. Fast (~2-3s), best-effort.
+  // Step 2: Discover subpages. Wrapper budget bumped to 8s so legitimate
+  // slow-but-successful maps (cold Vercel + remote latency + Firecrawl's
+  // own 3s server timeout) don't get cut off as if they hung. Warn-log
+  // when we DO trip the wrapper so a regression in this path is visible.
   let rankedUrls: string[] = [];
   try {
     const mapped = await withClientTimeout(
@@ -220,24 +233,36 @@ export async function scrapeUrlSmart(
           timeout: 3000,
           ...(opts?.searchQuery ? { search: opts.searchQuery } : {}),
         }),
-      5_000,
+      8_000,
       `firecrawl mapUrl(${url})`,
     );
     if (mapped.success && mapped.links?.length) {
       rankedUrls = rankDesignUrls(mapped.links, url);
     }
-  } catch {
+  } catch (err) {
+    console.warn(
+      `[firecrawl] mapUrl enrichment skipped for ${url}: ${err instanceof Error ? err.message : err}`,
+    );
     return primary;
   }
 
   if (rankedUrls.length === 0) return primary;
 
-  // Budget check before the batch scrape.
-  if (Date.now() - start > FIRECRAWL_BUDGET_MS - 9_000) return primary;
+  // Skip batch if too much budget has been spent already. Batch wrapper
+  // is 14s; -16_000 means we only enter batch when ≥16s of budget remain
+  // (i.e. elapsed < 24s) so we never push firecrawl past 38s total.
+  const afterMap = Date.now() - start;
+  if (afterMap > FIRECRAWL_BUDGET_MS - 16_000) {
+    console.warn(
+      `[firecrawl] skipping batch enrichment for ${url} — ${afterMap}ms elapsed before batch could start`,
+    );
+    return primary;
+  }
 
   // Step 3: Batch-scrape top 3 subpages in parallel (markdown only).
   // Firecrawl Hobby supports 5 concurrent scrapes, so 3 in parallel
-  // leaves headroom. Tighter timeout (8s each) stays well within budget.
+  // leaves headroom. Per-page server timeout is 8s; the 14s wrapper
+  // covers polling + transport overhead.
   let extraMarkdown = '';
   try {
     const batch = await withClientTimeout(
@@ -258,7 +283,10 @@ export async function scrapeUrlSmart(
         .map((d) => `\n\n---\n\n**${d.metadata?.title ?? d.url ?? ''}** (${d.url ?? ''}):\n\n${d.markdown}`)
         .join('');
     }
-  } catch {
+  } catch (err) {
+    console.warn(
+      `[firecrawl] batchScrapeUrls enrichment skipped for ${url}: ${err instanceof Error ? err.message : err}`,
+    );
     return primary;
   }
 
