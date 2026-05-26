@@ -12,6 +12,7 @@ import { assertTaskAuth } from '@/lib/queue';
 import { runAuthorDesignMd } from '@/lib/generator/author-design-md';
 import { db } from '@/lib/db/client';
 import { generationJobs } from '@/lib/db/schema';
+import { advanceBatch } from '@/lib/generator/batch';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -84,9 +85,12 @@ export async function POST(req: NextRequest) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     console.error('[task:author-design-md] uncaught:', message);
     // If the watchdog fired, runAuthorDesignMd never reached its own failJob
-    // path — mark the row failed here so the UI doesn't stay in `running`
-    // forever. Best-effort with a tight timeout; if the DB itself is hung
-    // this won't save us, but at least we tried.
+    // path — mark the row failed AND kick the next batch job (otherwise a
+    // bulk-upload batch stalls forever at this job since no advanceBatch
+    // fires). Mirrors the scrape-and-extract route's watchdog cleanup. Each
+    // DB call races a 3s timeout so a hung DB can't hold us past
+    // maxDuration. The payload already carries batchId so we don't need a
+    // lookup round-trip here.
     if (watchdogFired) {
       try {
         await Promise.race([
@@ -105,6 +109,16 @@ export async function POST(req: NextRequest) {
         ]);
       } catch (failErr) {
         console.error('[task:author-design-md] watchdog failJob failed:', failErr);
+      }
+      try {
+        await Promise.race([
+          advanceBatch(parsed.batchId),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('advanceBatch timeout')), 3_000).unref(),
+          ),
+        ]);
+      } catch (advErr) {
+        console.error('[task:author-design-md] watchdog advanceBatch failed:', advErr);
       }
     }
     return NextResponse.json({ error: message }, { status: 500 });
