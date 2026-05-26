@@ -44,6 +44,12 @@ interface Input {
 
 const MAX_OUTPUT_TOKENS = 1500;
 
+// Per-request timeout. Vercel kills the generate-companion function at 60s.
+// 45s gives the SDK time to throw inside the worker's try/catch and let
+// failJob() update the row to `failed` before the platform SIGKILLs us.
+// A normal companion call returns in 10-20s so this is ~3x healthy headroom.
+const SONNET_TIMEOUT_MS = 45_000;
+
 export async function generateCompanionPrompt(input: Input): Promise<string> {
   const userPrompt = [
     `Brand: ${input.brandName}`,
@@ -57,12 +63,15 @@ export async function generateCompanionPrompt(input: Input): Promise<string> {
     'Produce the companion prompt. Output only the markdown, no preamble.',
   ].join('\n');
 
-  const res = await anthropic().messages.create({
-    model: ANTHROPIC_MODELS.sonnet,
-    max_tokens: MAX_OUTPUT_TOKENS,
-    system: SYSTEM_PROMPT,
-    messages: [{ role: 'user', content: userPrompt }],
-  });
+  const res = await anthropic().messages.create(
+    {
+      model: ANTHROPIC_MODELS.sonnet,
+      max_tokens: MAX_OUTPUT_TOKENS,
+      system: SYSTEM_PROMPT,
+      messages: [{ role: 'user', content: userPrompt }],
+    },
+    { timeout: SONNET_TIMEOUT_MS },
+  );
 
   const text = res.content
     .filter((c): c is { type: 'text'; text: string } => c.type === 'text')

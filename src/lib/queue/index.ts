@@ -65,7 +65,15 @@ export async function enqueueTask<P>(
       await client.publishJSON({
         url: workerUrl,
         body: payload as Record<string, unknown>,
-        retries: 3,
+        // 1 retry covers transient network blips. Higher counts amplified
+        // hang failures into 10+ min "stuck running" UI: each retry calls
+        // setJobStep at the top of the worker, bumping updatedAt and
+        // resetting the watchdog window, so the user sat through 3
+        // back-to-back 120s function timeouts before the row could be
+        // marked failed. The Gemini / Anthropic calls now have their own
+        // in-process timeouts that throw cleanly inside the worker, so
+        // genuine failures surface immediately instead of via retry storm.
+        retries: 1,
         ...(opts?.delaySeconds && opts.delaySeconds > 0
           ? { delay: opts.delaySeconds }
           : {}),

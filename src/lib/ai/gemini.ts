@@ -610,9 +610,10 @@ export async function extractBrandFromMarkdown(
     }
   }
 
-  const result = await model.generateContent({
-    contents: [{ role: 'user', parts }],
-  });
+  const result = await model.generateContent(
+    { contents: [{ role: 'user', parts }] },
+    { timeout: GEMINI_TIMEOUT_MS },
+  );
 
   const text = result.response.text();
   let parsed: ExtractedBrand;
@@ -717,9 +718,10 @@ export async function extractBrandFromImage(
     { text: textPrompt },
   ];
 
-  const result = await model.generateContent({
-    contents: [{ role: 'user', parts }],
-  });
+  const result = await model.generateContent(
+    { contents: [{ role: 'user', parts }] },
+    { timeout: GEMINI_TIMEOUT_MS },
+  );
 
   const text = result.response.text();
   let parsed: ExtractedBrand;
@@ -752,6 +754,16 @@ const EXTRACTION_JPEG_QUALITY = 88;
 // schema. 12k chars (~3k tokens) is enough representative copy for category,
 // voice, and component naming without inflating TTFT.
 const MAX_EXTRACTION_MARKDOWN_CHARS = 12_000;
+
+// Per-request timeout for the Gemini generateContent call. MUST stay tighter
+// than the Vercel function maxDuration (120s for scrape-and-extract) so the
+// SDK rejects inside the worker's try/catch and failJob() runs before the
+// platform SIGKILLs us. A SIGKILL would leave the generation_jobs row in
+// `running` state and trigger a QStash retry storm. After input cuts a
+// normal call returns in 8-25s, so 90s is ~4x headroom for a healthy call
+// while reliably catching a true hang. The Gemini SDK aborts via AbortSignal
+// when this elapses and throws — we pass it as SingleRequestOptions.
+const GEMINI_TIMEOUT_MS = 90_000;
 
 async function fetchImageAsPart(url: string): Promise<Part | null> {
   const res = await fetch(url);

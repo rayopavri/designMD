@@ -18,7 +18,13 @@ import { generationJobs } from '@/lib/db/schema';
 export const runtime = 'nodejs';
 export const maxDuration = 15;
 
-const STUCK_JOB_AGE_MS = 5 * 60_000;
+// Workers now have in-process timeouts (90s on Gemini, similar on Anthropic)
+// that throw inside the try/catch so failJob runs and the row flips to
+// `failed` within seconds. The watchdog is the last-resort fallback for
+// the case where the worker dies before its catch runs (Vercel SIGKILL on
+// maxDuration, OOM, etc.). Cron runs every 5 min so 2 min stale is the
+// tightest cutoff that's safe — anything shorter races the cron interval.
+const STUCK_JOB_AGE_MS = 2 * 60_000;
 
 export async function GET(req: NextRequest) {
   const expected = process.env.CRON_SECRET;

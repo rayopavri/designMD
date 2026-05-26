@@ -137,6 +137,13 @@ interface Input {
 
 const MAX_OUTPUT_TOKENS = 4096;
 
+// Per-request timeout. Vercel kills the author-design-md function at 60s.
+// 50s gives the SDK time to throw inside the worker's try/catch and let
+// failJob() update the row to `failed` before the platform SIGKILLs us.
+// A healthy authoring run streams in 25-35s so this is ~1.5x headroom —
+// tighter than the companion timeout because the streaming output dominates.
+const SONNET_TIMEOUT_MS = 50_000;
+
 export interface GeneratedDesignMd {
   /** The full file: YAML front-matter + markdown body. */
   content: string;
@@ -314,16 +321,19 @@ async function generateMarkdownBody(input: Input, yaml: string): Promise<string>
     .join('\n');
 
   const res = await anthropic()
-    .messages.stream({
-      model: ANTHROPIC_MODELS.sonnet,
-      max_tokens: MAX_OUTPUT_TOKENS,
-      // cache_control isn't typed on TextBlockParam in @anthropic-ai/sdk@0.32 but
-      // is accepted at runtime — prompt caching is GA on the API.
-      system: [
-        { type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } },
-      ] as unknown as Anthropic.TextBlockParam[],
-      messages: [{ role: 'user', content: userPrompt }],
-    })
+    .messages.stream(
+      {
+        model: ANTHROPIC_MODELS.sonnet,
+        max_tokens: MAX_OUTPUT_TOKENS,
+        // cache_control isn't typed on TextBlockParam in @anthropic-ai/sdk@0.32 but
+        // is accepted at runtime — prompt caching is GA on the API.
+        system: [
+          { type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } },
+        ] as unknown as Anthropic.TextBlockParam[],
+        messages: [{ role: 'user', content: userPrompt }],
+      },
+      { timeout: SONNET_TIMEOUT_MS },
+    )
     .finalMessage();
 
   if (res.stop_reason === 'max_tokens') {
