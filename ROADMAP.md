@@ -274,6 +274,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-05-26** - Add Publish button to admin bundle detail — unblocks stuck personal bundles (ce7e520)
 - [x] **2026-05-26** - chore: roadmap auto-update (3702572)
 - [x] **2026-05-26** - Add client-side timeout to Firecrawl SDK calls — fixes 220s stuck UI (8352da)
 - [x] **2026-05-25** - chore: roadmap auto-update (38dbd06)
