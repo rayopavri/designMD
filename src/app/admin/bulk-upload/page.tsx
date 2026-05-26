@@ -9,7 +9,9 @@ import {
   ExternalLink,
   Loader2,
   RefreshCw,
+  RotateCw,
   ShieldCheck,
+  Unplug,
   Upload,
   XCircle,
 } from "lucide-react";
@@ -587,6 +589,20 @@ function BatchStatusView({
 }) {
   const isDone = batchStatus.done;
   const [rerunningIds, setRerunningIds] = useState<Set<string>>(new Set());
+  const [isUnsticking, setIsUnsticking] = useState(false);
+  const [isRetryingFailed, setIsRetryingFailed] = useState(false);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
+
+  // Show "unstick" affordance only when at least one running job has gone
+  // stale (>5min since last update). Anything fresher might be a healthy
+  // long-tail run we shouldn't force-fail.
+  const STALE_THRESHOLD_MS = 5 * 60 * 1000;
+  const now = Date.now();
+  const hasStuckRunning = batchStatus.jobs.some(
+    (j) =>
+      j.status === 'running' &&
+      now - new Date(j.updatedAt).getTime() > STALE_THRESHOLD_MS,
+  );
 
   async function handleRerun(job: JobStatus) {
     if (!job.bundleSlug) return;
@@ -596,6 +612,57 @@ function BatchStatusView({
       onRefresh();
     } finally {
       setRerunningIds((prev) => { const s = new Set(prev); s.delete(job.id); return s; });
+    }
+  }
+
+  async function handleUnstick() {
+    setIsUnsticking(true);
+    setActionMessage(null);
+    try {
+      const res = await fetch(`/api/admin/bulk-upload/${batchStatus.batchId}/unstick`, {
+        method: 'POST',
+      });
+      const data = (await res.json()) as { unstuck: number; advanced: boolean };
+      if (data.unstuck === 0) {
+        setActionMessage('No stuck jobs found.');
+      } else {
+        setActionMessage(
+          `Unstuck ${data.unstuck} job${data.unstuck === 1 ? '' : 's'}${data.advanced ? ' · next URL kicked' : ''}.`,
+        );
+      }
+      onRefresh();
+    } catch (err) {
+      setActionMessage(`Unstick failed: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setIsUnsticking(false);
+    }
+  }
+
+  async function handleRetryFailed() {
+    setIsRetryingFailed(true);
+    setActionMessage(null);
+    try {
+      const res = await fetch(
+        `/api/admin/bulk-upload/${batchStatus.batchId}/retry-failed`,
+        { method: 'POST' },
+      );
+      const data = (await res.json()) as {
+        retried: number;
+        enqueuedFirst: string | null;
+        inFlight: boolean;
+      };
+      if (data.retried === 0) {
+        setActionMessage('No failed jobs to retry.');
+      } else {
+        setActionMessage(
+          `Re-queued ${data.retried} job${data.retried === 1 ? '' : 's'}${data.enqueuedFirst ? ' · first one kicked' : data.inFlight ? ' · waiting for in-flight job to finish' : ''}.`,
+        );
+      }
+      onRefresh();
+    } catch (err) {
+      setActionMessage(`Retry failed: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setIsRetryingFailed(false);
     }
   }
 
@@ -638,7 +705,7 @@ function BatchStatusView({
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {isDone ? (
             <span className="text-[11px]" style={{ fontFamily: MONO, color: LIME }}>
               batch complete
@@ -648,6 +715,40 @@ function BatchStatusView({
               <Loader2 className="h-3 w-3 animate-spin" />
               polling every 5 s
             </span>
+          )}
+          {hasStuckRunning && (
+            <button
+              type="button"
+              onClick={() => void handleUnstick()}
+              disabled={isUnsticking}
+              title="Force-fail running jobs stale >5min and kick the next URL"
+              className="h-8 rounded-md border px-2.5 text-[11px] inline-flex items-center gap-1.5 disabled:opacity-50"
+              style={{ borderColor: `${PEACH}55`, color: PEACH, fontFamily: MONO, background: `${PEACH}0D` }}
+            >
+              {isUnsticking ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Unplug className="h-3 w-3" />
+              )}
+              unstick
+            </button>
+          )}
+          {batchStatus.failed > 0 && (
+            <button
+              type="button"
+              onClick={() => void handleRetryFailed()}
+              disabled={isRetryingFailed}
+              title="Re-queue all failed jobs and resume processing"
+              className="h-8 rounded-md border px-2.5 text-[11px] inline-flex items-center gap-1.5 disabled:opacity-50"
+              style={{ borderColor: BORDER, color: SUB, fontFamily: MONO, background: SURFACE_2 }}
+            >
+              {isRetryingFailed ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <RotateCw className="h-3 w-3" />
+              )}
+              retry failed
+            </button>
           )}
           <button
             type="button"
@@ -661,6 +762,15 @@ function BatchStatusView({
           </button>
         </div>
       </div>
+
+      {actionMessage && (
+        <div
+          className="text-[11px] px-3 py-2 rounded-md border"
+          style={{ fontFamily: MONO, color: SUB, borderColor: BORDER, background: SURFACE_2 }}
+        >
+          {actionMessage}
+        </div>
+      )}
 
       {/* Job rows */}
       <div className="rounded-xl border overflow-hidden" style={{ borderColor: BORDER }}>
