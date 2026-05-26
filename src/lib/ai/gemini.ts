@@ -1007,7 +1007,61 @@ function sanitize(parsed: ExtractedBrand): ExtractedBrand {
     }
   }
 
+  // Drop component property values that reference tokens we don't have
+  // defined. The downstream @google/design.md linter's broken-ref rule is
+  // severity='error', and every unresolved ref blocks the auto-publish
+  // gate (errors === 0). LLMs reliably hallucinate token names ~5-10% of
+  // the time ({colors.brand-blue} when the colors block has `primary`),
+  // so we prune deterministically in-process rather than relying on the
+  // prompt to never miss. The orphan resolver runs next; it only creates
+  // refs to colors that actually exist, so it never adds broken refs back.
+  pruneInvalidComponentRefs(parsed);
+
   return parsed;
+}
+
+const COMPONENT_REF_PROPS = [
+  'backgroundColor',
+  'textColor',
+  'typography',
+  'rounded',
+  'padding',
+  'size',
+  'height',
+  'width',
+  'borderColor',
+  'outlineOffset',
+] as const satisfies readonly (keyof ExtractedComponent)[];
+
+const TOKEN_REF_RE = /^\{([a-zA-Z]+)\.([^}]+)\}$/;
+
+function pruneInvalidComponentRefs(parsed: ExtractedBrand): void {
+  const validRefs = new Set<string>();
+  for (const c of parsed.colors) validRefs.add(`colors.${c.name}`);
+  for (const t of parsed.typography) validRefs.add(`typography.${t.name}`);
+  for (const r of parsed.rounded) validRefs.add(`rounded.${r.name}`);
+  for (const s of parsed.spacing) validRefs.add(`spacing.${s.name}`);
+  for (const m of parsed.motion ?? []) validRefs.add(`motion.${m.name}`);
+
+  let prunedCount = 0;
+  for (const comp of parsed.components) {
+    for (const prop of COMPONENT_REF_PROPS) {
+      const val = comp[prop];
+      if (typeof val !== 'string') continue;
+      const match = val.match(TOKEN_REF_RE);
+      if (!match) continue; // direct value (hex, dimension) — leave alone
+      const refKey = `${match[1]}.${match[2]}`;
+      if (!validRefs.has(refKey)) {
+        comp[prop] = undefined;
+        prunedCount++;
+      }
+    }
+  }
+  if (prunedCount > 0) {
+    console.log(
+      `[gemini:sanitize] pruned ${prunedCount} unresolvable component token refs`,
+    );
+  }
 }
 
 /**
