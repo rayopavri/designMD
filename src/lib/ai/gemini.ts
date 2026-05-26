@@ -934,25 +934,28 @@ function sanitize(parsed: ExtractedBrand): ExtractedBrand {
     .filter((t) => t && t.name && t.fontFamily && t.fontSize)
     .map((t) => normaliseConfidence({ ...t, name: kebab(t.name) }))
     .slice(0, 16);
-  // Scales.
+  // Scales. Kebab the names so component refs (which we also kebab when
+  // comparing in pruneInvalidComponentRefs) line up regardless of whether
+  // the LLM emitted camelCase, Title_Case, etc.
   parsed.rounded = (parsed.rounded ?? [])
     .filter((s) => s.name && s.value)
-    .map(normaliseConfidence)
+    .map((s) => normaliseConfidence({ ...s, name: kebab(s.name) }))
     .slice(0, 8);
   parsed.spacing = (parsed.spacing ?? [])
     .filter((s) => s.name && s.value)
-    .map(normaliseConfidence)
+    .map((s) => normaliseConfidence({ ...s, name: kebab(s.name) }))
     .slice(0, 12);
-  // Components.
+  // Components. Kebab name AND keep ref-shaped property values untouched
+  // here — the pruner normalises ref names on its own when comparing.
   parsed.components = (parsed.components ?? [])
     .filter((c) => c.name)
-    .map(normaliseConfidence)
+    .map((c) => normaliseConfidence({ ...c, name: kebab(c.name) }))
     .slice(0, 24);
   // Motion.
   if (parsed.motion) {
     parsed.motion = parsed.motion
       .filter((m) => m.name && m.value)
-      .map(normaliseConfidence)
+      .map((m) => normaliseConfidence({ ...m, name: kebab(m.name) }))
       .slice(0, 12);
     if (parsed.motion.length === 0) delete parsed.motion;
   }
@@ -1007,14 +1010,17 @@ function sanitize(parsed: ExtractedBrand): ExtractedBrand {
     }
   }
 
-  // Drop component property values that reference tokens we don't have
-  // defined. The downstream @google/design.md linter's broken-ref rule is
-  // severity='error', and every unresolved ref blocks the auto-publish
-  // gate (errors === 0). LLMs reliably hallucinate token names ~5-10% of
-  // the time ({colors.brand-blue} when the colors block has `primary`),
-  // so we prune deterministically in-process rather than relying on the
-  // prompt to never miss. The orphan resolver runs next; it only creates
-  // refs to colors that actually exist, so it never adds broken refs back.
+  // Drop or rewrite component property values that reference tokens we
+  // don't have defined. The downstream @google/design.md linter's
+  // broken-ref rule is severity='error', and every unresolved ref blocks
+  // the auto-publish gate (errors === 0). LLMs reliably hallucinate
+  // token names ~5-10% of the time ({colors.brand-blue} when the colors
+  // block has `primary`), so we prune deterministically in-process
+  // rather than relying on the prompt to never miss.
+  //
+  // The orphan resolver runs next; it creates refs to colors/typography/
+  // rounded names that actually exist on the brand object (after our
+  // kebab normalization above), so it never adds broken refs back.
   pruneInvalidComponentRefs(parsed);
 
   return parsed;
@@ -1033,9 +1039,20 @@ const COMPONENT_REF_PROPS = [
   'outlineOffset',
 ] as const satisfies readonly (keyof ExtractedComponent)[];
 
-const TOKEN_REF_RE = /^\{([a-zA-Z]+)\.([^}]+)\}$/;
+// Match any {namespace.name} ref appearing in a string. Global so we can
+// rewrite composite values like 'padding: "{spacing.xs} {spacing.lg}"'
+// instead of treating the whole value as one ref. Inner whitespace is
+// tolerated ('{ colors.primary }') because models trained on CSS often
+// emit it. Name capture stops at whitespace or '}' so '{a.b c.d}' parses
+// as two separate (malformed) refs rather than one with ' c.d' in the
+// name.
+const TOKEN_REF_GLOBAL_RE = /\{\s*([a-zA-Z][a-zA-Z0-9]*)\.\s*([^\s}]+)\s*\}/g;
 
 function pruneInvalidComponentRefs(parsed: ExtractedBrand): void {
+  // All token names are already kebab-cased in sanitize. Build the valid
+  // ref set from those canonical names; the matcher below kebabs the
+  // LLM-emitted name on lookup so case/format drift between the two
+  // doesn't cause false rejections.
   const validRefs = new Set<string>();
   for (const c of parsed.colors) validRefs.add(`colors.${c.name}`);
   for (const t of parsed.typography) validRefs.add(`typography.${t.name}`);
@@ -1048,12 +1065,29 @@ function pruneInvalidComponentRefs(parsed: ExtractedBrand): void {
     for (const prop of COMPONENT_REF_PROPS) {
       const val = comp[prop];
       if (typeof val !== 'string') continue;
-      const match = val.match(TOKEN_REF_RE);
-      if (!match) continue; // direct value (hex, dimension) — leave alone
-      const refKey = `${match[1]}.${match[2]}`;
-      if (!validRefs.has(refKey)) {
+      // Reset lastIndex defensively — TOKEN_REF_GLOBAL_RE is shared.
+      TOKEN_REF_GLOBAL_RE.lastIndex = 0;
+      if (!TOKEN_REF_GLOBAL_RE.test(val)) continue; // direct value (hex, dimension) — leave alone
+
+      let anyInvalid = false;
+      const rewritten = val.replace(TOKEN_REF_GLOBAL_RE, (_full, namespace: string, name: string) => {
+        const kebabName = kebab(name);
+        const refKey = `${namespace}.${kebabName}`;
+        if (validRefs.has(refKey)) {
+          // Rewrite to canonical form (no whitespace, kebab name) so the
+          // YAML emitter and downstream linter see the resolved shape.
+          return `{${namespace}.${kebabName}}`;
+        }
+        anyInvalid = true;
+        // Return the original match — we'll drop the whole prop below.
+        return `{${namespace}.${name}}`;
+      });
+
+      if (anyInvalid) {
         comp[prop] = undefined;
         prunedCount++;
+      } else if (rewritten !== val) {
+        comp[prop] = rewritten;
       }
     }
   }
