@@ -15,25 +15,25 @@
  *   - computed-style snapshot (CSS vars, dominant hexes, tailwind classes)
  */
 import {
-  GoogleGenerativeAI,
-  SchemaType,
+  GoogleGenAI,
+  Type,
   type Schema,
   type Part,
-} from '@google/generative-ai';
+} from '@google/genai';
 import { env } from '@/lib/env';
 import type { ComputedStyleSnapshot } from '@/lib/generator/extract-computed-styles';
 import type { FirecrawlBranding, FirecrawlDesignExtract } from '@/lib/ai/firecrawl';
 
-let _client: GoogleGenerativeAI | null = null;
+let _client: GoogleGenAI | null = null;
 
-function client(): GoogleGenerativeAI {
+function client(): GoogleGenAI {
   if (_client) return _client;
   if (!env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY is not configured');
-  _client = new GoogleGenerativeAI(env.GEMINI_API_KEY);
+  _client = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
   return _client;
 }
 
-const MODEL = 'gemini-3.5-flash';
+const MODEL = 'gemini-2.5-flash';
 
 // ─── Output schema (Gemini → JSON) ──────────────────────────
 
@@ -180,136 +180,136 @@ export interface ExtractedBrand {
 }
 
 const confidenceFieldSchema: Schema = {
-  type: SchemaType.STRING,
+  type: Type.STRING,
   enum: ['observed', 'inferred'],
   nullable: true,
 };
 
 const colorItemSchema: Schema = {
-  type: SchemaType.OBJECT,
+  type: Type.OBJECT,
   properties: {
-    name: { type: SchemaType.STRING },
-    hex: { type: SchemaType.STRING },
-    rationale: { type: SchemaType.STRING },
+    name: { type: Type.STRING },
+    hex: { type: Type.STRING },
+    rationale: { type: Type.STRING },
     confidence: confidenceFieldSchema,
   },
   required: ['name', 'hex', 'rationale'],
 };
 
 const typographyItemSchema: Schema = {
-  type: SchemaType.OBJECT,
+  type: Type.OBJECT,
   properties: {
-    name: { type: SchemaType.STRING },
-    fontFamily: { type: SchemaType.STRING },
-    fontSize: { type: SchemaType.STRING },
-    fontWeight: { type: SchemaType.NUMBER, nullable: true },
-    lineHeight: { type: SchemaType.STRING, nullable: true },
-    letterSpacing: { type: SchemaType.STRING, nullable: true },
-    rationale: { type: SchemaType.STRING },
+    name: { type: Type.STRING },
+    fontFamily: { type: Type.STRING },
+    fontSize: { type: Type.STRING },
+    fontWeight: { type: Type.NUMBER, nullable: true },
+    lineHeight: { type: Type.STRING, nullable: true },
+    letterSpacing: { type: Type.STRING, nullable: true },
+    rationale: { type: Type.STRING },
     confidence: confidenceFieldSchema,
   },
   required: ['name', 'fontFamily', 'fontSize', 'rationale'],
 };
 
 const scaleItemSchema: Schema = {
-  type: SchemaType.OBJECT,
+  type: Type.OBJECT,
   properties: {
-    name: { type: SchemaType.STRING },
-    value: { type: SchemaType.STRING },
+    name: { type: Type.STRING },
+    value: { type: Type.STRING },
     confidence: confidenceFieldSchema,
   },
   required: ['name', 'value'],
 };
 
 const componentItemSchema: Schema = {
-  type: SchemaType.OBJECT,
+  type: Type.OBJECT,
   properties: {
-    name: { type: SchemaType.STRING },
-    backgroundColor: { type: SchemaType.STRING, nullable: true },
-    textColor: { type: SchemaType.STRING, nullable: true },
-    typography: { type: SchemaType.STRING, nullable: true },
-    rounded: { type: SchemaType.STRING, nullable: true },
-    padding: { type: SchemaType.STRING, nullable: true },
-    size: { type: SchemaType.STRING, nullable: true },
-    height: { type: SchemaType.STRING, nullable: true },
-    width: { type: SchemaType.STRING, nullable: true },
-    borderColor: { type: SchemaType.STRING, nullable: true },
-    outlineOffset: { type: SchemaType.STRING, nullable: true },
+    name: { type: Type.STRING },
+    backgroundColor: { type: Type.STRING, nullable: true },
+    textColor: { type: Type.STRING, nullable: true },
+    typography: { type: Type.STRING, nullable: true },
+    rounded: { type: Type.STRING, nullable: true },
+    padding: { type: Type.STRING, nullable: true },
+    size: { type: Type.STRING, nullable: true },
+    height: { type: Type.STRING, nullable: true },
+    width: { type: Type.STRING, nullable: true },
+    borderColor: { type: Type.STRING, nullable: true },
+    outlineOffset: { type: Type.STRING, nullable: true },
     confidence: confidenceFieldSchema,
   },
   required: ['name'],
 };
 
 const motionItemSchema: Schema = {
-  type: SchemaType.OBJECT,
+  type: Type.OBJECT,
   properties: {
-    name: { type: SchemaType.STRING },
-    value: { type: SchemaType.STRING },
+    name: { type: Type.STRING },
+    value: { type: Type.STRING },
     confidence: confidenceFieldSchema,
   },
   required: ['name', 'value'],
 };
 
 const voiceAndContentSchema: Schema = {
-  type: SchemaType.OBJECT,
+  type: Type.OBJECT,
   properties: {
-    ctaStyle: { type: SchemaType.STRING },
-    headingTone: { type: SchemaType.STRING },
-    copyDensity: { type: SchemaType.STRING },
+    ctaStyle: { type: Type.STRING },
+    headingTone: { type: Type.STRING },
+    copyDensity: { type: Type.STRING },
   },
   required: ['ctaStyle', 'headingTone', 'copyDensity'],
   nullable: true,
 };
 
 const imageryStyleSchema: Schema = {
-  type: SchemaType.OBJECT,
+  type: Type.OBJECT,
   properties: {
     treatment: {
-      type: SchemaType.STRING,
+      type: Type.STRING,
       enum: [...IMAGERY_TREATMENTS],
     },
-    notes: { type: SchemaType.STRING },
+    notes: { type: Type.STRING },
   },
   required: ['treatment', 'notes'],
   nullable: true,
 };
 
 const pagePatternsSchema: Schema = {
-  type: SchemaType.OBJECT,
+  type: Type.OBJECT,
   properties: {
     sectionOrder: {
-      type: SchemaType.ARRAY,
-      items: { type: SchemaType.STRING },
+      type: Type.ARRAY,
+      items: { type: Type.STRING },
     },
-    heroPattern: { type: SchemaType.STRING },
-    responsiveNotes: { type: SchemaType.STRING },
+    heroPattern: { type: Type.STRING },
+    responsiveNotes: { type: Type.STRING },
   },
   required: ['sectionOrder', 'heroPattern', 'responsiveNotes'],
   nullable: true,
 };
 
 const EXTRACTION_SCHEMA: Schema = {
-  type: SchemaType.OBJECT,
+  type: Type.OBJECT,
   properties: {
-    name: { type: SchemaType.STRING },
-    tagline: { type: SchemaType.STRING, nullable: true },
-    shortDescription: { type: SchemaType.STRING },
-    overview: { type: SchemaType.STRING },
-    brandTone: { type: SchemaType.STRING },
-    colors: { type: SchemaType.ARRAY, items: colorItemSchema },
-    typography: { type: SchemaType.ARRAY, items: typographyItemSchema },
-    rounded: { type: SchemaType.ARRAY, items: scaleItemSchema },
-    spacing: { type: SchemaType.ARRAY, items: scaleItemSchema },
-    components: { type: SchemaType.ARRAY, items: componentItemSchema },
-    motion: { type: SchemaType.ARRAY, items: motionItemSchema, nullable: true },
-    layoutNotes: { type: SchemaType.STRING },
-    elevationNotes: { type: SchemaType.STRING },
-    shapesNotes: { type: SchemaType.STRING },
-    dos: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
-    donts: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
-    designStyles: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
+    name: { type: Type.STRING },
+    tagline: { type: Type.STRING, nullable: true },
+    shortDescription: { type: Type.STRING },
+    overview: { type: Type.STRING },
+    brandTone: { type: Type.STRING },
+    colors: { type: Type.ARRAY, items: colorItemSchema },
+    typography: { type: Type.ARRAY, items: typographyItemSchema },
+    rounded: { type: Type.ARRAY, items: scaleItemSchema },
+    spacing: { type: Type.ARRAY, items: scaleItemSchema },
+    components: { type: Type.ARRAY, items: componentItemSchema },
+    motion: { type: Type.ARRAY, items: motionItemSchema, nullable: true },
+    layoutNotes: { type: Type.STRING },
+    elevationNotes: { type: Type.STRING },
+    shapesNotes: { type: Type.STRING },
+    dos: { type: Type.ARRAY, items: { type: Type.STRING } },
+    donts: { type: Type.ARRAY, items: { type: Type.STRING } },
+    designStyles: { type: Type.ARRAY, items: { type: Type.STRING } },
     category: {
-      type: SchemaType.STRING,
+      type: Type.STRING,
       enum: [
         'productivity-saas',
         'developer-tools-ides',
@@ -527,16 +527,6 @@ export interface GeminiExtractionInput {
 export async function extractBrandFromMarkdown(
   input: GeminiExtractionInput,
 ): Promise<ExtractedBrand> {
-  const model = client().getGenerativeModel({
-    model: MODEL,
-    systemInstruction: SYSTEM_PROMPT,
-    generationConfig: {
-      responseMimeType: 'application/json',
-      responseSchema: EXTRACTION_SCHEMA,
-      temperature: 0.2,
-    },
-  });
-
   const computedBlock = JSON.stringify(
     {
       cssVariables: input.computed.cssVariables,
@@ -610,12 +600,19 @@ export async function extractBrandFromMarkdown(
     }
   }
 
-  const result = await model.generateContent(
-    { contents: [{ role: 'user', parts }] },
-    { timeout: GEMINI_TIMEOUT_MS },
-  );
+  const result = await client().models.generateContent({
+    model: MODEL,
+    contents: [{ role: 'user', parts }],
+    config: {
+      systemInstruction: SYSTEM_PROMPT,
+      responseMimeType: 'application/json',
+      responseSchema: EXTRACTION_SCHEMA,
+      temperature: 0.2,
+      abortSignal: AbortSignal.timeout(GEMINI_TIMEOUT_MS),
+    },
+  });
 
-  const text = result.response.text();
+  const text = result.text ?? '';
   let parsed: ExtractedBrand;
   try {
     parsed = JSON.parse(text) as ExtractedBrand;
@@ -696,16 +693,6 @@ export interface ImageExtractionInput {
 export async function extractBrandFromImage(
   input: ImageExtractionInput,
 ): Promise<ExtractedBrand> {
-  const model = client().getGenerativeModel({
-    model: MODEL,
-    systemInstruction: IMAGE_SYSTEM_PROMPT,
-    generationConfig: {
-      responseMimeType: 'application/json',
-      responseSchema: EXTRACTION_SCHEMA,
-      temperature: 0.2,
-    },
-  });
-
   const textPrompt = [
     `Brand: ${input.brandName}`,
     '',
@@ -718,12 +705,19 @@ export async function extractBrandFromImage(
     { text: textPrompt },
   ];
 
-  const result = await model.generateContent(
-    { contents: [{ role: 'user', parts }] },
-    { timeout: GEMINI_TIMEOUT_MS },
-  );
+  const result = await client().models.generateContent({
+    model: MODEL,
+    contents: [{ role: 'user', parts }],
+    config: {
+      systemInstruction: IMAGE_SYSTEM_PROMPT,
+      responseMimeType: 'application/json',
+      responseSchema: EXTRACTION_SCHEMA,
+      temperature: 0.2,
+      abortSignal: AbortSignal.timeout(GEMINI_TIMEOUT_MS),
+    },
+  });
 
-  const text = result.response.text();
+  const text = result.text ?? '';
   let parsed: ExtractedBrand;
   try {
     parsed = JSON.parse(text) as ExtractedBrand;
@@ -757,12 +751,14 @@ const MAX_EXTRACTION_MARKDOWN_CHARS = 12_000;
 
 // Per-request timeout for the Gemini generateContent call. MUST stay tighter
 // than the Vercel function maxDuration (120s for scrape-and-extract) so the
-// SDK rejects inside the worker's try/catch and failJob() runs before the
-// platform SIGKILLs us. A SIGKILL would leave the generation_jobs row in
-// `running` state and trigger a QStash retry storm. After input cuts a
+// AbortSignal fires inside the worker's try/catch and failJob() runs before
+// the platform SIGKILLs us. A SIGKILL would leave the generation_jobs row
+// in `running` state and trigger a QStash retry storm. After input cuts a
 // normal call returns in 8-25s, so 90s is ~4x headroom for a healthy call
-// while reliably catching a true hang. The Gemini SDK aborts via AbortSignal
-// when this elapses and throws — we pass it as SingleRequestOptions.
+// while reliably catching a true hang. Passed as config.abortSignal via
+// AbortSignal.timeout() — the @google/genai SDK aborts the fetch and rejects
+// the promise when the signal fires. Note: this is client-only; Google still
+// processes (and bills) the in-flight request.
 const GEMINI_TIMEOUT_MS = 90_000;
 
 async function fetchImageAsPart(url: string): Promise<Part | null> {
