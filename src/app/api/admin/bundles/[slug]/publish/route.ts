@@ -35,7 +35,11 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
   const body = BodySchema.parse(await req.json().catch(() => ({})));
 
   const [existing] = await db
-    .select({ id: bundles.id, status: bundles.status })
+    .select({
+      id: bundles.id,
+      status: bundles.status,
+      submittedAt: bundles.submittedAt,
+    })
     .from(bundles)
     .where(eq(bundles.slug, slug))
     .limit(1);
@@ -52,15 +56,28 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
     );
   }
 
+  const now = new Date();
+  // Only overwrite reviewNotes when the editor explicitly provided one in
+  // the request body — otherwise preserve the Phase 2 lint summary that
+  // runAuthorDesignMd stored there. The admin Publish button POSTs an
+  // empty body, so without this guard every publish click wipes the
+  // linter audit trail.
+  //
+  // submittedAt defaults to null for personal bundles (the Phase 2
+  // promotion paths only set it for autoPublish / pending_review /
+  // shouldPromote). When publishing directly from personal, seed it to
+  // now() so the trending sort (desc(submittedAt) with default NULLS
+  // FIRST) doesn't pin null-submittedAt rows to the top of the list.
   await db
     .update(bundles)
     .set({
       status: 'published',
-      publishedAt: new Date(),
+      publishedAt: now,
       reviewedBy: editor.id,
-      reviewedAt: new Date(),
-      reviewNotes: body.reviewNotes ?? null,
-      updatedAt: new Date(),
+      reviewedAt: now,
+      submittedAt: existing.submittedAt ?? now,
+      ...(body.reviewNotes !== undefined ? { reviewNotes: body.reviewNotes } : {}),
+      updatedAt: now,
     })
     .where(eq(bundles.id, existing.id));
 

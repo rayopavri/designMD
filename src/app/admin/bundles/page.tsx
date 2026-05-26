@@ -1323,36 +1323,52 @@ function DetailEditor(props: DetailEditorProps) {
           </div>
         ) : null}
         <div className="flex flex-wrap items-center gap-2">
-          {status === "personal" || status === "pending_review" ? (
-            <button
-              type="button"
-              onClick={() => void props.onPublish()}
-              disabled={busy || showProgress}
-              title={
-                status === "personal"
-                  ? "Publish directly — overrides the lint gate that kept this out of the reviewer queue"
-                  : "Approve and publish this bundle to the public library"
-              }
-              className="h-9 rounded-full px-4 text-[12.5px] font-medium inline-flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
-              style={{
-                background: INK,
-                color: INK_ON_LIGHT,
-                boxShadow: `0 0 0 1px ${LIME}55, 0 10px 28px -12px ${LIME}66`,
-              }}
-            >
-              {actionState === "publishing" ? (
-                <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Publishing
-                </>
-              ) : (
-                <>
-                  <Check className="h-3.5 w-3.5" style={{ color: LIME }} />
-                  {status === "personal" ? "Publish" : "Approve & publish"}
-                </>
-              )}
-            </button>
-          ) : null}
+          {status === "personal" || status === "pending_review" ? (() => {
+            // Pre-publish guards. Each blocks the click with a tooltip
+            // explaining why, instead of letting the editor publish a
+            // broken bundle that needs immediate revert.
+            const missingDesignMd = !detail.designMd;
+            const companionNotReady = detail.companionStatus !== "ready";
+            const blocker = missingDesignMd
+              ? "design.md isn't generated yet — re-run the pipeline first"
+              : companionNotReady
+                ? `Companion prompt is ${detail.companionStatus} — wait for it to finish (or re-run) before publishing`
+                : isDirty
+                  ? "Save your metadata edits first — Publish doesn't persist form changes"
+                  : null;
+            const disabled = busy || showProgress || blocker !== null;
+            return (
+              <button
+                type="button"
+                onClick={() => void props.onPublish()}
+                disabled={disabled}
+                title={
+                  blocker ??
+                  (status === "personal"
+                    ? "Publish directly — overrides the lint gate that kept this out of the reviewer queue"
+                    : "Approve and publish this bundle to the public library")
+                }
+                className="h-9 rounded-full px-4 text-[12.5px] font-medium inline-flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{
+                  background: INK,
+                  color: INK_ON_LIGHT,
+                  boxShadow: `0 0 0 1px ${LIME}55, 0 10px 28px -12px ${LIME}66`,
+                }}
+              >
+                {actionState === "publishing" ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Publishing
+                  </>
+                ) : (
+                  <>
+                    <Check className="h-3.5 w-3.5" style={{ color: LIME }} />
+                    {status === "personal" ? "Publish" : "Approve & publish"}
+                  </>
+                )}
+              </button>
+            );
+          })() : null}
 
           {detail.sourceUrl && !detail.sourceUrl.startsWith("upload://") ? (
             <button
