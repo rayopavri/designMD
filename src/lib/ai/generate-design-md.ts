@@ -1,5 +1,5 @@
 /**
- * Sonnet 4.6 generates a canonical Google DESIGN.md file.
+ * Author step: generate a canonical Google DESIGN.md file.
  *
  * Output format:
  *   1. YAML front-matter (--- delimited): version, name, tagline, description,
@@ -9,13 +9,19 @@
  *      → ## Elevation & Depth → ## Shapes → ## Components → ## Do's and Don'ts
  *
  * We pre-build the YAML front-matter from the extracted brand JSON (avoids
- * Sonnet drift on YAML syntax) and ask Sonnet only to write the prose body.
- * This is more reliable than asking Sonnet to emit YAML, and keeps the token
+ * model drift on YAML syntax) and ask the model only to write the prose body.
+ * This is more reliable than asking it to emit YAML, and keeps the token
  * authority deterministic.
+ *
+ * Model: Gemini 2.5 Flash via OpenRouter (configurable in openrouter.ts).
+ * Was Claude Sonnet 4.6 directly via @anthropic-ai/sdk — switched to gain
+ * ~3x latency reduction and diversify provider risk (an Anthropic outage
+ * no longer takes the author step down). The companion-prompt worker
+ * stays on Anthropic Sonnet because its task is shorter and more
+ * voice-sensitive.
  */
 import { dump as yamlDump } from 'js-yaml';
-import type Anthropic from '@anthropic-ai/sdk';
-import { anthropic, ANTHROPIC_MODELS } from './anthropic';
+import { chatCompletion, OPENROUTER_AUTHOR_MODEL } from './openrouter';
 import type {
   ExtractedBrand,
   ExtractedColor,
@@ -138,21 +144,14 @@ interface Input {
 const MAX_OUTPUT_TOKENS = 4096;
 
 // Per-request timeout. Vercel kills the author-design-md function at 60s.
-// 50s gives the SDK time to throw inside the worker's try/catch and let
-// failJob() update the row to `failed` before the platform SIGKILLs us.
-// A healthy authoring run completes in 25-35s so this is ~1.5x headroom.
-//
-// Uses `messages.create` (non-streaming) intentionally. We previously used
-// `messages.stream().finalMessage()` with the same SDK timeout, but the
-// SDK's RequestOptions.timeout only governs the initial HTTP connect for
-// streaming calls — once chunks start flowing, an idle stream is no
-// longer enforced. If Anthropic slowed mid-stream, the worker would run
-// to maxDuration and get SIGKILLed before failJob() could mark the row
-// failed, leaving generation_jobs stranded in `running` indefinitely.
-// Non-streaming (`messages.create`) enforces the timeout for the entire
-// request lifecycle, matching the proven pattern in
-// generate-companion-prompt.ts which has never exhibited this hang.
-const SONNET_TIMEOUT_MS = 50_000;
+// 50s gives the OpenRouter client time to throw inside the worker's
+// try/catch and let failJob() mark the row `failed` before the platform
+// SIGKILLs us. A healthy Gemini Flash run completes in ~8-12s so this
+// is ~5x headroom — generous enough to absorb cold-start jitter while
+// still firing well inside maxDuration. Enforced via AbortSignal.timeout
+// in chatCompletion(); aborts the underlying fetch for the entire
+// request lifecycle (no streaming-idle blind spot).
+const AUTHOR_TIMEOUT_MS = 50_000;
 
 export interface GeneratedDesignMd {
   /** The full file: YAML front-matter + markdown body. */
@@ -331,35 +330,35 @@ async function generateMarkdownBody(input: Input, yaml: string): Promise<string>
     .join('\n');
 
   const startedAt = Date.now();
-  const res = await anthropic().messages.create(
-    {
-      model: ANTHROPIC_MODELS.sonnet,
-      max_tokens: MAX_OUTPUT_TOKENS,
-      // cache_control isn't typed on TextBlockParam in @anthropic-ai/sdk@0.32 but
-      // is accepted at runtime — prompt caching is GA on the API.
-      system: [
-        { type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } },
-      ] as unknown as Anthropic.TextBlockParam[],
-      messages: [{ role: 'user', content: userPrompt }],
-    },
-    { timeout: SONNET_TIMEOUT_MS },
-  );
+  const res = await chatCompletion({
+    model: OPENROUTER_AUTHOR_MODEL,
+    max_tokens: MAX_OUTPUT_TOKENS,
+    temperature: 0.7,
+    messages: [
+      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'user', content: userPrompt },
+    ],
+    timeoutMs: AUTHOR_TIMEOUT_MS,
+  });
   const elapsedMs = Date.now() - startedAt;
   console.log(
-    `[generate-design-md] sonnet ${ANTHROPIC_MODELS.sonnet} ${elapsedMs}ms stop=${res.stop_reason} in=${res.usage?.input_tokens} out=${res.usage?.output_tokens}`,
+    `[generate-design-md] ${res.modelUsed} ${elapsedMs}ms finish=${res.finishReason} in=${res.usage.promptTokens} out=${res.usage.completionTokens}`,
   );
 
-  if (res.stop_reason === 'max_tokens') {
-    console.warn('[generate-design-md] Claude hit max_tokens — output may be truncated');
+  if (res.finishReason === 'length') {
+    console.warn('[generate-design-md] hit max_tokens — output may be truncated');
   }
 
-  const text = res.content
-    .filter((c): c is { type: 'text'; text: string } => c.type === 'text')
-    .map((c) => c.text)
-    .join('\n')
-    .trim();
+  const text = res.content.trim();
+  if (!text) throw new Error('Author model returned empty markdown body');
 
-  if (!text) throw new Error('Sonnet returned empty markdown body');
-  // Strip any accidental leading YAML or H1 the model may have emitted.
-  return text.replace(/^---[\s\S]*?---\s*/m, '').replace(/^#\s+[^\n]+\n+/m, '').trim();
+  // Strip any accidental leading YAML or H1 the model may have emitted, plus
+  // any Markdown code-fence wrapper (e.g. ```markdown ... ```) that Gemini
+  // sometimes wraps responses in.
+  return text
+    .replace(/^```(?:markdown|md)?\s*\n/i, '')
+    .replace(/\n```\s*$/i, '')
+    .replace(/^---[\s\S]*?---\s*/m, '')
+    .replace(/^#\s+[^\n]+\n+/m, '')
+    .trim();
 }
