@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-05-29** (Roadmap auto-update via PostToolUse hook)
+> Last updated: **2026-05-26** (Roadmap auto-update via PostToolUse hook)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -274,6 +274,11 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-05-26** - Tighten Firecrawl aggregate budget + log enrichment skips (63bcbf3)
+- [x] **2026-05-26** - Kebab scale names + handle composite/whitespace refs in pruner (0f40db3)
+- [x] **2026-05-26** - Harden admin Publish: preserve reviewNotes, seed submittedAt, gate clicks (3c88483)
+- [x] **2026-05-26** - Status-gate watchdog cleanup + QStash retry guard in author worker (274de8a)
+- [x] **2026-05-30** - chore: roadmap auto-update (9ce0b80)
 - [x] **2026-05-29** - chore: roadmap auto-update (452839d)
 - [x] **2026-05-28** - chore: roadmap auto-update (0fef1df)
 - [x] **2026-05-27** - chore: roadmap auto-update (d6f77de)
