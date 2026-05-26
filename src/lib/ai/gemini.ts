@@ -1,5 +1,5 @@
 /**
- * Gemini 3.5 Flash extraction — canonical design.md spec aligned.
+ * Gemini 2.5 Flash extraction — canonical design.md spec aligned.
  *
  * Produces structured tokens whose shape closely mirrors the official
  * @google/design.md schema, plus prose for each canonical section
