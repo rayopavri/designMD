@@ -237,7 +237,7 @@ export function useBundleItems(): UseBundleItemsResult {
       try {
         // Request a generous limit so the whole catalogue lands in one call;
         // pagination will be reintroduced when the catalogue grows.
-        const res = await fetch('/api/bundles?limit=60&sort=top', {
+        const res = await fetch('/api/bundles?limit=60&sort=recent', {
           credentials: 'include',
         });
         if (!res.ok) throw new Error(`API ${res.status}`);
