@@ -275,6 +275,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 Most-recent first.
 
 - [x] **2026-05-26** - Clear all hard lint errors so pnpm lint can gate (5bb588e)
+- [x] **2026-05-26** - Roadmap auto-update via PostToolUse hook (c0c80d0)
 - [x] **2026-05-26** - chore: roadmap auto-update (8d37da9)
 - [x] **2026-05-26** - Tighten Firecrawl aggregate budget + log enrichment skips (63bcbf3)
 - [x] **2026-05-26** - Kebab scale names + handle composite/whitespace refs in pruner (0f40db3)
