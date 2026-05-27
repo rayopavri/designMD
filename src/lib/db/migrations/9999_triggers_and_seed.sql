@@ -47,7 +47,7 @@ BEGIN
 
     RETURN COALESCE(NEW, OLD);
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SET search_path = public;
 
 DROP TRIGGER IF EXISTS trg_vote_stats ON bundle_votes;
 CREATE TRIGGER trg_vote_stats
@@ -68,7 +68,7 @@ BEGIN
     END IF;
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SET search_path = public;
 
 DROP TRIGGER IF EXISTS trg_auto_flag ON bundles;
 CREATE TRIGGER trg_auto_flag
@@ -85,7 +85,7 @@ BEGIN
     END IF;
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SET search_path = public;
 
 DROP TRIGGER IF EXISTS trg_prompt_version ON bundles;
 CREATE TRIGGER trg_prompt_version
@@ -99,7 +99,7 @@ BEGIN
     NEW.updated_at = NOW();
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SET search_path = public;
 
 DROP TRIGGER IF EXISTS trg_bundles_updated_at ON bundles;
 CREATE TRIGGER trg_bundles_updated_at BEFORE UPDATE ON bundles

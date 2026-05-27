@@ -8,6 +8,10 @@
 --      plpgsql functions that loop without subqueries)
 --
 -- Idempotent.
+--
+-- All functions pin `search_path = public` to satisfy Supabase's
+-- function_search_path_mutable security linter. pg_catalog is always
+-- implicitly searched first, so built-in functions still resolve.
 -- ============================================================
 
 -- ─── Extensions ────────────────────────────────────────────
@@ -22,7 +26,7 @@ BEGIN
         'minimal','enterprise','bold','playful','accessible','dark-mode'
     ]);
 END;
-$$ LANGUAGE plpgsql IMMUTABLE;
+$$ LANGUAGE plpgsql IMMUTABLE SET search_path = public;
 
 CREATE OR REPLACE FUNCTION is_valid_tool(v TEXT)
 RETURNS BOOLEAN AS $$
@@ -31,7 +35,7 @@ BEGIN
         'claude','cursor','lovable','figma-make','replit','all'
     ]);
 END;
-$$ LANGUAGE plpgsql IMMUTABLE;
+$$ LANGUAGE plpgsql IMMUTABLE SET search_path = public;
 
 CREATE OR REPLACE FUNCTION is_valid_vote_reason(v TEXT)
 RETURNS BOOLEAN AS $$
@@ -41,7 +45,7 @@ BEGIN
         'too_generic','components_missing'
     ]);
 END;
-$$ LANGUAGE plpgsql IMMUTABLE;
+$$ LANGUAGE plpgsql IMMUTABLE SET search_path = public;
 
 -- ─── Array-level validators (used in CHECK constraints) ────
 -- These loop instead of using a subquery so they're legal
@@ -56,7 +60,7 @@ BEGIN
     END LOOP;
     RETURN TRUE;
 END;
-$$ LANGUAGE plpgsql IMMUTABLE;
+$$ LANGUAGE plpgsql IMMUTABLE SET search_path = public;
 
 CREATE OR REPLACE FUNCTION all_valid_tools(arr TEXT[])
 RETURNS BOOLEAN AS $$
@@ -68,7 +72,7 @@ BEGIN
     END LOOP;
     RETURN TRUE;
 END;
-$$ LANGUAGE plpgsql IMMUTABLE;
+$$ LANGUAGE plpgsql IMMUTABLE SET search_path = public;
 
 CREATE OR REPLACE FUNCTION all_valid_vote_reasons(arr TEXT[])
 RETURNS BOOLEAN AS $$
@@ -80,7 +84,7 @@ BEGIN
     END LOOP;
     RETURN TRUE;
 END;
-$$ LANGUAGE plpgsql IMMUTABLE;
+$$ LANGUAGE plpgsql IMMUTABLE SET search_path = public;
 
 CREATE OR REPLACE FUNCTION all_valid_hex_colors(arr TEXT[])
 RETURNS BOOLEAN AS $$
@@ -92,4 +96,4 @@ BEGIN
     END LOOP;
     RETURN TRUE;
 END;
-$$ LANGUAGE plpgsql IMMUTABLE;
+$$ LANGUAGE plpgsql IMMUTABLE SET search_path = public;
