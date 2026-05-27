@@ -274,6 +274,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-05-27** - Pin search_path = public on all 11 plpgsql functions (a685803)
 - [x] **2026-05-27** - chore: roadmap auto-update (a0ae2db)
 - [x] **2026-05-27** - chore: roadmap auto-update (85fb507)
 - [x] **2026-05-27** - Make per-stage telemetry stamps tolerate a missing migration (b325c0d)
