@@ -30,8 +30,8 @@ importers:
         specifier: ^3.9.1
         version: 3.10.0(react-hook-form@7.76.0(react@19.0.0))
       '@mendable/firecrawl-js':
-        specifier: ^1.13.5
-        version: 1.29.3
+        specifier: ^4.25.0
+        version: 4.25.0
       '@orama/orama':
         specifier: ^3.0.4
         version: 3.1.18
@@ -1274,8 +1274,8 @@ packages:
       ink: ^6.0.0
       react: ^19.0.0
 
-  '@mendable/firecrawl-js@1.29.3':
-    resolution: {integrity: sha512-+uvDktesJmVtiwxMtimq+3f5bKlsan4T7TokxOI7DbxFkApwrRNss5GYEXbInveMTz8LpGth/9Ch5BTwCqrpfA==}
+  '@mendable/firecrawl-js@4.25.0':
+    resolution: {integrity: sha512-Dxk85bNe/IEVPvND0w3Peenvg08TgLuaN8fYHi3ShDdivc0jJpXEB8rgczOD8gKsz18CzaV/YnPnj6TL/SCQdw==}
     engines: {node: '>=22.0.0'}
 
   '@napi-rs/wasm-runtime@1.1.4':
@@ -2568,6 +2568,9 @@ packages:
     resolution: {integrity: sha512-KunSNx+TVpkAw/6ULfhnx+HWRecjqZGTOyquAoWHYLRSdK1tB5Ihce1ZW+UY3fj33bYAFWPu7W/GRSmmrCGuxA==}
     engines: {node: '>=4'}
 
+  axios@1.15.2:
+    resolution: {integrity: sha512-wLrXxPtcrPTsNlJmKjkPnNPK2Ihe0hn0wGSaTEiHRPxwjvJwT3hKmXF4dpqxmPO9SoNb2FsYXj/xEo0gHN+D5A==}
+
   axios@1.16.1:
     resolution: {integrity: sha512-caYkukvroVPO8KrzuJEb50Hm07KwfBZPEC3VeFHTsqWHvKTsy54hjJz9BS/cdaypROE2rH6xvm9mHX4fgWkr3A==}
 
@@ -3238,6 +3241,10 @@ packages:
 
   firebase@11.10.0:
     resolution: {integrity: sha512-nKBXoDzF0DrXTBQJlZa+sbC5By99ysYU1D6PkMRYknm0nCW7rJly47q492Ht7Ndz5MeYSBuboKuhS1e6mFC03w==}
+
+  firecrawl@4.16.0:
+    resolution: {integrity: sha512-7SJ/FWhZBtW2gTCE/BsvU+gbfIpfTq+D9IH82l9MacauLVptaY6EdYAhrK3YSMC9yr5NxvxRcpZKcXG/nqjiiQ==}
+    engines: {node: '>=22.0.0'}
 
   flat-cache@4.0.1:
     resolution: {integrity: sha512-f7ccFPK3SXFHpx15UIGyRJ/FJQctuKZ0zVuN3frBo4HnK3cay9VEW0R6yPYFHC0AgqhukPzKjq22t5DmAyqGyw==}
@@ -5681,7 +5688,7 @@ snapshots:
   '@google/design.md@0.1.1(@types/react@19.2.15)':
     dependencies:
       '@json-render/core': 0.16.0(zod@3.25.76)
-      '@json-render/ink': 0.16.0(ink@7.0.3(@types/react@19.2.15)(react@19.0.0))(react@19.2.6)(zod@3.25.76)
+      '@json-render/ink': 0.16.0(ink@7.0.3(@types/react@19.2.15)(react@19.2.6))(react@19.2.6)(zod@3.25.76)
       citty: 0.1.6
       ink: 7.0.3(@types/react@19.2.15)(react@19.2.6)
       mdast: 3.0.0
@@ -5877,7 +5884,7 @@ snapshots:
     dependencies:
       zod: 3.25.76
 
-  '@json-render/ink@0.16.0(ink@7.0.3(@types/react@19.2.15)(react@19.0.0))(react@19.2.6)(zod@3.25.76)':
+  '@json-render/ink@0.16.0(ink@7.0.3(@types/react@19.2.15)(react@19.2.6))(react@19.2.6)(zod@3.25.76)':
     dependencies:
       '@json-render/core': 0.16.0(zod@3.25.76)
       ink: 7.0.3(@types/react@19.2.15)(react@19.2.6)
@@ -5886,9 +5893,10 @@ snapshots:
     transitivePeerDependencies:
       - zod
 
-  '@mendable/firecrawl-js@1.29.3':
+  '@mendable/firecrawl-js@4.25.0':
     dependencies:
-      axios: 1.16.1
+      axios: 1.15.2
+      firecrawl: 4.16.0
       typescript-event-target: 1.1.2
       zod: 3.25.76
       zod-to-json-schema: 3.25.2(zod@3.25.76)
@@ -7169,6 +7177,14 @@ snapshots:
 
   axe-core@4.11.4: {}
 
+  axios@1.15.2:
+    dependencies:
+      follow-redirects: 1.16.0
+      form-data: 4.0.5
+      proxy-from-env: 2.1.0
+    transitivePeerDependencies:
+      - debug
+
   axios@1.16.1:
     dependencies:
       follow-redirects: 1.16.0
@@ -7998,6 +8014,16 @@ snapshots:
       '@firebase/util': 1.12.1
     transitivePeerDependencies:
       - '@react-native-async-storage/async-storage'
+
+  firecrawl@4.16.0:
+    dependencies:
+      axios: 1.16.1
+      typescript-event-target: 1.1.2
+      zod: 3.25.76
+      zod-to-json-schema: 3.25.2(zod@3.25.76)
+    transitivePeerDependencies:
+      - debug
+      - supports-color
 
   flat-cache@4.0.1:
     dependencies:

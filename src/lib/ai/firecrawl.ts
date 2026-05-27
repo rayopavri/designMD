@@ -1,20 +1,37 @@
 /**
- * Firecrawl client — scrapes a URL into clean markdown + metadata.
+ * Firecrawl client — scrapes a URL into clean markdown + design tokens.
  *
- * We use the v1 scrape API (single-page). For initial extraction we
- * only need the rendered page body in markdown and a screenshot URL
- * for the brand swatch / palette card.
+ * Uses the v2 SDK (`Firecrawl` class, `scrape()` / `map()` / `batchScrape()`)
+ * which is the canonical API for the `branding` format. The v2 endpoint
+ * returns a `BrandingProfile` with renderer-extracted color scheme,
+ * primary/secondary/accent/semantic colors, typography families/sizes,
+ * spacing, component-level tokens, and brand assets — the highest-fidelity
+ * design-token source we have access to.
  */
-import FirecrawlApp from '@mendable/firecrawl-js';
+import Firecrawl, {
+  type Document,
+  type BrandingProfile,
+  type FormatOption,
+  type ScrapeOptions,
+} from '@mendable/firecrawl-js';
 import { env } from '@/lib/env';
 
 import { extractBrandLogoUrl } from './logo-extract';
 
 /**
- * Structured design tokens returned by Firecrawl's LLM `extract` format.
- * More comprehensive than `branding` (covers full scales, not just primaries)
- * but text-based — no visual inference from screenshots.
- * Gated by FIRECRAWL_EXTRACT_ENABLED=true env flag.
+ * Re-export the SDK's BrandingProfile under the legacy name so downstream
+ * consumers (gemini.ts, scrape-and-extract.ts) keep working without churn.
+ * BrandingProfile is the v2 superset of what we used to declare locally —
+ * adds `success`/`warning`/`error` semantic colors, `components.*` button
+ * and input styling, `personality`, `animations`, `layout`, etc.
+ */
+export type FirecrawlBranding = BrandingProfile;
+
+/**
+ * Shape we ask the JSON-extract format to return when
+ * FIRECRAWL_EXTRACT_ENABLED is on. This is OUR contract with Gemini — the
+ * v2 SDK doesn't constrain JSON-format payloads beyond `unknown`, so we
+ * narrow it here for the consumers.
  */
 export interface FirecrawlDesignExtract {
   colors?: Array<{ name: string; hex: string; role?: string }>;
@@ -23,59 +40,14 @@ export interface FirecrawlDesignExtract {
   rounded?: Array<{ name: string; value: string }>;
 }
 
-/**
- * Structured branding data returned by Firecrawl's `branding` format.
- * Extracted from the live browser render — highest-confidence source for
- * color scheme, primary colors, typography families, and border radius.
- */
-export interface FirecrawlBranding {
-  colorScheme?: 'dark' | 'light';
-  colors?: {
-    primary?: string;
-    secondary?: string;
-    accent?: string;
-    background?: string;
-    textPrimary?: string;
-    textSecondary?: string;
-    [key: string]: string | undefined;
-  };
-  typography?: {
-    fontFamilies?: {
-      primary?: string;
-      heading?: string;
-      code?: string;
-    };
-    fontSizes?: {
-      h1?: string;
-      h2?: string;
-      body?: string;
-      [key: string]: string | undefined;
-    };
-    fontWeights?: {
-      regular?: number;
-      medium?: number;
-      bold?: number;
-    };
-  };
-  spacing?: {
-    baseUnit?: number;
-    borderRadius?: string;
-  };
-  images?: {
-    logo?: string;
-    favicon?: string;
-    ogImage?: string;
-  };
-}
+let _client: Firecrawl | null = null;
 
-let _client: FirecrawlApp | null = null;
-
-function client(): FirecrawlApp {
+function client(): Firecrawl {
   if (_client) return _client;
   if (!env.FIRECRAWL_API_KEY) {
     throw new Error('FIRECRAWL_API_KEY is not configured');
   }
-  _client = new FirecrawlApp({ apiKey: env.FIRECRAWL_API_KEY });
+  _client = new Firecrawl({ apiKey: env.FIRECRAWL_API_KEY });
   return _client;
 }
 
@@ -119,8 +91,8 @@ export interface ScrapeResult {
   brandLogoUrl: string | null;
   language: string | null;
   statusCode: number | null;
-  /** Firecrawl CSS-parsed branding data — highest-confidence design tokens. */
-  branding: FirecrawlBranding | null;
+  /** Firecrawl renderer-extracted branding data — highest-confidence design tokens. */
+  branding: BrandingProfile | null;
   /** Firecrawl LLM-extracted design tokens (requires FIRECRAWL_EXTRACT_ENABLED=true). */
   designExtract: FirecrawlDesignExtract | null;
 }
@@ -183,7 +155,7 @@ export function rankDesignUrls(urls: string[], baseUrl: string): string[] {
 
 /**
  * Smart scrape: always starts with a full single-page scrape, then
- * discovers design-relevant subpages via mapUrl and batch-scrapes the
+ * discovers design-relevant subpages via map() and batch-scrapes the
  * top 3. Subpage markdown is merged into the primary result so Gemini
  * receives richer context for token extraction.
  *
@@ -209,9 +181,9 @@ export async function scrapeUrlSmart(
   const primary = await scrapeUrl(url);
   const afterPrimary = Date.now() - start;
 
-  // Skip mapUrl if the primary ate enough of our budget that adding
-  // mapUrl (8s) + batch (14s) would overrun. -12s = mapUrl wrapper +
-  // small headroom; if a successful mapUrl pushes us past the batch
+  // Skip map() if the primary ate enough of our budget that adding
+  // map (8s) + batch (14s) would overrun. -12s = map wrapper +
+  // small headroom; if a successful map() pushes us past the batch
   // threshold we'll skip batch on the next check.
   if (afterPrimary > FIRECRAWL_BUDGET_MS - 12_000) {
     console.warn(
@@ -228,20 +200,25 @@ export async function scrapeUrlSmart(
   try {
     const mapped = await withClientTimeout(
       () =>
-        client().mapUrl(url, {
+        client().map(url, {
           limit: 20,
           timeout: 3000,
           ...(opts?.searchQuery ? { search: opts.searchQuery } : {}),
         }),
       8_000,
-      `firecrawl mapUrl(${url})`,
+      `firecrawl map(${url})`,
     );
-    if (mapped.success && mapped.links?.length) {
-      rankedUrls = rankDesignUrls(mapped.links, url);
+    if (mapped.links?.length) {
+      // v2 map returns SearchResultWeb[] (objects with url/title/description);
+      // we only need URL strings for ranking.
+      rankedUrls = rankDesignUrls(
+        mapped.links.map((l) => l.url),
+        url,
+      );
     }
   } catch (err) {
     console.warn(
-      `[firecrawl] mapUrl enrichment skipped for ${url}: ${err instanceof Error ? err.message : err}`,
+      `[firecrawl] map enrichment skipped for ${url}: ${err instanceof Error ? err.message : err}`,
     );
     return primary;
   }
@@ -267,25 +244,29 @@ export async function scrapeUrlSmart(
   try {
     const batch = await withClientTimeout(
       () =>
-        client().batchScrapeUrls(
-          rankedUrls.slice(0, 3),
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          { formats: ['markdown'] as any, onlyMainContent: true, timeout: 8_000 },
-          1000, // pollInterval ms
-        ),
+        client().batchScrape(rankedUrls.slice(0, 3), {
+          options: {
+            formats: ['markdown'],
+            onlyMainContent: true,
+            timeout: 8_000,
+          },
+          pollInterval: 1000,
+        }),
       14_000,
-      `firecrawl batchScrapeUrls(${rankedUrls.length})`,
+      `firecrawl batchScrape(${rankedUrls.length})`,
     );
-    if (batch.success && (batch as { data?: unknown[] }).data?.length) {
-      const docs = (batch as { data: Array<{ url?: string; markdown?: string; metadata?: { title?: string } }> }).data;
-      extraMarkdown = docs
+    if (batch.data?.length) {
+      extraMarkdown = batch.data
         .filter((d) => d.markdown?.trim())
-        .map((d) => `\n\n---\n\n**${d.metadata?.title ?? d.url ?? ''}** (${d.url ?? ''}):\n\n${d.markdown}`)
+        .map(
+          (d) =>
+            `\n\n---\n\n**${d.metadata?.title ?? d.metadata?.sourceURL ?? ''}** (${d.metadata?.sourceURL ?? ''}):\n\n${d.markdown}`,
+        )
         .join('');
     }
   } catch (err) {
     console.warn(
-      `[firecrawl] batchScrapeUrls enrichment skipped for ${url}: ${err instanceof Error ? err.message : err}`,
+      `[firecrawl] batchScrape enrichment skipped for ${url}: ${err instanceof Error ? err.message : err}`,
     );
     return primary;
   }
@@ -325,24 +306,28 @@ export async function scrapeUrl(url: string): Promise<ScrapeResult> {
   // html) at 22s. If Firecrawl times out on a JS-heavy site, retry
   // once with markdown only and a tighter timeout — slower sites still
   // produce usable data for Gemini text extraction even without screenshot.
-  const primaryFormats = EXTRACT_ENABLED
-    ? (['markdown', 'html', 'screenshot', 'branding', 'extract'] as never)
-    : (['markdown', 'html', 'screenshot', 'branding'] as never);
+  //
+  // v2 JSON-format syntax: when extract is enabled we pass a JsonFormat
+  // object `{ type: 'json', prompt }` inside the formats array. The
+  // response surfaces the result on `doc.json`. (v1 used a sibling
+  // `extract: { prompt }` top-level option — that path is gone.)
+  const primaryFormats: FormatOption[] = EXTRACT_ENABLED
+    ? ['markdown', 'html', 'screenshot', 'branding', { type: 'json', prompt: EXTRACT_PROMPT }]
+    : ['markdown', 'html', 'screenshot', 'branding'];
 
   try {
     return await scrapeUrlOnce(url, {
       formats: primaryFormats,
       waitFor: 800,
       timeout: 22_000,
-      extractPrompt: EXTRACT_ENABLED ? EXTRACT_PROMPT : undefined,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     if (!/408|timed out|timeout/i.test(msg)) throw err;
     console.warn(`[firecrawl] Primary scrape timed out for ${url}; retrying markdown-only.`);
-    // Fallback never requests extract — keep the retry path fast.
+    // Fallback never requests json/branding — keep the retry path fast.
     return await scrapeUrlOnce(url, {
-      formats: ['markdown', 'html'] as never,
+      formats: ['markdown', 'html'],
       waitFor: 0,
       timeout: 10_000,
     });
@@ -351,56 +336,46 @@ export async function scrapeUrl(url: string): Promise<ScrapeResult> {
 
 async function scrapeUrlOnce(
   url: string,
-  opts: { formats: never; waitFor: number; timeout: number; extractPrompt?: string },
+  opts: { formats: FormatOption[]; waitFor: number; timeout: number },
 ): Promise<ScrapeResult> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const scrapeOpts: any = {
-    // 'branding' requests Firecrawl's CSS-parsed design tokens (colorScheme,
-    // primary/secondary colors, font families, font sizes, border radius,
-    // logo/favicon URLs). This is extracted from the live browser renderer
-    // and is higher fidelity than our regex-based extractComputedStyles().
-    //
-    // Note: @mendable/firecrawl-js v1's types don't include 'branding' or
-    // 'extract' yet (the runtime API supports both). Drop casts once SDK types
-    // catch up.
+  const scrapeOpts: ScrapeOptions = {
+    // 'branding' requests Firecrawl's renderer-extracted design tokens
+    // (colorScheme, primary/secondary/accent colors, semantic state colors,
+    // font families/sizes/weights, spacing, component-level styling,
+    // logo/favicon URLs, personality). Extracted from the live browser
+    // renderer — higher fidelity than regex-based HTML parsing.
     formats: opts.formats,
     onlyMainContent: true,
     waitFor: opts.waitFor,
     timeout: opts.timeout,
     blockAds: true,
   };
-  if (opts.extractPrompt) {
-    scrapeOpts.extract = { prompt: opts.extractPrompt };
-  }
 
   // Cap the local promise at server timeout + 8s grace. If Firecrawl's
   // server hangs past its own timeout, we reject with a "timed out" message
   // so the primary→fallback path in scrapeUrl() picks it up.
-  const res = await withClientTimeout(
-    () => client().scrapeUrl(url, scrapeOpts),
+  //
+  // v2: scrape() returns Document directly. Errors throw — there's no
+  // `{ success: false }` envelope to inspect.
+  const doc: Document = await withClientTimeout(
+    () => client().scrape(url, scrapeOpts),
     opts.timeout + 8_000,
-    `firecrawl scrapeUrl(${url})`,
+    `firecrawl scrape(${url})`,
   );
 
-  if (!res.success) {
-    throw new Error(`Firecrawl scrape failed: ${res.error ?? 'unknown error'}`);
-  }
-
-  const markdown = (res.markdown ?? '').slice(0, MAX_MARKDOWN_CHARS);
-  const html = res.html ?? null;
-  const metadata = res.metadata ?? {};
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const resAny = res as any;
-  const branding = (resAny.branding as FirecrawlBranding | undefined) ?? null;
-  const designExtract = opts.extractPrompt
-    ? ((resAny.extract as FirecrawlDesignExtract | undefined) ?? null)
-    : null;
+  const markdown = (doc.markdown ?? '').slice(0, MAX_MARKDOWN_CHARS);
+  const html = doc.html ?? null;
+  const metadata = doc.metadata ?? {};
+  const branding = doc.branding ?? null;
+  const designExtract =
+    doc.json != null ? (doc.json as FirecrawlDesignExtract) : null;
 
   const ogImageUrl = typeof metadata.ogImage === 'string' ? metadata.ogImage : null;
   const extractedLogo = extractBrandLogoUrl(html, url);
 
   // Logo priority: Firecrawl's renderer-extracted logo > our HTML head parsing > og:image.
+  // BrandingProfile.images.logo is `string | null | undefined`; coerce null to undefined
+  // so the ?? chain picks the next fallback instead of locking in null.
   const brandLogoUrl = branding?.images?.logo ?? extractedLogo ?? ogImageUrl;
 
   return {
@@ -409,7 +384,7 @@ async function scrapeUrlOnce(
     description: String(metadata.description ?? metadata.ogDescription ?? '').trim(),
     markdown,
     html,
-    screenshotUrl: res.screenshot ?? null,
+    screenshotUrl: doc.screenshot ?? null,
     ogImageUrl,
     brandLogoUrl,
     language: typeof metadata.language === 'string' ? metadata.language : null,
