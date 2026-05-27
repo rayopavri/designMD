@@ -185,10 +185,21 @@ async function setJobStep(
   step: string,
   stamps?: Partial<typeof generationJobs.$inferInsert>,
 ): Promise<void> {
-  await db
-    .update(generationJobs)
-    .set({ status: 'running', currentStep: step, updatedAt: new Date(), ...stamps })
-    .where(eq(generationJobs.id, jobId));
+  try {
+    await db
+      .update(generationJobs)
+      .set({ status: 'running', currentStep: step, updatedAt: new Date(), ...stamps })
+      .where(eq(generationJobs.id, jobId));
+  } catch (err) {
+    if (!stamps) throw err;
+    console.warn(
+      `[author-design-md] setJobStep with stamps failed (${err instanceof Error ? err.message : String(err)}) — retrying without telemetry columns`,
+    );
+    await db
+      .update(generationJobs)
+      .set({ status: 'running', currentStep: step, updatedAt: new Date() })
+      .where(eq(generationJobs.id, jobId));
+  }
 }
 
 async function failJob(jobId: string, step: string, err: unknown, batchId?: string | null): Promise<void> {
