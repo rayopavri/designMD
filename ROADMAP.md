@@ -274,6 +274,8 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-05-27** - Mark @mendable/firecrawl-js external so Webpack stops choking on its undici dynamic import (65cb24f)
+- [x] **2026-05-27** - chore: roadmap auto-update (57e7e6f)
 - [x] **2026-05-27** - chore: roadmap auto-update (000fc55)
 - [x] **2026-05-27** - chore: roadmap auto-update (7fd4643)
 - [x] **2026-05-27** - Improve rerun-bundle script diagnostics with fuzzy matches (81b2a5a)
