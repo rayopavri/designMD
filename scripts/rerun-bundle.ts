@@ -28,7 +28,7 @@ async function main() {
 
   const { db } = await import('../src/lib/db/client');
   const { bundles, generationJobs, users } = await import('../src/lib/db/schema');
-  const { eq, and, inArray } = await import('drizzle-orm');
+  const { eq, and, inArray, sql } = await import('drizzle-orm');
   const { normalizeUrl } = await import('../src/lib/generator/url');
   const { enqueueTask } = await import('../src/lib/queue');
 
@@ -45,7 +45,35 @@ async function main() {
     .limit(1);
 
   if (!bundle) {
-    console.error(`No bundle with slug "${slug}"`);
+    console.error(`No bundle with slug "${slug}".`);
+    const candidates = await db
+      .select({ slug: bundles.slug, sourceUrl: bundles.sourceUrl })
+      .from(bundles)
+      .where(sql`${bundles.slug} ILIKE ${`%${slug}%`}`)
+      .limit(10);
+    if (candidates.length > 0) {
+      console.error(`\nClose matches in this database:`);
+      for (const c of candidates) {
+        console.error(`  ${c.slug.padEnd(40)}  ${c.sourceUrl ?? ''}`);
+      }
+      console.error(`\nIf the slug you want is in the list, re-run with that exact slug.`);
+    } else {
+      const dbUrl = process.env.DATABASE_URL ?? '';
+      let host = '<DATABASE_URL not set>';
+      try {
+        host = new URL(dbUrl).host;
+      } catch {
+        /* ignore */
+      }
+      const totalRows = await db.select({ c: sql<number>`count(*)::int` }).from(bundles);
+      console.error(
+        `\nNo bundles matching "%${slug}%" either. Total bundles in this database: ${totalRows[0]?.c ?? 0}.`,
+      );
+      console.error(`Connected to: ${host}`);
+      console.error(
+        `If that's not the production Supabase host, update .env.local DATABASE_URL.`,
+      );
+    }
     process.exit(1);
   }
 
