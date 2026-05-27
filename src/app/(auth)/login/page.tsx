@@ -60,16 +60,18 @@ function Login() {
             </div>
           </div>
 
-          <ul className="space-y-2.5 text-[13.5px]" style={{ color: SUB }}>
+          <ul className="space-y-3 text-[14px]" style={{ color: SUB }}>
             <li>
-              <span style={{ color: INK }}>Browse the library</span> — no account required.
+              <span className="font-semibold" style={{ color: INK }}>
+                Start in seconds: explore the design library now
+              </span>{" "}
+              — steal proven patterns instantly (no account required).
             </li>
             <li>
-              <span style={{ color: INK }}>Generate from a URL</span> — sign-in required so we can
-              save your drafts.
-            </li>
-            <li>
-              <span style={{ color: INK }}>Submit for review</span> — your bundle, your byline.
+              <span className="font-semibold" style={{ color: INK }}>
+                Need your exact brand system?
+              </span>{" "}
+              Paste a URL on Generate and get a tailored DESIGN.md in minutes.
             </li>
           </ul>
         </div>
