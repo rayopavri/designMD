@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-05-26** (Roadmap auto-update via PostToolUse hook)
+> Last updated: **2026-05-27** (Roadmap auto-update via PostToolUse hook)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -274,6 +274,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-05-27** - chore: roadmap auto-update (1434c76)
 - [x] **2026-05-26** - Clear all hard lint errors so pnpm lint can gate (5bb588e)
 - [x] **2026-05-26** - Roadmap auto-update via PostToolUse hook (c0c80d0)
 - [x] **2026-05-26** - chore: roadmap auto-update (8d37da9)
