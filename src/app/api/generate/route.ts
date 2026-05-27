@@ -78,8 +78,8 @@ export async function POST(req: NextRequest) {
 
     const contentType = req.headers.get('content-type') ?? '';
     const res = contentType.startsWith('multipart/form-data')
-      ? await handleUpload(req, userId, anonToken)
-      : await handleUrl(req, userId, anonToken);
+      ? await handleUpload(req, userId, anonToken, isEditor)
+      : await handleUrl(req, userId, anonToken, isEditor);
 
     if (isNew && anonToken) attachAnonToken(res, anonToken);
     return res;
@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-async function handleUrl(req: NextRequest, userId: string | null, anonToken: string | null) {
+async function handleUrl(req: NextRequest, userId: string | null, anonToken: string | null, isEditor: boolean) {
   let body: z.infer<typeof UrlBodySchema>;
   try {
     body = UrlBodySchema.parse(await req.json());
@@ -210,7 +210,7 @@ async function handleUrl(req: NextRequest, userId: string | null, anonToken: str
   );
 }
 
-async function handleUpload(req: NextRequest, userId: string | null, anonToken: string | null) {
+async function handleUpload(req: NextRequest, userId: string | null, anonToken: string | null, isEditor: boolean) {
   let form: FormData;
   try {
     form = await req.formData();
