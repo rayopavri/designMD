@@ -274,6 +274,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-05-27** - chore: roadmap auto-update (b13cc66)
 - [x] **2026-05-27** - chore: roadmap auto-update (f6122c3)
 - [x] **2026-05-27** - chore: roadmap auto-update (1434c76)
 - [x] **2026-05-26** - Clear all hard lint errors so pnpm lint can gate (5bb588e)
