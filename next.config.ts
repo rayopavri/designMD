@@ -16,7 +16,14 @@ const nextConfig: NextConfig = {
   // package from .pnpm/ which breaks Next's trace globbing. Mark it
   // external so Node resolves it normally at runtime and the adjacent
   // data files are reachable.
-  serverExternalPackages: ['@google/design.md'],
+  //
+  // @mendable/firecrawl-js does `await import('undici')` inside a
+  // try/catch for optional WebSocket support — we use plain HTTP so the
+  // import always fails harmlessly at runtime, but Webpack can't see
+  // the try/catch and emits "Module not found: 'undici'" at build time.
+  // Marking the SDK external lets Node handle the dynamic import so the
+  // try/catch actually catches.
+  serverExternalPackages: ['@google/design.md', '@mendable/firecrawl-js'],
   // Also include the pnpm-real path explicitly so Vercel ships the
   // assets next to the resolved module.
   outputFileTracingIncludes: {
