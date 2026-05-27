@@ -109,9 +109,10 @@ export async function runAuthorDesignMd(payload: AuthorDesignMdPayload): Promise
   // already curated this bundle).
   const shouldPromote = lintSummary.counts.errors === 0 && coverage.overall >= 40;
 
-  // Bulk-upload jobs auto-publish only when they clear this coverage bar.
-  // Below it they land in pending_review for editorial review.
-  const AUTO_PUBLISH_COVERAGE_THRESHOLD = 50;
+  // Auto-publish jobs (bulk-upload and editor-initiated generations) publish
+  // directly when they clear this coverage bar. Below it they land in
+  // pending_review for editorial review.
+  const AUTO_PUBLISH_COVERAGE_THRESHOLD = 60;
   const meetsAutoPublishBar =
     autoPublish &&
     lintSummary.counts.errors === 0 &&
