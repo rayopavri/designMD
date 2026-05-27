@@ -274,6 +274,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-05-27** - Improve rerun-bundle script diagnostics with fuzzy matches (81b2a5a)
 - [x] **2026-05-27** - chore: roadmap auto-update (b13cc66)
 - [x] **2026-05-27** - chore: roadmap auto-update (f6122c3)
 - [x] **2026-05-27** - chore: roadmap auto-update (1434c76)
