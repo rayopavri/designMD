@@ -14,6 +14,7 @@
  *   - rendered screenshot (image via inlineData)
  *   - computed-style snapshot (CSS vars, dominant hexes, tailwind classes)
  */
+import { createHash } from 'node:crypto';
 import {
   GoogleGenAI,
   Type,
@@ -34,6 +35,81 @@ function client(): GoogleGenAI {
 }
 
 const MODEL = 'gemini-2.5-flash';
+
+// ─── System-instruction cache (Gemini context caching) ───────
+//
+// Gemini 2.5 supports explicit context caching: upload a long stable prefix
+// once via caches.create() and reference it on subsequent generateContent
+// calls. Reads bill at ~1/4 the input-token price and skip re-tokenisation,
+// so we save both latency and credits on warm bursts.
+//
+// In serverless this only pays off when the same Node process handles
+// multiple jobs within the cache TTL (e.g. bulk-upload batch mode, dev mode,
+// hot Vercel containers reused inside 5 min). One-off cold invocations
+// fall through to inline systemInstruction — see fallthrough below.
+//
+// Minimum cacheable size for gemini-2.5-flash is ~1024 tokens. Shorter
+// system prompts will fail caches.create with INVALID_ARGUMENT; we swallow
+// that and remember the failure for the rest of the process so we don't
+// re-try on every call.
+
+const CACHE_TTL_SECONDS = 300; // 5-min window
+const CACHE_TTL_MS = CACHE_TTL_SECONDS * 1_000;
+// Refresh ~30s before expiry so an in-flight request doesn't race the TTL.
+const CACHE_REFRESH_MARGIN_MS = 30_000;
+
+interface CacheEntry {
+  name: string;
+  /** Epoch ms at which we created the cache locally. */
+  createdAtMs: number;
+}
+
+const systemCacheByKey = new Map<string, CacheEntry>();
+const failedCacheKeys = new Set<string>();
+
+function cacheKeyFor(model: string, systemInstruction: string): string {
+  return createHash('sha256').update(model).update('\0').update(systemInstruction).digest('hex');
+}
+
+/**
+ * Returns the resource name of a cached system instruction, creating one
+ * lazily if absent or expired. Returns null when caching is not viable
+ * (system prompt too short, transient API failure) so callers fall back
+ * to inline systemInstruction.
+ */
+async function getCachedSystemInstruction(
+  model: string,
+  systemInstruction: string,
+): Promise<string | null> {
+  const key = cacheKeyFor(model, systemInstruction);
+  if (failedCacheKeys.has(key)) return null;
+
+  const existing = systemCacheByKey.get(key);
+  if (existing && Date.now() - existing.createdAtMs < CACHE_TTL_MS - CACHE_REFRESH_MARGIN_MS) {
+    return existing.name;
+  }
+
+  try {
+    const created = await client().caches.create({
+      model,
+      config: {
+        systemInstruction,
+        ttl: `${CACHE_TTL_SECONDS}s`,
+      },
+    });
+    if (!created.name) {
+      failedCacheKeys.add(key);
+      return null;
+    }
+    systemCacheByKey.set(key, { name: created.name, createdAtMs: Date.now() });
+    return created.name;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn(`[gemini] system-instruction cache create failed (${msg.slice(0, 200)}) — falling back to inline`);
+    failedCacheKeys.add(key);
+    return null;
+  }
+}
 
 // ─── Output schema (Gemini → JSON) ──────────────────────────
 
@@ -645,11 +721,14 @@ export async function extractBrandFromMarkdown(
     }
   }
 
+  const cachedName = await getCachedSystemInstruction(MODEL, SYSTEM_PROMPT);
   const result = await client().models.generateContent({
     model: MODEL,
     contents: [{ role: 'user', parts }],
     config: {
-      systemInstruction: SYSTEM_PROMPT,
+      ...(cachedName
+        ? { cachedContent: cachedName }
+        : { systemInstruction: SYSTEM_PROMPT }),
       responseMimeType: 'application/json',
       responseSchema: EXTRACTION_SCHEMA,
       temperature: 0.2,
@@ -750,11 +829,14 @@ export async function extractBrandFromImage(
     { text: textPrompt },
   ];
 
+  const cachedName = await getCachedSystemInstruction(MODEL, IMAGE_SYSTEM_PROMPT);
   const result = await client().models.generateContent({
     model: MODEL,
     contents: [{ role: 'user', parts }],
     config: {
-      systemInstruction: IMAGE_SYSTEM_PROMPT,
+      ...(cachedName
+        ? { cachedContent: cachedName }
+        : { systemInstruction: IMAGE_SYSTEM_PROMPT }),
       responseMimeType: 'application/json',
       responseSchema: EXTRACTION_SCHEMA,
       temperature: 0.2,
@@ -810,11 +892,14 @@ export interface GeminiTextResult {
  */
 export async function generateTextFromGemini(input: GeminiTextInput): Promise<GeminiTextResult> {
   const startedAt = Date.now();
+  const cachedName = await getCachedSystemInstruction(MODEL, input.systemPrompt);
   const result = await client().models.generateContent({
     model: MODEL,
     contents: [{ role: 'user', parts: [{ text: input.userPrompt }] }],
     config: {
-      systemInstruction: input.systemPrompt,
+      ...(cachedName
+        ? { cachedContent: cachedName }
+        : { systemInstruction: input.systemPrompt }),
       temperature: input.temperature ?? 0.4,
       maxOutputTokens: input.maxOutputTokens ?? 6144,
       abortSignal: AbortSignal.timeout(input.timeoutMs),

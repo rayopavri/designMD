@@ -2,27 +2,26 @@
  * Phase 2 of the generation pipeline.
  *
  * Steps:
- *   writing-design-md     → Sonnet 4.6: YAML front-matter + canonical body
- *   persisting-design-md  → commit design.md + pending companion status,
- *                           kick off the companion worker in parallel
+ *   writing-design-md     → Gemini Flash (or OpenRouter fallback): canonical body
+ *   persisting-design-md  → commit design.md (companion already running in parallel)
  *   linting               → @google/design.md linter parses & validates
  *   scoring               → coverage scorer derives 7 section scores
  *   ready_for_review      → promote bundle status (skipped on re-run)
  *
- * Split off from scrape-and-extract because the Sonnet call alone can
+ * Split off from scrape-and-extract because the author call alone can
  * take 25-35s and was blowing past Vercel Hobby's 60s function cap when
  * combined with Firecrawl + Gemini in a single worker.
  *
  * Phase 1 (scrape-and-extract) passes the full brand object + a trimmed
- * scraped markdown through the QStash payload so we don't need a sidecar
- * table.
+ * scraped markdown through the QStash payload, and ALSO enqueues the
+ * companion-prompt worker (Phase 3) at the same time as this one so
+ * the two run concurrently rather than chained.
  */
 import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db/client';
 import { bundles, generationJobs } from '@/lib/db/schema';
 import type { ExtractedBrand } from '@/lib/ai/gemini';
 import { generateDesignMd } from '@/lib/ai/generate-design-md';
-import { enqueueTask } from '@/lib/queue';
 import { advanceBatch } from '@/lib/generator/batch';
 import { scoreFromLint } from '@/lib/generator/coverage';
 import {
@@ -79,28 +78,21 @@ export async function runAuthorDesignMd(payload: AuthorDesignMdPayload): Promise
     return failJob(jobId, 'writing-design-md', err, batchId);
   }
 
-  // Persist design.md immediately + fire companion task so it runs in
-  // parallel with the remaining lint + score steps (~3-4s saved).
+  // Persist design.md. The companion worker is already running in parallel
+  // (enqueued by Phase 1 alongside this worker), so we don't fire it here.
   try {
     await db
       .update(bundles)
       .set({
         designMd: designMdContent,
-        companionStatus: 'pending',
         updatedAt: new Date(),
       })
       .where(eq(bundles.id, bundleId));
   } catch (err) {
     return failJob(jobId, 'persisting-design-md', err, batchId);
   }
-  try {
-    await enqueueTask('generate-companion', { bundleId });
-  } catch (err) {
-    console.error('[author-design-md] failed to enqueue companion task:', err);
-    // Continue — the bundle has design.md; companion can be retried later.
-  }
 
-  await setJobStep(jobId, 'linting');
+  await setJobStep(jobId, 'linting', { designMdDoneAt: new Date() });
   let lintSummary: LintSummary;
   try {
     lintSummary = await lintDesignMd(designMdContent);
@@ -108,7 +100,7 @@ export async function runAuthorDesignMd(payload: AuthorDesignMdPayload): Promise
     return failJob(jobId, 'linting', err, batchId);
   }
 
-  await setJobStep(jobId, 'scoring');
+  await setJobStep(jobId, 'scoring', { lintDoneAt: new Date() });
   const coverage = scoreFromLint(lintSummary, designMdContent);
 
   // Quality-gated promotion. Bundles with errors OR overall score < 40
@@ -188,10 +180,14 @@ export async function runAuthorDesignMd(payload: AuthorDesignMdPayload): Promise
   await advanceBatch(batchId);
 }
 
-async function setJobStep(jobId: string, step: string): Promise<void> {
+async function setJobStep(
+  jobId: string,
+  step: string,
+  stamps?: Partial<typeof generationJobs.$inferInsert>,
+): Promise<void> {
   await db
     .update(generationJobs)
-    .set({ status: 'running', currentStep: step, updatedAt: new Date() })
+    .set({ status: 'running', currentStep: step, updatedAt: new Date(), ...stamps })
     .where(eq(generationJobs.id, jobId));
 }
 

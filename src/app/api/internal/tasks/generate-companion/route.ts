@@ -16,8 +16,13 @@ import { runGenerateCompanion } from '@/lib/generator/generate-companion-task';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
+// Brand is already sanitized by gemini.ts in Phase 1 — we don't re-validate
+// its inner shape here. Same pattern as the author-design-md route.
 const PayloadSchema = z.object({
   bundleId: z.string().uuid(),
+  jobId: z.string().uuid().nullable().optional(),
+  brand: z.unknown(),
+  designStyles: z.array(z.string()).default([]),
 });
 
 export async function POST(req: NextRequest) {
@@ -40,7 +45,13 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    await runGenerateCompanion(parsed);
+    await runGenerateCompanion({
+      bundleId: parsed.bundleId,
+      jobId: parsed.jobId ?? null,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      brand: parsed.brand as any,
+      designStyles: parsed.designStyles,
+    });
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error('[task:generate-companion] uncaught:', err);

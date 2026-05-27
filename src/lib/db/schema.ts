@@ -468,6 +468,16 @@ export const generationJobs = pgTable(
 
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+
+    // Per-stage telemetry. Populated by the workers as each substage finishes
+    // so we can compute latency distributions without grepping logs. All
+    // nullable — a failed or in-flight job leaves later columns null.
+    firecrawlDoneAt: timestamp('firecrawl_done_at', { withTimezone: true }),
+    geminiExtractDoneAt: timestamp('gemini_extract_done_at', { withTimezone: true }),
+    designMdDoneAt: timestamp('design_md_done_at', { withTimezone: true }),
+    lintDoneAt: timestamp('lint_done_at', { withTimezone: true }),
+    companionStartedAt: timestamp('companion_started_at', { withTimezone: true }),
+    companionDoneAt: timestamp('companion_done_at', { withTimezone: true }),
   },
   (table) => [
     index('idx_jobs_user').on(table.userId, table.createdAt),

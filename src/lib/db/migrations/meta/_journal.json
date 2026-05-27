@@ -15,6 +15,13 @@
       "when": 1779597044255,
       "tag": "0001_add_generation_jobs_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1779858606858,
+      "tag": "0002_even_tomorrow_man",
+      "breakpoints": true
     }
   ]
 }

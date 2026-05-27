@@ -169,7 +169,7 @@ export async function runScrapeAndExtract(payload: ScrapeAndExtractPayload): Pro
     }
 
     // ─── 2. Parse computed styles ────────────────────
-    await setJobStep(jobId, 'parsing-computed');
+    await setJobStep(jobId, 'parsing-computed', { firecrawlDoneAt: new Date() });
     let computed: ComputedStyleSnapshot;
     try {
       computed = extractComputedStyles(scrape.html ?? '');
@@ -200,7 +200,7 @@ export async function runScrapeAndExtract(payload: ScrapeAndExtractPayload): Pro
   // Auto-synthesise components for any color/typography token Gemini didn't
   // wire into a component. Cheap, runs in-process, kills the most common
   // linter warning category.
-  await setJobStep(jobId, 'resolving-orphans');
+  await setJobStep(jobId, 'resolving-orphans', { geminiExtractDoneAt: new Date() });
   try {
     brand = resolveOrphans(brand);
   } catch (err) {
@@ -216,12 +216,17 @@ export async function runScrapeAndExtract(payload: ScrapeAndExtractPayload): Pro
     return failJob(jobId, 'persisting', err, job.batchId);
   }
 
-  // ─── 5. Hand off to Phase 2 ────────────────────────────
-  // Sonnet design.md + lint + score run in a separate Vercel function
-  // to stay under the 60s Hobby cap. Pass everything Phase 2 needs in
-  // the QStash payload — brand JSON + trimmed scraped markdown. We
-  // already truncated markdown to 80k in firecrawl.ts; trim again to
-  // 40k for the cross-function hop so the QStash payload stays small.
+  // ─── 5. Hand off to Phase 2 + Phase 3 in parallel ────
+  // The companion-prompt worker only needs the brand JSON (not the finished
+  // DESIGN.md), so we fire it alongside the author worker rather than
+  // chaining it after Sonnet returns. Both run in separate Vercel functions
+  // to stay under the 60s Hobby cap. QStash payloads cap at 1MB; trim
+  // markdown again from 80k → 40k to keep the author payload small.
+  //
+  // Author enqueue is required (no DESIGN.md without it). Companion enqueue
+  // is best-effort — if QStash hiccups we log and continue, matching the
+  // legacy behavior from author-design-md.ts where companion was fired
+  // with try/catch + log on failure.
   try {
     await enqueueTask('author-design-md', {
       jobId,
@@ -236,6 +241,18 @@ export async function runScrapeAndExtract(payload: ScrapeAndExtractPayload): Pro
   } catch (err) {
     return failJob(jobId, 'enqueueing-author', err, job.batchId);
   }
+  try {
+    await enqueueTask('generate-companion', {
+      bundleId,
+      jobId,
+      brand,
+      designStyles: brand.designStyles ?? [],
+    });
+  } catch (err) {
+    console.error('[scrape-and-extract] failed to enqueue companion task:', err);
+    // Continue — the bundle has a placeholder companion; the worker can be
+    // retried later or run from author-design-md as a future fallback.
+  }
 
   // Phase 1 ends here. The job stays `running` with currentStep='persisting'
   // until Phase 2 picks it up and advances to 'writing-design-md'.
@@ -243,10 +260,14 @@ export async function runScrapeAndExtract(payload: ScrapeAndExtractPayload): Pro
 
 // ─── Helpers ─────────────────────────────────────────────────
 
-async function setJobStep(jobId: string, step: string): Promise<void> {
+async function setJobStep(
+  jobId: string,
+  step: string,
+  stamps?: Partial<typeof generationJobs.$inferInsert>,
+): Promise<void> {
   await db
     .update(generationJobs)
-    .set({ status: 'running', currentStep: step, updatedAt: new Date() })
+    .set({ status: 'running', currentStep: step, updatedAt: new Date(), ...stamps })
     .where(eq(generationJobs.id, jobId));
 }
 
