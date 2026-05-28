@@ -49,6 +49,10 @@ export async function GET(_req: NextRequest, ctx: RouteContext) {
       errorMessage: generationJobs.errorMessage,
       createdAt: generationJobs.createdAt,
       updatedAt: generationJobs.updatedAt,
+      firecrawlDoneAt: generationJobs.firecrawlDoneAt,
+      geminiExtractDoneAt: generationJobs.geminiExtractDoneAt,
+      designMdDoneAt: generationJobs.designMdDoneAt,
+      lintDoneAt: generationJobs.lintDoneAt,
     })
     .from(generationJobs)
     .where(eq(generationJobs.targetBundleId, bundle.id))

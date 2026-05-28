@@ -11,6 +11,7 @@ import {
   RefreshCw,
   RotateCw,
   ShieldCheck,
+  Trash2,
   Unplug,
   Upload,
   XCircle,
@@ -194,6 +195,8 @@ function BulkUploadPageInner() {
   const [batchStatus, setBatchStatus] = useState<BatchStatus | null>(null);
   const [activeBatches, setActiveBatches] = useState<ActiveBatch[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const confirmDeleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -323,6 +326,20 @@ function BulkUploadPageInner() {
     void loadActiveBatches();
   };
 
+  const cancelBatch = async (batchId: string) => {
+    setConfirmDelete(null);
+    if (confirmDeleteTimerRef.current) clearTimeout(confirmDeleteTimerRef.current);
+    await fetch(`/api/admin/bulk-upload/${batchId}/cancel`, { method: 'POST' });
+    if (batchIdFromUrl === batchId) backToList();
+    else await loadActiveBatches();
+  };
+
+  const requestConfirmDelete = (batchId: string) => {
+    if (confirmDeleteTimerRef.current) clearTimeout(confirmDeleteTimerRef.current);
+    setConfirmDelete(batchId);
+    confirmDeleteTimerRef.current = setTimeout(() => setConfirmDelete(null), 3000);
+  };
+
   if (forbidden) {
     return (
       <div className="mx-auto max-w-2xl px-6 py-20 text-center">
@@ -363,6 +380,7 @@ function BulkUploadPageInner() {
           batchStatus={batchStatus}
           isRefreshing={isRefreshing}
           onRefresh={() => void pollStatus(batchIdFromUrl, true)}
+          onCancel={() => cancelBatch(batchIdFromUrl)}
         />
       </div>
     );
@@ -456,6 +474,24 @@ function BulkUploadPageInner() {
                       </span>
                     )}
                     <span className="text-[10.5px]" style={{ color: SUB }}>view →</span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (confirmDelete === b.batchId) void cancelBatch(b.batchId);
+                        else requestConfirmDelete(b.batchId);
+                      }}
+                      title="Cancel remaining jobs in this batch"
+                      className="h-6 rounded px-1.5 text-[10.5px] inline-flex items-center gap-1 border transition-colors"
+                      style={
+                        confirmDelete === b.batchId
+                          ? { color: PEACH, borderColor: `${PEACH}55`, background: `${PEACH}15`, fontFamily: MONO }
+                          : { color: MUTED, borderColor: 'transparent', background: 'transparent', fontFamily: MONO }
+                      }
+                    >
+                      <Trash2 className="h-3 w-3" />
+                      {confirmDelete === b.batchId ? 'sure?' : ''}
+                    </button>
                   </div>
                 </div>
               </button>
@@ -582,15 +618,20 @@ function BatchStatusView({
   batchStatus,
   isRefreshing,
   onRefresh,
+  onCancel,
 }: {
   batchStatus: BatchStatus;
   isRefreshing: boolean;
   onRefresh: () => void;
+  onCancel?: () => Promise<void>;
 }) {
   const isDone = batchStatus.done;
   const [rerunningIds, setRerunningIds] = useState<Set<string>>(new Set());
   const [isUnsticking, setIsUnsticking] = useState(false);
   const [isRetryingFailed, setIsRetryingFailed] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const confirmCancelTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
 
   // Show "unstick" affordance only when at least one running job has gone
@@ -663,6 +704,24 @@ function BatchStatusView({
       setActionMessage(`Retry failed: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setIsRetryingFailed(false);
+    }
+  }
+
+  function requestConfirmCancel() {
+    if (confirmCancelTimerRef.current) clearTimeout(confirmCancelTimerRef.current);
+    setConfirmCancel(true);
+    confirmCancelTimerRef.current = setTimeout(() => setConfirmCancel(false), 3000);
+  }
+
+  async function handleCancel() {
+    if (!onCancel) return;
+    setIsCancelling(true);
+    setConfirmCancel(false);
+    if (confirmCancelTimerRef.current) clearTimeout(confirmCancelTimerRef.current);
+    try {
+      await onCancel();
+    } finally {
+      setIsCancelling(false);
     }
   }
 
@@ -760,6 +819,30 @@ function BatchStatusView({
             <RefreshCw className={`h-3 w-3 ${isRefreshing ? "animate-spin" : ""}`} />
             refresh
           </button>
+          {!isDone && onCancel && (
+            <button
+              type="button"
+              onClick={() => {
+                if (confirmCancel) void handleCancel();
+                else requestConfirmCancel();
+              }}
+              disabled={isCancelling}
+              title="Cancel all remaining queued/running jobs"
+              className="h-8 rounded-md border px-2.5 text-[11px] inline-flex items-center gap-1.5 disabled:opacity-50"
+              style={
+                confirmCancel
+                  ? { borderColor: `${PEACH}55`, color: PEACH, fontFamily: MONO, background: `${PEACH}0D` }
+                  : { borderColor: BORDER, color: MUTED, fontFamily: MONO, background: SURFACE_2 }
+              }
+            >
+              {isCancelling ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Trash2 className="h-3 w-3" />
+              )}
+              {confirmCancel ? 'sure? cancel' : 'cancel batch'}
+            </button>
+          )}
         </div>
       </div>
 

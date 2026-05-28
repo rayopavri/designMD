@@ -287,6 +287,10 @@ export default function AdminBundlesPage() {
     errorMessage: string | null;
     createdAt: string;
     updatedAt: string;
+    firecrawlDoneAt: string | null;
+    geminiExtractDoneAt: string | null;
+    designMdDoneAt: string | null;
+    lintDoneAt: string | null;
   };
   const [latestJob, setLatestJob] = useState<LatestJob | null>(null);
 
@@ -375,11 +379,13 @@ export default function AdminBundlesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter, activeQuery, categoryFilter, sort]);
 
-  const loadDetail = useCallback(async (slug: string) => {
-    setDetailLoading(true);
-    setDetail(null);
-    setForm(null);
-    setActionError(null);
+  const loadDetail = useCallback(async (slug: string, silent = false) => {
+    if (!silent) {
+      setDetailLoading(true);
+      setDetail(null);
+      setForm(null);
+      setActionError(null);
+    }
     try {
       const res = await fetch(`/api/admin/bundles/${encodeURIComponent(slug)}`);
       if (!res.ok) {
@@ -431,21 +437,42 @@ export default function AdminBundlesPage() {
   }, [selectedSlug, loadJobStatus]);
 
   // Auto-poll job status while the latest job is still in flight. Stops as
-  // soon as the server reports `completed` or `failed`. Also refreshes the
-  // bundle detail panel so palette/coverage/companion fields update live.
+  // soon as the server reports `completed` or `failed`, or the job has been
+  // stuck (no updatedAt change) for more than 12 minutes.
+  // loadDetail is NOT called here — see the completion effect below.
   useEffect(() => {
     if (!selectedSlug) return;
     if (!latestJob) return;
     if (latestJob.status !== "queued" && latestJob.status !== "running") return;
+    if (latestJob.status === "running") {
+      const ageMs = Date.now() - new Date(latestJob.updatedAt).getTime();
+      if (ageMs > 12 * 60 * 1000) return;
+    }
 
     const handle = window.setInterval(() => {
       void loadJobStatus(selectedSlug);
-      void loadDetail(selectedSlug);
     }, 3000);
     return () => {
       window.clearInterval(handle);
     };
-  }, [selectedSlug, latestJob, loadJobStatus, loadDetail]);
+  }, [selectedSlug, latestJob?.status, latestJob?.updatedAt, loadJobStatus]);
+
+  // When a job transitions from in-flight → completed/failed, do a single
+  // silent detail refresh so palette, coverage, and companion update without
+  // blanking the panel.
+  const prevJobStatusRef = useRef<string | null>(null);
+  useEffect(() => {
+    const prev = prevJobStatusRef.current;
+    const curr = latestJob?.status ?? null;
+    prevJobStatusRef.current = curr;
+    if (
+      (prev === "queued" || prev === "running") &&
+      (curr === "completed" || curr === "failed") &&
+      selectedSlug
+    ) {
+      void loadDetail(selectedSlug, true);
+    }
+  }, [latestJob?.status, selectedSlug, loadDetail]);
 
   // Dirty state — true when form differs from the loaded detail.
   const isDirty = useMemo(() => {
@@ -1027,6 +1054,10 @@ interface DetailEditorProps {
     errorMessage: string | null;
     createdAt: string;
     updatedAt: string;
+    firecrawlDoneAt: string | null;
+    geminiExtractDoneAt: string | null;
+    designMdDoneAt: string | null;
+    lintDoneAt: string | null;
   } | null;
   onSave: () => void | Promise<void>;
   onArchive: () => void | Promise<void>;
@@ -1037,18 +1068,62 @@ interface DetailEditorProps {
   onDelete: () => void | Promise<void>;
 }
 
+function fmtElapsed(ms: number): string {
+  const totalSec = Math.floor(ms / 1000);
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  return m > 0 ? `${m}m ${String(s).padStart(2, "0")}s` : `${s}s`;
+}
+
 // Compact 4-phase progress strip rendered inside the sticky action bar
 // while a Re-run pipeline job is in flight. Mirrors /generate's phase
 // model so editors and end-users see the same machine.
 function RerunProgress({
   step,
   status,
+  createdAt,
+  firecrawlDoneAt,
+  geminiExtractDoneAt,
+  designMdDoneAt,
+  lintDoneAt,
 }: {
   step: string | null;
   status: "queued" | "running" | "completed" | "failed" | null;
+  createdAt: string | null;
+  firecrawlDoneAt: string | null;
+  geminiExtractDoneAt: string | null;
+  designMdDoneAt: string | null;
+  lintDoneAt: string | null;
 }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (status !== "queued" && status !== "running") return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [status]);
+
   const phaseIdx = rerunPhaseIndex(step);
   const failed = status === "failed";
+
+  // Boundaries: jobStart, firecrawlDone, geminiDone, designMdDone, lintDone
+  const boundaries: (number | null)[] = [
+    createdAt ? new Date(createdAt).getTime() : null,
+    firecrawlDoneAt ? new Date(firecrawlDoneAt).getTime() : null,
+    geminiExtractDoneAt ? new Date(geminiExtractDoneAt).getTime() : null,
+    designMdDoneAt ? new Date(designMdDoneAt).getTime() : null,
+    lintDoneAt ? new Date(lintDoneAt).getTime() : null,
+  ];
+
+  const phaseElapsed = RERUN_PHASES.map((_, i) => {
+    const start = boundaries[i];
+    const end = boundaries[i + 1];
+    if (start === null) return null;
+    if (end !== null) return fmtElapsed(end - start);
+    if (i === phaseIdx) return fmtElapsed(now - start) + " ↑";
+    return null;
+  });
+
+  const totalElapsed = boundaries[0] !== null ? fmtElapsed(now - boundaries[0]) : null;
 
   return (
     <div
@@ -1063,7 +1138,7 @@ function RerunProgress({
           {failed ? "pipeline failed" : status === "completed" ? "pipeline complete" : "re-running pipeline"}
         </span>
         <span className="text-[10.5px]" style={{ color: SUB, fontFamily: MONO }}>
-          {step ?? "queued"}
+          {totalElapsed ?? step ?? "queued"}
         </span>
       </div>
       <div className="grid grid-cols-4 gap-1.5">
@@ -1114,6 +1189,14 @@ function RerunProgress({
               >
                 {phase.tool}
               </div>
+              {phaseElapsed[i] ? (
+                <div
+                  className="text-[9.5px] tabular-nums"
+                  style={{ color: state === "active" ? CYAN : MUTED, fontFamily: MONO }}
+                >
+                  {phaseElapsed[i]}
+                </div>
+              ) : null}
             </div>
           );
         })}
@@ -1135,6 +1218,9 @@ function DetailEditor(props: DetailEditorProps) {
   const showProgress = effectiveStatus === "queued" || effectiveStatus === "running";
   const showFailureBanner =
     !showProgress && latestJob?.status === "failed" && rerunStatus !== "completed";
+  const isStuck =
+    latestJob?.status === "running" &&
+    Date.now() - new Date(latestJob.updatedAt).getTime() > 12 * 60 * 1000;
 
   return (
     <div className="flex flex-col gap-5">
@@ -1293,7 +1379,23 @@ function DetailEditor(props: DetailEditorProps) {
           </div>
         ) : null}
         {showProgress ? (
-          <RerunProgress step={effectiveStep} status={effectiveStatus} />
+          <RerunProgress
+            step={effectiveStep}
+            status={effectiveStatus}
+            createdAt={latestJob?.createdAt ?? null}
+            firecrawlDoneAt={latestJob?.firecrawlDoneAt ?? null}
+            geminiExtractDoneAt={latestJob?.geminiExtractDoneAt ?? null}
+            designMdDoneAt={latestJob?.designMdDoneAt ?? null}
+            lintDoneAt={latestJob?.lintDoneAt ?? null}
+          />
+        ) : null}
+        {isStuck ? (
+          <div
+            className="rounded-md border px-3 py-2 text-[11.5px]"
+            style={{ borderColor: PEACH, background: `${PEACH}10`, color: INK, fontFamily: MONO }}
+          >
+            Job appears stuck — no update in over 12 min. You can re-run again to replace it.
+          </div>
         ) : null}
         {showFailureBanner && latestJob ? (
           <div
