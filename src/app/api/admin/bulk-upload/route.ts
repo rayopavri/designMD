@@ -106,8 +106,12 @@ export async function POST(req: NextRequest) {
   );
 
   // ── 3. Check for in-flight jobs ───────────────────────────────────────────
+  // Exclude stuck jobs (updatedAt unchanged >10 min) so a SIGKILL-stranded
+  // row doesn't permanently block the same URL from re-submission.
+  const STALE_JOB_MS = 10 * 60 * 1000;
+  const staleCutoff = new Date(Date.now() - STALE_JOB_MS);
   const inFlightJobs = await db
-    .select({ normalizedUrl: generationJobs.normalizedUrl })
+    .select({ normalizedUrl: generationJobs.normalizedUrl, updatedAt: generationJobs.updatedAt })
     .from(generationJobs)
     .where(
       and(
@@ -116,7 +120,10 @@ export async function POST(req: NextRequest) {
       ),
     );
   const inFlightNormalized = new Set(
-    inFlightJobs.map((j) => j.normalizedUrl).filter(Boolean) as string[],
+    inFlightJobs
+      .filter((j) => j.updatedAt == null || j.updatedAt >= staleCutoff)
+      .map((j) => j.normalizedUrl)
+      .filter(Boolean) as string[],
   );
 
   // ── 4. Partition into skip / enqueue ─────────────────────────────────────

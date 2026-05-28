@@ -24,12 +24,12 @@ export const runtime = 'nodejs';
 export const maxDuration = 30;
 
 // A healthy job hits one of:
-//   scrape:   maxDuration 120s + at most 1 QStash retry = ~250s worst case
-//   author:   maxDuration  60s + at most 1 QStash retry = ~130s worst case
-//   companion:maxDuration  60s + at most 1 QStash retry = ~130s worst case
-// 5 minutes is comfortably past all of these, so anything older is
+//   scrape:   maxDuration 300s + at most 1 QStash retry = ~610s worst case
+//   author:   maxDuration 300s + at most 1 QStash retry = ~610s worst case
+//   companion:maxDuration 300s + at most 1 QStash retry = ~610s worst case
+// 12 minutes is comfortably past all of these, so anything older is
 // definitively stuck — not a slow but legitimate run.
-const UNSTUCK_THRESHOLD_MS = 5 * 60 * 1000;
+const UNSTUCK_THRESHOLD_MS = 12 * 60 * 1000;
 
 export async function POST(
   _req: NextRequest,
