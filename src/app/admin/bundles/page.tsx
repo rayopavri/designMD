@@ -273,6 +273,11 @@ export default function AdminBundlesPage() {
   // Per-row active-job indicator: set of slugs currently queued/running.
   const [activeJobSlugs, setActiveJobSlugs] = useState<Set<string>>(new Set());
 
+  // Multi-select. NOT persisted to localStorage — bulk destructive actions
+  // require deliberate intent each session.
+  const [selectedSlugs, setSelectedSlugs] = useState<Set<string>>(new Set());
+  const [bulkDeleteState, setBulkDeleteState] = useState<'idle' | 'deleting'>('idle');
+
   // Bulk re-run persistent state. `bulkRerunSince` (ISO timestamp) is stored in
   // localStorage so the button stays disabled across page reloads while jobs are
   // still in flight. Polling clears it once queued + running reach zero.
@@ -324,6 +329,15 @@ export default function AdminBundlesPage() {
   useEffect(() => {
     currentDetailRef.current = detail;
   }, [detail]);
+
+  // Ref for "select all" checkbox — needed to set the indeterminate state
+  // when some (but not all) rows are selected.
+  const selectAllRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (!selectAllRef.current) return;
+    selectAllRef.current.indeterminate =
+      selectedSlugs.size > 0 && selectedSlugs.size < rows.length;
+  }, [selectedSlugs.size, rows.length]);
 
   const buildListUrl = useCallback(
     (cursor?: string | null) => {
@@ -902,6 +916,97 @@ export default function AdminBundlesPage() {
     await loadJobStatus(detail.slug);
   };
 
+  const toggleSlug = (slug: string) =>
+    setSelectedSlugs((prev) => {
+      const next = new Set(prev);
+      next.has(slug) ? next.delete(slug) : next.add(slug);
+      return next;
+    });
+
+  const toggleAll = () =>
+    setSelectedSlugs((prev) =>
+      prev.size === rows.length ? new Set() : new Set(rows.map((r) => r.slug)),
+    );
+
+  const onBulkRerunSelected = async () => {
+    const slugsArr = Array.from(selectedSlugs);
+    if (!window.confirm(`Re-run the pipeline for ${slugsArr.length} bundle(s)?`)) return;
+    setBulkRerunEnqueuing(true);
+    setBulkRerunCounts(null);
+    try {
+      const res = await fetch('/api/admin/bundles/bulk-rerun', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slugs: slugsArr }),
+      });
+      const body = (await res.json()) as { ok?: boolean; enqueued?: number; error?: string };
+      if (!res.ok) {
+        alert(body.error || `Bulk re-run failed (${res.status})`);
+        return;
+      }
+      const enqueued = body.enqueued ?? 0;
+      if (enqueued > 0) {
+        const since = new Date().toISOString();
+        localStorage.setItem(BULK_RERUN_LS_KEY, since);
+        setBulkRerunSince(since);
+      }
+      setBulkRerunCounts({ queued: enqueued, running: 0, completed: 0, failed: 0 });
+      setSelectedSlugs(new Set());
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Network error');
+    } finally {
+      setBulkRerunEnqueuing(false);
+    }
+  };
+
+  const onBulkDeleteSelected = async () => {
+    const slugsArr = Array.from(selectedSlugs);
+    const matchedRows = rows.filter((r) => selectedSlugs.has(r.slug));
+    const preview = matchedRows
+      .slice(0, 5)
+      .map((r) => `• ${r.title}`)
+      .join('\n');
+    const extra = matchedRows.length > 5 ? `\n+ ${matchedRows.length - 5} more` : '';
+    if (
+      !window.confirm(
+        `Permanently delete ${slugsArr.length} bundle(s)?\n\n${preview}${extra}`,
+      )
+    )
+      return;
+    setBulkDeleteState('deleting');
+    try {
+      const res = await fetch('/api/admin/bundles/bulk-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slugs: slugsArr }),
+      });
+      const body = (await res.json()) as {
+        ok?: boolean;
+        deleted?: number;
+        notFound?: string[];
+        error?: string;
+      };
+      if (!res.ok) {
+        alert(body.error || `Delete failed (${res.status})`);
+        return;
+      }
+      const deletedSet = new Set(
+        slugsArr.filter((s) => !(body.notFound ?? []).includes(s)),
+      );
+      setRows((prev) => prev.filter((r) => !deletedSet.has(r.slug)));
+      if (selectedSlug && deletedSet.has(selectedSlug)) {
+        setSelectedSlug(null);
+        setDetail(null);
+        setForm(null);
+      }
+      setSelectedSlugs(new Set());
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Network error');
+    } finally {
+      setBulkDeleteState('idle');
+    }
+  };
+
   // True while the bulk re-run button should stay disabled: during the
   // enqueue API call, or while polled jobs are still queued / running.
   const bulkRerunActive =
@@ -992,6 +1097,56 @@ export default function AdminBundlesPage() {
           </button>
         </div>
       </div>
+
+      {/* Selection toolbar — visible when one or more rows are checked */}
+      {selectedSlugs.size > 0 && (
+        <div
+          className="mb-5 rounded-xl border px-4 py-2.5 flex items-center gap-3 flex-wrap"
+          style={{ borderColor: `${CYAN}66`, background: `${CYAN}0D` }}
+        >
+          <span
+            className="text-[12px] flex items-center gap-1.5"
+            style={{ color: CYAN, fontFamily: MONO }}
+          >
+            <span className="font-medium">{selectedSlugs.size}</span> selected
+          </span>
+          <button
+            type="button"
+            onClick={() => setSelectedSlugs(new Set())}
+            className="h-5 w-5 rounded-full flex items-center justify-center opacity-60 hover:opacity-100 transition-opacity"
+            style={{ color: MUTED }}
+            aria-label="Clear selection"
+          >
+            <X className="h-3 w-3" />
+          </button>
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void onBulkRerunSelected()}
+              disabled={bulkRerunActive || bulkDeleteState === 'deleting'}
+              className="h-8 rounded-full border px-3 text-[12px] inline-flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{ borderColor: `${VIOLET}66`, color: VIOLET, fontFamily: MONO }}
+            >
+              <RotateCw className="h-3 w-3" />
+              Re-run selected
+            </button>
+            <button
+              type="button"
+              onClick={() => void onBulkDeleteSelected()}
+              disabled={bulkDeleteState === 'deleting' || bulkRerunActive}
+              className="h-8 rounded-full border px-3 text-[12px] inline-flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{ borderColor: '#ff5a5a66', color: '#ff7070', fontFamily: MONO }}
+            >
+              {bulkDeleteState === 'deleting' ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Trash2 className="h-3 w-3" />
+              )}
+              Delete selected
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Bulk re-run live status panel — visible while active and after completion */}
       {(bulkRerunSince !== null || bulkRerunCounts !== null) && (
@@ -1164,6 +1319,29 @@ export default function AdminBundlesPage() {
                 <option value="trending">submitted</option>
               </select>
             </div>
+            {rows.length > 0 && (
+              <div
+                className="mt-2.5 pt-2.5 border-t flex items-center gap-2"
+                style={{ borderColor: BORDER_SOFT }}
+              >
+                <label
+                  className="flex items-center gap-2 cursor-pointer text-[10.5px]"
+                  style={{ color: MUTED, fontFamily: MONO }}
+                >
+                  <input
+                    ref={selectAllRef}
+                    type="checkbox"
+                    checked={selectedSlugs.size === rows.length && rows.length > 0}
+                    onChange={toggleAll}
+                    className="cursor-pointer"
+                    style={{ accentColor: CYAN }}
+                  />
+                  {selectedSlugs.size > 0
+                    ? `${selectedSlugs.size} of ${rows.length} selected`
+                    : "select all"}
+                </label>
+              </div>
+            )}
           </div>
 
           {/* List rows */}
@@ -1180,16 +1358,33 @@ export default function AdminBundlesPage() {
                 {rows.map((row) => {
                   const isActive = row.slug === selectedSlug;
                   const hasActiveJob = activeJobSlugs.has(row.slug);
+                  const isChecked = selectedSlugs.has(row.slug);
                   return (
-                    <li key={row.id}>
+                    <li
+                      key={row.id}
+                      className="group flex items-stretch rounded-lg transition-colors"
+                      style={{
+                        background: isActive ? SURFACE_2 : "transparent",
+                        border: `1px solid ${isActive ? BORDER : "transparent"}`,
+                      }}
+                    >
+                      {/* Checkbox — independent click target; doesn't open detail pane */}
+                      <label
+                        className={`flex items-center justify-center w-7 shrink-0 cursor-pointer transition-opacity${selectedSlugs.size > 0 ? '' : ' opacity-0 group-hover:opacity-100'}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => toggleSlug(row.slug)}
+                          className="h-3 w-3 cursor-pointer"
+                          style={{ accentColor: CYAN }}
+                        />
+                      </label>
                       <button
                         type="button"
                         onClick={() => setSelectedSlug(row.slug)}
-                        className="w-full text-left rounded-lg px-3 py-2.5 transition-colors"
-                        style={{
-                          background: isActive ? SURFACE_2 : "transparent",
-                          border: `1px solid ${isActive ? BORDER : "transparent"}`,
-                        }}
+                        className="flex-1 text-left px-3 py-2.5 min-w-0"
+                        style={{ background: "transparent" }}
                       >
                         <div className="flex items-center gap-2">
                           {/* Active pipeline indicator */}
