@@ -161,6 +161,25 @@ function stepLabel(job: JobStatus): string {
   return job.currentStep ?? "processing";
 }
 
+const STEP_LABELS: Record<string, string> = {
+  scraping: 'crawling',
+  'parsing-computed': 'parsing styles',
+  extracting: 'extracting brand',
+  'resolving-orphans': 'wiring tokens',
+  persisting: 'saving draft',
+  'writing-design-md': 'writing design.md',
+  linting: 'linting',
+  scoring: 'scoring',
+  'processing-image': 'processing image',
+  'writing-companion': 'writing companion',
+};
+
+function formatElapsed(ms: number): string {
+  const s = Math.floor(ms / 1000);
+  if (s < 60) return `${s}s`;
+  return `${Math.floor(s / 60)}m ${s % 60}s`;
+}
+
 function outcomeAccent(job: JobStatus): string {
   if (job.status === "failed") return PEACH;
   if (job.status === "completed") {
@@ -633,6 +652,28 @@ function BatchStatusView({
   const [confirmCancel, setConfirmCancel] = useState(false);
   const confirmCancelTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const jobStartedAt = useRef<Map<string, number>>(new Map());
+  const [, setTick] = useState(0);
+
+  // Track client-side start time for each running job (for the live timer).
+  // Falls back to Date.now() on first observation so the timer starts
+  // counting from when we first see the job as running, not from creation.
+  useEffect(() => {
+    batchStatus.jobs.forEach((job) => {
+      if (job.status === 'running' && !jobStartedAt.current.has(job.id)) {
+        jobStartedAt.current.set(job.id, Date.now());
+      } else if (job.status !== 'running') {
+        jobStartedAt.current.delete(job.id);
+      }
+    });
+  }, [batchStatus.jobs]);
+
+  // 250ms tick to keep the elapsed timer smooth while a job is running.
+  useEffect(() => {
+    if (batchStatus.running === 0) return;
+    const t = setInterval(() => setTick((n) => n + 1), 250);
+    return () => clearInterval(t);
+  }, [batchStatus.running]);
 
   // Show "unstick" affordance only when at least one running job has gone
   // stale (>12min since last update). Workers now have a 290s watchdog on
@@ -769,12 +810,7 @@ function BatchStatusView({
             <span className="text-[11px]" style={{ fontFamily: MONO, color: LIME }}>
               batch complete
             </span>
-          ) : (
-            <span className="text-[11px] inline-flex items-center gap-1.5" style={{ fontFamily: MONO, color: MUTED }}>
-              <Loader2 className="h-3 w-3 animate-spin" />
-              polling every 5 s
-            </span>
-          )}
+          ) : null}
           {hasStuckRunning && (
             <button
               type="button"
@@ -890,8 +926,20 @@ function BatchStatusView({
                   <td className="px-4 py-2.5">
                     <StatusBadge job={job} />
                   </td>
-                  <td className="px-4 py-2.5 max-w-md truncate" style={{ color: MUTED }}>
-                    {stepLabel(job)}
+                  <td className="px-4 py-2.5 max-w-md truncate">
+                    {isRunning ? (
+                      <span className="inline-flex items-center gap-1">
+                        <span style={{ color: VIOLET }}>
+                          {STEP_LABELS[job.currentStep ?? ''] ?? job.currentStep ?? 'processing'}
+                        </span>
+                        <span style={{ color: MUTED }}>
+                          {' · '}
+                          {formatElapsed(Date.now() - (jobStartedAt.current.get(job.id) ?? Date.now()))}
+                        </span>
+                      </span>
+                    ) : (
+                      <span style={{ color: MUTED }}>{stepLabel(job)}</span>
+                    )}
                   </td>
                   <td className="px-4 py-2.5 text-right">
                     {isPublished && job.bundleSlug ? (
