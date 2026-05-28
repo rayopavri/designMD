@@ -138,6 +138,8 @@ const DESIGN_STYLES = [
 ];
 const TOOLS = ["claude", "cursor", "lovable", "figma-make"];
 
+const BULK_RERUN_LS_KEY = 'bulk-rerun-since';
+
 // Re-run pipeline progress phases — mirror /generate page semantics so the
 // admin and public flows look like the same machine. Each phase groups one
 // or more backend `currentStep` values written by scrape-and-extract.ts.
@@ -268,13 +270,24 @@ export default function AdminBundlesPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [form, setForm] = useState<EditFormState | null>(null);
 
-  // Bulk re-run state (header button — re-runs all bundles with a source URL).
-  const [bulkRerunState, setBulkRerunState] = useState<"idle" | "running" | "done">("idle");
-  const [bulkRerunResult, setBulkRerunResult] = useState<{
-    enqueued: number;
-    remaining: number;
-    etaSeconds: number;
+  // Bulk re-run persistent state. `bulkRerunSince` (ISO timestamp) is stored in
+  // localStorage so the button stays disabled across page reloads while jobs are
+  // still in flight. Polling clears it once queued + running reach zero.
+  const [bulkRerunEnqueuing, setBulkRerunEnqueuing] = useState(false);
+  const [bulkRerunSince, setBulkRerunSince] = useState<string | null>(null);
+  const [bulkRerunCounts, setBulkRerunCounts] = useState<{
+    queued: number;
+    running: number;
+    completed: number;
+    failed: number;
   } | null>(null);
+  const [bulkRerunFailures, setBulkRerunFailures] = useState<Array<{
+    jobId: string;
+    slug: string | null;
+    errorStep: string | null;
+    errorMessage: string | null;
+    updatedAt: string;
+  }>>([]);
 
   // Live progress for the Re-run pipeline button. `rerunStep` is the raw
   // `currentStep` polled from /api/generate/[jobId]; `rerunStatus` mirrors
@@ -386,6 +399,64 @@ export default function AdminBundlesPage() {
     void loadList();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter, activeQuery, categoryFilter, sort]);
+
+  // On mount, restore any persisted bulk-rerun timestamp so the button stays
+  // disabled if the page was reloaded while jobs were still processing.
+  useEffect(() => {
+    const stored = localStorage.getItem(BULK_RERUN_LS_KEY);
+    if (stored) setBulkRerunSince(stored);
+  }, []);
+
+  // Poll /api/admin/bundles/bulk-rerun/status every 10 s while a bulk re-run
+  // is active. Auto-releases the lock when all jobs reach a terminal state.
+  useEffect(() => {
+    if (!bulkRerunSince) return;
+    let cancelled = false;
+
+    const poll = async () => {
+      try {
+        const res = await fetch(
+          `/api/admin/bundles/bulk-rerun/status?since=${encodeURIComponent(bulkRerunSince)}`,
+        );
+        if (!res.ok || cancelled) return;
+        const body = (await res.json()) as {
+          queued: number;
+          running: number;
+          completed: number;
+          failed: number;
+          recentFailures: Array<{
+            jobId: string;
+            slug: string | null;
+            errorStep: string | null;
+            errorMessage: string | null;
+            updatedAt: string;
+          }>;
+        };
+        if (cancelled) return;
+        setBulkRerunCounts({
+          queued: body.queued ?? 0,
+          running: body.running ?? 0,
+          completed: body.completed ?? 0,
+          failed: body.failed ?? 0,
+        });
+        setBulkRerunFailures(body.recentFailures ?? []);
+        // All jobs terminal — release the button lock.
+        if ((body.queued ?? 0) === 0 && (body.running ?? 0) === 0) {
+          localStorage.removeItem(BULK_RERUN_LS_KEY);
+          setBulkRerunSince(null);
+        }
+      } catch {
+        // Ignore — try again on the next interval.
+      }
+    };
+
+    void poll();
+    const handle = window.setInterval(() => void poll(), 10_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(handle);
+    };
+  }, [bulkRerunSince]);
 
   const loadDetail = useCallback(async (slug: string, silent = false) => {
     if (!silent) {
@@ -721,8 +792,8 @@ export default function AdminBundlesPage() {
         "Call again if remaining > 0.",
     );
     if (!confirmed) return;
-    setBulkRerunState("running");
-    setBulkRerunResult(null);
+    setBulkRerunEnqueuing(true);
+    setBulkRerunCounts(null);
     try {
       const res = await fetch("/api/admin/bundles/bulk-rerun", {
         method: "POST",
@@ -738,18 +809,20 @@ export default function AdminBundlesPage() {
       };
       if (!res.ok) {
         alert(body.error || `Bulk re-run failed (${res.status})`);
-        setBulkRerunState("idle");
         return;
       }
-      setBulkRerunResult({
-        enqueued: body.enqueued ?? 0,
-        remaining: body.remaining ?? 0,
-        etaSeconds: body.etaSeconds ?? 0,
-      });
-      setBulkRerunState("done");
+      const enqueued = body.enqueued ?? 0;
+      if (enqueued > 0) {
+        // Persist the trigger time so the button lock survives page reloads.
+        const since = new Date().toISOString();
+        localStorage.setItem(BULK_RERUN_LS_KEY, since);
+        setBulkRerunSince(since);
+      }
+      setBulkRerunCounts({ queued: enqueued, running: 0, completed: 0, failed: 0 });
     } catch (err) {
       alert(err instanceof Error ? err.message : "Network error");
-      setBulkRerunState("idle");
+    } finally {
+      setBulkRerunEnqueuing(false);
     }
   };
 
@@ -802,6 +875,15 @@ export default function AdminBundlesPage() {
     setRerunStatus(null);
     await loadJobStatus(detail.slug);
   };
+
+  // True while the bulk re-run button should stay disabled: during the
+  // enqueue API call, or while polled jobs are still queued / running.
+  const bulkRerunActive =
+    bulkRerunEnqueuing ||
+    (bulkRerunSince !== null &&
+      (bulkRerunCounts === null ||
+        bulkRerunCounts.queued > 0 ||
+        bulkRerunCounts.running > 0));
 
   // ─── Render states ─────────────────────────────────────────
 
@@ -861,29 +943,15 @@ export default function AdminBundlesPage() {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Bulk re-run result badge */}
-          {bulkRerunState === "done" && bulkRerunResult && (
-            <span
-              className="h-9 rounded-full border px-3 text-[11px] inline-flex items-center gap-1.5"
-              style={{ borderColor: BORDER, color: LIME, fontFamily: MONO }}
-            >
-              <Check className="h-3 w-3" />
-              {bulkRerunResult.enqueued} enqueued
-              {bulkRerunResult.remaining > 0 && (
-                <span style={{ color: PEACH }}>· {bulkRerunResult.remaining} remaining</span>
-              )}
-              · ~{Math.ceil(bulkRerunResult.etaSeconds / 60)}m ETA
-            </span>
-          )}
           <button
             type="button"
             onClick={() => void onBulkRerun()}
-            disabled={bulkRerunState === "running"}
-            className="h-9 rounded-full border px-3 text-[12px] inline-flex items-center gap-2 disabled:opacity-50"
-            style={{ borderColor: BORDER, color: bulkRerunState === "running" ? CYAN : VIOLET, fontFamily: MONO }}
+            disabled={bulkRerunActive}
+            className="h-9 rounded-full border px-3 text-[12px] inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ borderColor: BORDER, color: bulkRerunActive ? CYAN : VIOLET, fontFamily: MONO }}
           >
-            {bulkRerunState === "running" ? (
-              <><Loader2 className="h-3.5 w-3.5 animate-spin" /> running…</>
+            {bulkRerunActive ? (
+              <><Loader2 className="h-3.5 w-3.5 animate-spin" /> {bulkRerunEnqueuing ? "enqueuing…" : "running…"}</>
             ) : (
               <><RotateCw className="h-3.5 w-3.5" /> bulk re-run all</>
             )}
@@ -898,6 +966,94 @@ export default function AdminBundlesPage() {
           </button>
         </div>
       </div>
+
+      {/* Bulk re-run live status panel — visible while active and after completion */}
+      {(bulkRerunSince !== null || bulkRerunCounts !== null) && (
+        <div
+          className="mb-5 rounded-xl border px-4 py-3"
+          style={{ borderColor: BORDER, background: SURFACE_2 }}
+        >
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3 flex-wrap">
+              {bulkRerunSince !== null ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" style={{ color: CYAN }} />
+              ) : (
+                <Check className="h-3.5 w-3.5 shrink-0" style={{ color: LIME }} />
+              )}
+              <span
+                className="text-[11.5px]"
+                style={{ color: bulkRerunSince !== null ? CYAN : LIME, fontFamily: MONO }}
+              >
+                {bulkRerunSince !== null ? "bulk re-run in progress" : "bulk re-run complete"}
+              </span>
+              {bulkRerunCounts !== null ? (
+                <div className="flex items-center gap-2 text-[11px]" style={{ fontFamily: MONO }}>
+                  {bulkRerunCounts.queued > 0 && (
+                    <span style={{ color: SUB }}>queued: {bulkRerunCounts.queued}</span>
+                  )}
+                  {bulkRerunCounts.running > 0 && (
+                    <span style={{ color: CYAN }}>running: {bulkRerunCounts.running}</span>
+                  )}
+                  <span style={{ color: LIME }}>done: {bulkRerunCounts.completed}</span>
+                  {bulkRerunCounts.failed > 0 && (
+                    <span style={{ color: PEACH }}>failed: {bulkRerunCounts.failed}</span>
+                  )}
+                </div>
+              ) : (
+                <span className="text-[11px]" style={{ color: MUTED, fontFamily: MONO }}>
+                  checking status…
+                </span>
+              )}
+            </div>
+            {/* Dismiss is only available once polling has stopped (terminal state) */}
+            {bulkRerunSince === null && (
+              <button
+                type="button"
+                onClick={() => { setBulkRerunCounts(null); setBulkRerunFailures([]); }}
+                className="h-6 w-6 rounded-full flex items-center justify-center opacity-60 hover:opacity-100 shrink-0 transition-opacity"
+                style={{ color: MUTED }}
+                aria-label="Dismiss bulk re-run status"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+          {bulkRerunFailures.length > 0 && (
+            <details className="mt-2.5">
+              <summary
+                className="cursor-pointer text-[10.5px] uppercase tracking-[0.18em] list-none flex items-center gap-1.5"
+                style={{ color: PEACH, fontFamily: MONO }}
+              >
+                <span>▸</span>
+                {bulkRerunFailures.length} failure{bulkRerunFailures.length !== 1 ? "s" : ""}
+              </summary>
+              <ul className="mt-2 flex flex-col gap-1.5 pl-1">
+                {bulkRerunFailures.map((f) => (
+                  <li
+                    key={f.jobId}
+                    className="text-[11px] leading-tight"
+                    style={{ fontFamily: MONO }}
+                  >
+                    <span style={{ color: INK }}>{f.slug ?? f.jobId}</span>
+                    {f.errorStep && (
+                      <span style={{ color: MUTED }}> · {f.errorStep}</span>
+                    )}
+                    {f.errorMessage && (
+                      <span
+                        className="block truncate pl-3 mt-0.5"
+                        style={{ color: MUTED }}
+                        title={f.errorMessage}
+                      >
+                        {f.errorMessage}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+        </div>
+      )}
 
       <div
         className="grid grid-cols-1 lg:grid-cols-[420px_1fr] gap-px rounded-xl overflow-hidden"
