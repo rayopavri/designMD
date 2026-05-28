@@ -29,8 +29,8 @@ export const runtime = 'nodejs';
 export const maxDuration = 60;
 
 const MAX_BATCH = 50;
-const STAGGER_SECONDS = 15;
-const ENQUEUE_CONCURRENCY = 8;
+const STAGGER_SECONDS = 20;
+const ENQUEUE_CONCURRENCY = 6;
 
 const ALLOWED_STATUSES = ['published', 'pending_review', 'flagged', 'rejected'] as const;
 

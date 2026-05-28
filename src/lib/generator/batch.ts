@@ -10,7 +10,7 @@ import { db } from '@/lib/db/client';
 import { generationJobs } from '@/lib/db/schema';
 import { enqueueTask } from '@/lib/queue';
 
-const BATCH_GAP_SECONDS = 5;
+const BATCH_GAP_SECONDS = 8;
 
 export async function advanceBatch(batchId: string | null | undefined): Promise<void> {
   if (!batchId) return;
