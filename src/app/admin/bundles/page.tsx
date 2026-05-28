@@ -1490,24 +1490,72 @@ function DetailEditor(props: DetailEditorProps) {
         </div>
         {detail.coverageScore !== null ? (
           <div
-            className="rounded-lg border px-3 py-2 text-center"
-            style={{ borderColor: BORDER, background: SURFACE_2 }}
+            className="rounded-lg border px-3 py-2.5 shrink-0"
+            style={{ borderColor: BORDER, background: SURFACE_2, minWidth: 196 }}
           >
-            <div className="text-[9.5px] uppercase tracking-[0.22em]" style={{ color: MUTED, fontFamily: MONO }}>
-              coverage
+            {/* Overall score */}
+            <div className="flex items-center justify-between gap-3 mb-2.5">
+              <div className="text-[9.5px] uppercase tracking-[0.22em]" style={{ color: MUTED, fontFamily: MONO }}>
+                coverage
+              </div>
+              <div
+                className="text-[18px] font-medium leading-none"
+                style={{
+                  color: detail.coverageScore >= 70 ? LIME : detail.coverageScore >= 40 ? PEACH : MUTED,
+                  fontFamily: MONO,
+                }}
+              >
+                {detail.coverageScore}
+                <span className="text-[10px]" style={{ color: MUTED }}> / 100</span>
+              </div>
             </div>
+            {/* Section breakdown */}
             <div
-              className="mt-1 text-[18px] font-medium"
-              style={{
-                color: detail.coverageScore >= 70 ? LIME : detail.coverageScore >= 40 ? PEACH : MUTED,
-                fontFamily: MONO,
-              }}
+              className="flex flex-col gap-1.5 pt-2 border-t"
+              style={{ borderColor: BORDER_SOFT }}
             >
-              {detail.coverageScore}
-              <span className="text-[11px]" style={{ color: MUTED }}>
-                {" "}
-                / 100
-              </span>
+              {(
+                [
+                  { label: "colors",     score: detail.coverageColors },
+                  { label: "typography", score: detail.coverageTypography },
+                  { label: "layout",     score: detail.coverageLayout },
+                  { label: "elevation",  score: detail.coverageElevation },
+                  { label: "shapes",     score: detail.coverageShapes },
+                  { label: "components", score: detail.coverageComponents },
+                  { label: "dos/don'ts", score: detail.coverageDosDonts },
+                ] as { label: string; score: number | null }[]
+              ).map(({ label, score }) => {
+                const c =
+                  score === null ? MUTED
+                  : score >= 70 ? LIME
+                  : score >= 40 ? PEACH
+                  : "#ff7070";
+                return (
+                  <div key={label} className="flex items-center gap-2">
+                    <span
+                      className="text-[9.5px] shrink-0"
+                      style={{ color: MUTED, fontFamily: MONO, width: 68 }}
+                    >
+                      {label}
+                    </span>
+                    <div
+                      className="flex-1 h-1 rounded-full overflow-hidden"
+                      style={{ background: BORDER_SOFT }}
+                    >
+                      <div
+                        className="h-full rounded-full"
+                        style={{ width: `${score ?? 0}%`, background: c }}
+                      />
+                    </div>
+                    <span
+                      className="text-[9.5px] tabular-nums shrink-0"
+                      style={{ color: c, fontFamily: MONO, width: 20, textAlign: "right" }}
+                    >
+                      {score ?? "—"}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         ) : null}
