@@ -13,6 +13,12 @@ import { bundles, generationJobs } from '@/lib/db/schema';
 
 export const runtime = 'nodejs';
 
+// A running job whose updatedAt hasn't changed in 10 minutes is permanently
+// stuck (Vercel SIGKILL'd before the watchdog could mark it failed). Treat
+// it as failed in the response so the client stops polling and clears the
+// entry — the DB row stays as-is but no UI will ever show it again.
+const STALE_JOB_MS = 10 * 60 * 1000;
+
 interface RouteContext {
   params: Promise<{ id: string }>;
 }
@@ -35,6 +41,13 @@ export async function GET(_req: NextRequest, ctx: RouteContext) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
+  // Detect stuck-running rows: job never transitioned out of running because
+  // the worker process was killed before cleanup could run.
+  const isStuck =
+    (job.status === 'running' || job.status === 'queued') &&
+    job.updatedAt != null &&
+    Date.now() - new Date(job.updatedAt).getTime() > STALE_JOB_MS;
+
   let resultBundleSlug: string | null = null;
   if (job.resultBundleId) {
     const [b] = await db
@@ -48,10 +61,10 @@ export async function GET(_req: NextRequest, ctx: RouteContext) {
   return NextResponse.json({
     jobId: job.id,
     url: job.url,
-    status: job.status,
+    status: isStuck ? 'failed' : job.status,
     currentStep: job.currentStep,
-    errorMessage: job.errorMessage,
-    errorStep: job.errorStep,
+    errorMessage: isStuck ? 'Generation timed out — please try again.' : job.errorMessage,
+    errorStep: isStuck ? 'watchdog' : job.errorStep,
     resultBundleId: job.resultBundleId,
     resultBundleSlug,
     createdAt: job.createdAt,

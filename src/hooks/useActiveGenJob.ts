@@ -4,7 +4,11 @@ import { useEffect, useState } from "react";
 
 const STORAGE_KEY = "gen_job";
 const POLL_MS = 3000;
-const MAX_AGE_MS = 5 * 60 * 1000; // 5 minutes — abandon stale entries
+// Pipeline can take up to ~10 min on Vercel Pro (290s per phase × 2).
+// MAX_AGE_MS gates cold page-load recovery from localStorage.
+// MAX_POLL_MS stops an in-progress polling loop so it never runs forever.
+const MAX_AGE_MS = 15 * 60 * 1000;
+const MAX_POLL_MS = 12 * 60 * 1000;
 
 export interface ActiveGenJob {
   jobId: string;
@@ -60,6 +64,21 @@ export function useActiveGenJob(): ActiveGenJob | null {
 
     async function poll() {
       if (cancelled) return;
+
+      // Client-side safety net: if the job has been running longer than
+      // MAX_POLL_MS, give up regardless of what the server says. The server
+      // also detects stuck rows via its own staleness check, but this ensures
+      // the UI never loops forever even if both checks race.
+      if (Date.now() - stored!.startedAt > MAX_POLL_MS) {
+        clearActiveGenJob();
+        setJob((prev) =>
+          prev
+            ? { ...prev, status: "failed", currentStep: "Generation timed out — please try again." }
+            : null
+        );
+        return;
+      }
+
       try {
         const res = await fetch(`/api/generate/${stored!.jobId}`);
         if (res.status === 404) {
