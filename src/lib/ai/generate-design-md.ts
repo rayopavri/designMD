@@ -433,12 +433,13 @@ function logMissingHeadings(provider: string, text: string): void {
  *   2. OpenRouter on Gemini 2.5 Flash (fallback on any error)
  *
  * Time budget is split so a slow primary doesn't starve the fallback:
- * 30s for the direct attempt, 30s for the fallback. Both fit comfortably
- * inside the 290s worker watchdog. If the primary succeeds quickly
- * (~8-12s typical), the fallback never fires and the user gets the fast path.
+ * 10s for the direct attempt, 30s for the fallback. Primary typically
+ * completes in 8-12s when healthy — 10s cuts a failing/mis-routing primary
+ * off quickly so the fallback gets a full 30s instead of waiting 30s for
+ * a doomed attempt. Both fit inside the 290s worker watchdog.
  */
 async function callAuthorModel(userPrompt: string): Promise<string> {
-  const PRIMARY_TIMEOUT_MS = 30_000;
+  const PRIMARY_TIMEOUT_MS = 10_000;
   const FALLBACK_TIMEOUT_MS = 30_000;
 
   // Primary: Gemini direct.

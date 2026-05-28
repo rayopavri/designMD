@@ -93,10 +93,6 @@ export async function runScrapeAndExtract(payload: ScrapeAndExtractPayload): Pro
         gaps.push('- Layout: describe grid system, max-width, spacing rhythm, responsive breakpoints');
         searchTerms.push('layout grid spacing');
       }
-      if ((cov.coverageElevation ?? 0) < GAP_THRESHOLD) {
-        gaps.push('- Elevation: describe shadow scale, z-index layers, depth hierarchy');
-        searchTerms.push('elevation shadow depth');
-      }
       if ((cov.coverageShapes ?? 0) < GAP_THRESHOLD) {
         gaps.push('- Shapes: extract border-radius tokens at each scale (sm, md, lg, full)');
         searchTerms.push('shapes radius corners');
@@ -104,10 +100,6 @@ export async function runScrapeAndExtract(payload: ScrapeAndExtractPayload): Pro
       if ((cov.coverageComponents ?? 0) < GAP_THRESHOLD) {
         gaps.push('- Components: identify buttons, cards, inputs, badges, navigation with full token specs');
         searchTerms.push('components buttons forms inputs');
-      }
-      if ((cov.coverageDosDonts ?? 0) < GAP_THRESHOLD) {
-        gaps.push("- Do's and Don'ts: extract at least 3 dos and 3 don'ts for using this design system");
-        searchTerms.push('guidelines usage rules');
       }
 
       if (gaps.length > 0) {

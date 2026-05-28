@@ -3,7 +3,7 @@
  *
  * OpenRouter exposes hundreds of models behind an OpenAI-compatible API.
  * We use it for the author step (DESIGN.md body generation) where we
- * traded Claude Sonnet 4.6 for Gemini 2.5 Flash — ~3x faster and
+ * traded Claude Sonnet 4.6 for Gemini 3.1 Flash-Lite — ~3x faster and
  * different provider, which diversifies away from Anthropic outages.
  *
  * Why not use the `openai` npm package? OpenRouter is a single endpoint
@@ -23,8 +23,8 @@ const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
  * https://openrouter.ai/models
  *
  * Options worth considering:
- *   - google/gemini-2.5-flash    (current — ~10-15s, hits checklist with the
- *                                 strong prompt from generate-design-md.ts)
+ *   - google/gemini-3.1-flash-lite (current — low-latency, cost-effective,
+ *                                   hits checklist with the strong prompt from generate-design-md.ts)
  *   - google/gemini-2.5-pro      (~60-90s via OpenRouter — too slow for our
  *                                 50s in-process timeout, exceeded watchdog
  *                                 in production)
@@ -39,7 +39,7 @@ const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
  * [ ] checklist of required headings — that visual checklist gives Flash
  * the structural cue it was missing the first time.
  */
-export const OPENROUTER_AUTHOR_MODEL = 'google/gemini-3.1-flash';
+export const OPENROUTER_AUTHOR_MODEL = 'google/gemini-3.1-flash-lite';
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';

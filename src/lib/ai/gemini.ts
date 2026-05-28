@@ -1,5 +1,5 @@
 /**
- * Gemini 2.5 Flash extraction — canonical design.md spec aligned.
+ * Gemini 3.1 Flash-Lite extraction — canonical design.md spec aligned.
  *
  * Produces structured tokens whose shape closely mirrors the official
  * @google/design.md schema, plus prose for each canonical section
@@ -34,11 +34,11 @@ function client(): GoogleGenAI {
   return _client;
 }
 
-const MODEL = 'gemini-3.5-flash';
+const MODEL = 'gemini-3.1-flash-lite';
 
 // ─── System-instruction cache (Gemini context caching) ───────
 //
-// Gemini 2.5 supports explicit context caching: upload a long stable prefix
+// Gemini 3.1 Flash-Lite supports explicit context caching: upload a long stable prefix
 // once via caches.create() and reference it on subsequent generateContent
 // calls. Reads bill at ~1/4 the input-token price and skip re-tokenisation,
 // so we save both latency and credits on warm bursts.
@@ -48,7 +48,7 @@ const MODEL = 'gemini-3.5-flash';
 // hot Vercel containers reused inside 5 min). One-off cold invocations
 // fall through to inline systemInstruction — see fallthrough below.
 //
-// Minimum cacheable size for gemini-2.5-flash is ~1024 tokens. Shorter
+// Minimum cacheable size for gemini-3.1-flash-lite is ~1024 tokens. Shorter
 // system prompts will fail caches.create with INVALID_ARGUMENT; we swallow
 // that and remember the failure for the rest of the process so we don't
 // re-try on every call.
