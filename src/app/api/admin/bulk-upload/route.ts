@@ -16,7 +16,7 @@
  */
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
-import { and, inArray } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { requireEditor } from '@/lib/auth/session';
 import { db } from '@/lib/db/client';
 import { bundles, generationJobs } from '@/lib/db/schema';
@@ -95,17 +95,29 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // ── 2. Check for existing bundles (any status) ────────────────────────────
+  // ── 2. Check for existing bundles (published or pending_review only) ─────────
+  // Match single-generate's behaviour: personal and archived bundles can be
+  // re-generated. Blocking on ANY status was the root cause of URLs that
+  // succeeded via single generate being permanently rejected here.
   const normalizedList = candidates.map((c) => c.normalized);
   const existingBundles = await db
     .select({ sourceUrlNormalized: bundles.sourceUrlNormalized })
     .from(bundles)
-    .where(inArray(bundles.sourceUrlNormalized, normalizedList));
+    .where(
+      and(
+        inArray(bundles.sourceUrlNormalized, normalizedList),
+        inArray(bundles.status, ['published', 'pending_review']),
+      ),
+    );
   const existingNormalized = new Set(
     existingBundles.map((b) => b.sourceUrlNormalized).filter(Boolean) as string[],
   );
 
   // ── 3. Check for in-flight jobs ───────────────────────────────────────────
+  // Scoped to the editor's own jobs (mirrors single-generate). A global check
+  // meant that a URL sitting queued in another batch — or from another user's
+  // single-generate — would block re-submission here even though it has no
+  // relation to this batch.
   // Exclude stuck jobs (updatedAt unchanged >10 min) so a SIGKILL-stranded
   // row doesn't permanently block the same URL from re-submission.
   const STALE_JOB_MS = 10 * 60 * 1000;
@@ -115,6 +127,7 @@ export async function POST(req: NextRequest) {
     .from(generationJobs)
     .where(
       and(
+        eq(generationJobs.userId, editor.id),
         inArray(generationJobs.normalizedUrl, normalizedList),
         inArray(generationJobs.status, ['queued', 'running']),
       ),
