@@ -63,7 +63,11 @@ export async function POST(_req: NextRequest, ctx: RouteContext) {
   }
 
   const [inFlight] = await db
-    .select({ id: generationJobs.id })
+    .select({
+      id: generationJobs.id,
+      status: generationJobs.status,
+      updatedAt: generationJobs.updatedAt,
+    })
     .from(generationJobs)
     .where(
       and(
@@ -74,10 +78,31 @@ export async function POST(_req: NextRequest, ctx: RouteContext) {
     .limit(1);
 
   if (inFlight) {
-    return NextResponse.json(
-      { error: 'A re-run is already in flight for this bundle.', jobId: inFlight.id },
-      { status: 409 },
-    );
+    // A running job with no DB update for 15+ min is considered stuck (the
+    // QStash worker timed out but never wrote a terminal status). Allow the
+    // replacement by marking it failed first; queued jobs are always live.
+    const STUCK_THRESHOLD_MS = 15 * 60 * 1000;
+    const isStuck =
+      inFlight.status === 'running' &&
+      Date.now() - new Date(inFlight.updatedAt).getTime() > STUCK_THRESHOLD_MS;
+
+    if (!isStuck) {
+      return NextResponse.json(
+        { error: 'A re-run is already in flight for this bundle.', jobId: inFlight.id },
+        { status: 409 },
+      );
+    }
+
+    // Mark the stuck job failed so it no longer blocks the new run.
+    await db
+      .update(generationJobs)
+      .set({
+        status: 'failed',
+        errorStep: 'watchdog-superseded',
+        errorMessage: 'Superseded by manual re-run — no DB update for 15+ min.',
+        updatedAt: new Date(),
+      })
+      .where(eq(generationJobs.id, inFlight.id));
   }
 
   const [job] = await db
