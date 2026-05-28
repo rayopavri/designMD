@@ -866,16 +866,12 @@ export default function AdminBundlesPage() {
     }
   };
 
-  const onRerunPipeline = async () => {
-    if (!detail) return;
-    const confirmed = window.confirm(
-      `Re-run the full pipeline for "${detail.title}"?\n\n` +
-        "Editor metadata (title, description, license, attribution, featured, curated) " +
-        "will be preserved.\n\n" +
-        "design.md, companion prompt, palette, accessibility notes, and coverage scores " +
-        "will be overwritten with fresh extraction output.",
-    );
-    if (!confirmed) return;
+  // Returns true on successful enqueue, false on any error. The caller (the
+  // re-run panel in DetailEditor) uses this to decide whether to close + clear
+  // the feedback box — on failure it keeps the panel open so typed feedback
+  // survives a transient 409 / network error (the error surfaces via actionError).
+  const onRerunPipeline = async (feedback?: string): Promise<boolean> => {
+    if (!detail) return false;
 
     setActionState("rerunning-pipeline");
     setActionError(null);
@@ -886,14 +882,18 @@ export default function AdminBundlesPage() {
     try {
       const res = await fetch(
         `/api/admin/bundles/${encodeURIComponent(detail.slug)}/rerun-pipeline`,
-        { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" },
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ feedback: feedback?.trim() || undefined }),
+        },
       );
       if (!res.ok) {
         const body = await res.json().catch(() => ({ error: res.statusText }));
         setActionError(body.error || `Re-run failed (${res.status})`);
         setActionState("idle");
         setRerunStatus(null);
-        return;
+        return false;
       }
       const body = (await res.json()) as { jobId?: string };
       jobId = body.jobId ?? null;
@@ -901,7 +901,7 @@ export default function AdminBundlesPage() {
       setActionError(err instanceof Error ? err.message : "Network error");
       setActionState("idle");
       setRerunStatus(null);
-      return;
+      return false;
     }
 
     // Pipeline enqueued. From here, the persistent useEffect-driven polling
@@ -914,6 +914,7 @@ export default function AdminBundlesPage() {
     setRerunStep(null);
     setRerunStatus(null);
     await loadJobStatus(detail.slug);
+    return true;
   };
 
   const toggleSlug = (slug: string) =>
@@ -1072,29 +1073,6 @@ export default function AdminBundlesPage() {
           <p className="mt-2 text-[12.5px]" style={{ color: SUB }}>
             All bundles across every status. Edit metadata, archive, restore, or jump to the reviewer queue for pending items.
           </p>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <button
-            type="button"
-            onClick={() => void onBulkRerun()}
-            disabled={bulkRerunActive}
-            className="h-9 rounded-full border px-3 text-[12px] inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{ borderColor: BORDER, color: bulkRerunActive ? CYAN : VIOLET, fontFamily: MONO }}
-          >
-            {bulkRerunActive ? (
-              <><Loader2 className="h-3.5 w-3.5 animate-spin" /> {bulkRerunEnqueuing ? "enqueuing…" : "running…"}</>
-            ) : (
-              <><RotateCw className="h-3.5 w-3.5" /> bulk re-run all</>
-            )}
-          </button>
-          <button
-            type="button"
-            onClick={() => void loadList()}
-            className="h-9 rounded-full border px-3 text-[12px] inline-flex items-center gap-2"
-            style={{ borderColor: BORDER, color: SUB, fontFamily: MONO }}
-          >
-            <RefreshCw className="h-3.5 w-3.5" /> refresh
-          </button>
         </div>
       </div>
 
@@ -1534,7 +1512,7 @@ interface DetailEditorProps {
   onRestore: (target: "published" | "pending_review") => void | Promise<void>;
   onPublish: () => void | Promise<void>;
   onRegenerateCompanion: () => void | Promise<void>;
-  onRerunPipeline: () => void | Promise<void>;
+  onRerunPipeline: (feedback?: string) => Promise<boolean>;
   onDelete: () => void | Promise<void>;
 }
 
@@ -1691,6 +1669,17 @@ function DetailEditor(props: DetailEditorProps) {
   const isStuck =
     latestJob?.status === "running" &&
     Date.now() - new Date(latestJob.updatedAt).getTime() > 12 * 60 * 1000;
+
+  const [showRerunPanel, setShowRerunPanel] = useState(false);
+  const [rerunFeedback, setRerunFeedback] = useState("");
+
+  // Reset the panel when the editor switches to a different bundle so feedback
+  // typed for one bundle can't leak into another. DetailEditor isn't keyed by
+  // slug, so its local state otherwise persists across row selections.
+  useEffect(() => {
+    setShowRerunPanel(false);
+    setRerunFeedback("");
+  }, [detail.slug]);
 
   return (
     <div className="flex flex-col gap-5">
@@ -1993,11 +1982,11 @@ function DetailEditor(props: DetailEditorProps) {
           {detail.sourceUrl && !detail.sourceUrl.startsWith("upload://") ? (
             <button
               type="button"
-              onClick={() => void props.onRerunPipeline()}
+              onClick={() => setShowRerunPanel((v) => !v)}
               disabled={busy || (showProgress && !isStuck)}
               title={
                 isStuck
-                  ? "Job is stuck — click to replace it with a fresh re-run"
+                  ? "Job is stuck — open the panel to replace it with a fresh re-run"
                   : showProgress
                     ? "A re-run is already in flight for this bundle"
                     : "Re-run the full extraction pipeline (scrape + brand + design.md + companion)"
@@ -2051,6 +2040,80 @@ function DetailEditor(props: DetailEditorProps) {
             </a>
           ) : null}
         </div>
+
+        {showRerunPanel && detail.sourceUrl && !detail.sourceUrl.startsWith("upload://") ? (
+          <div
+            className="rounded-lg border p-3 flex flex-col gap-2.5"
+            style={{ borderColor: `${CYAN}55`, background: SURFACE_2 }}
+          >
+            <div className="flex items-center gap-2">
+              <RotateCw className="h-3.5 w-3.5" style={{ color: CYAN }} />
+              <span
+                className="text-[10.5px] uppercase tracking-[0.22em]"
+                style={{ color: CYAN, fontFamily: MONO }}
+              >
+                re-run pipeline
+              </span>
+            </div>
+            <p className="text-[11.5px] leading-[1.55]" style={{ color: SUB }}>
+              Editor metadata (title, description, license, attribution, featured, curated) is
+              preserved. design.md, companion prompt, palette, accessibility notes, and coverage
+              scores are overwritten with fresh extraction output.
+            </p>
+            <textarea
+              value={rerunFeedback}
+              onChange={(e) => setRerunFeedback(e.target.value)}
+              rows={3}
+              maxLength={2000}
+              placeholder="What was rendered incorrectly? e.g. 'The primary color is wrong — it should be the orange accent, not the off-white.' Leave blank for a standard re-run."
+              className="w-full resize-y rounded-md border px-2.5 py-2 text-[12px] outline-none"
+              style={{ color: INK, background: SURFACE, borderColor: BORDER, fontFamily: MONO }}
+            />
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={async () => {
+                  const ok = await props.onRerunPipeline(rerunFeedback);
+                  if (ok) {
+                    setShowRerunPanel(false);
+                    setRerunFeedback("");
+                  }
+                }}
+                title={
+                  isStuck
+                    ? "Replace the stuck job with a fresh re-run"
+                    : "Start the re-run with this feedback (leave blank for a standard re-run)"
+                }
+                className="h-8 rounded-full px-3.5 text-[12px] font-medium inline-flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{
+                  background: INK,
+                  color: INK_ON_LIGHT,
+                  boxShadow: `0 0 0 1px ${CYAN}55, 0 10px 28px -12px ${CYAN}66`,
+                }}
+              >
+                {actionState === "rerunning-pipeline" ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <RotateCw className="h-3.5 w-3.5" />
+                )}
+                {isStuck ? "Start re-run (replace stuck)" : "Start re-run"}
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => {
+                  setShowRerunPanel(false);
+                  setRerunFeedback("");
+                }}
+                className="h-8 rounded-full px-3.5 text-[12px] inline-flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ background: SURFACE_2, color: SUB, border: `1px solid ${BORDER}` }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );

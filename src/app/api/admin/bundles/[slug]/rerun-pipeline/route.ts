@@ -17,6 +17,7 @@
  */
 import { NextResponse, type NextRequest } from 'next/server';
 import { and, eq, inArray } from 'drizzle-orm';
+import { z } from 'zod';
 import { db } from '@/lib/db/client';
 import { bundles, generationJobs } from '@/lib/db/schema';
 import { requireEditor } from '@/lib/auth/session';
@@ -28,7 +29,9 @@ interface RouteContext {
   params: Promise<{ slug: string }>;
 }
 
-export async function POST(_req: NextRequest, ctx: RouteContext) {
+const Body = z.object({ feedback: z.string().trim().max(2000).optional() });
+
+export async function POST(req: NextRequest, ctx: RouteContext) {
   let editor;
   try {
     editor = await requireEditor();
@@ -38,6 +41,21 @@ export async function POST(_req: NextRequest, ctx: RouteContext) {
   }
 
   const { slug } = await ctx.params;
+
+  // Optional editor feedback ("the colors are wrong"), threaded into the
+  // re-run's Gemini extraction + DESIGN.md authoring. Payload-only — not
+  // persisted. Empty/blank normalizes to undefined so a blank box behaves
+  // exactly like a standard re-run.
+  let feedback: string | undefined;
+  try {
+    const parsedBody = Body.parse(await req.json().catch(() => ({})));
+    feedback = parsedBody.feedback || undefined;
+  } catch (err) {
+    return NextResponse.json(
+      { error: 'Invalid feedback', details: err instanceof Error ? err.message : String(err) },
+      { status: 400 },
+    );
+  }
 
   const [bundle] = await db
     .select({
@@ -123,7 +141,7 @@ export async function POST(_req: NextRequest, ctx: RouteContext) {
   }
 
   try {
-    await enqueueTask('scrape-and-extract', { jobId: job.id });
+    await enqueueTask('scrape-and-extract', { jobId: job.id, feedback });
   } catch (err) {
     return NextResponse.json(
       {

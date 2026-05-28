@@ -165,6 +165,9 @@ interface Input {
   scrapedMarkdown: string;
   /** Optional: derived prohibitions to weave into the Do's and Don'ts section. */
   derivedDonts?: string[];
+  /** On re-runs: free-text editor feedback about what was wrong last time. Folded into the
+   *  prose + token rationale so the write-up reflects the correction. */
+  userFeedback?: string | null;
 }
 
 const MAX_OUTPUT_TOKENS = 16_384;
@@ -338,6 +341,9 @@ async function generateMarkdownBody(input: Input, yaml: string): Promise<string>
     '```',
     input.derivedDonts && input.derivedDonts.length > 0
       ? `\nDerived WCAG-derived donts to fold into Do's and Don'ts (paraphrase, don't drop):\n${input.derivedDonts.map((d) => `- ${d}`).join('\n')}`
+      : '',
+    input.userFeedback
+      ? `\nUSER-REPORTED ISSUE FROM THE PREVIOUS RUN (address this directly in the prose and token rationale):\n${input.userFeedback}`
       : '',
     '',
     'Source page (scraped markdown, truncated):',

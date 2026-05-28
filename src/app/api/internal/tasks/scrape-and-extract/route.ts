@@ -27,6 +27,7 @@ const WATCHDOG_MS = 290_000;
 
 const PayloadSchema = z.object({
   jobId: z.string().uuid(),
+  feedback: z.string().max(2000).optional(),
 });
 
 export async function POST(req: NextRequest) {

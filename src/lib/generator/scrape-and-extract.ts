@@ -40,10 +40,13 @@ const PHASE_2_MARKDOWN_CAP = 40_000;
 
 export interface ScrapeAndExtractPayload {
   jobId: string;
+  /** On re-runs: free-text editor feedback about what was wrong last time. Threaded into
+   *  Gemini extraction and forwarded to the author worker. Ephemeral to this run (payload-only). */
+  feedback?: string;
 }
 
 export async function runScrapeAndExtract(payload: ScrapeAndExtractPayload): Promise<void> {
-  const { jobId } = payload;
+  const { jobId, feedback } = payload;
 
   const [job] = await db
     .select()
@@ -182,6 +185,7 @@ export async function runScrapeAndExtract(payload: ScrapeAndExtractPayload): Pro
         branding: scrape.branding,
         designExtract: scrape.designExtract,
         gapHints,
+        userFeedback: feedback,
       });
     } catch (err) {
       return failJob(jobId, 'extracting', err, job.batchId);
@@ -244,6 +248,7 @@ export async function runScrapeAndExtract(payload: ScrapeAndExtractPayload): Pro
       isRerun: Boolean(job.targetBundleId),
       autoPublish: Boolean(job.autoPublish),
       batchId: job.batchId ?? null,
+      userFeedback: feedback ?? null,
     });
   } catch (err) {
     return failJob(jobId, 'enqueueing-author', err, job.batchId);

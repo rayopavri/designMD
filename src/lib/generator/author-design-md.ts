@@ -43,10 +43,13 @@ export interface AuthorDesignMdPayload {
   autoPublish: boolean;
   /** Batch ID for sequential processing — chains to next queued job on completion/failure. */
   batchId: string | null;
+  /** On re-runs: free-text editor feedback about what was wrong last time. Folded into the
+   *  DESIGN.md prose. Null on first-run / bulk jobs. */
+  userFeedback: string | null;
 }
 
 export async function runAuthorDesignMd(payload: AuthorDesignMdPayload): Promise<void> {
-  const { jobId, bundleId, url, scrapedMarkdown, brand, isRerun, autoPublish, batchId } = payload;
+  const { jobId, bundleId, url, scrapedMarkdown, brand, isRerun, autoPublish, batchId, userFeedback } = payload;
 
   // QStash retry guard — mirrors runScrapeAndExtract. If the prior
   // invocation already committed a terminal status (watchdog cleanup
@@ -72,6 +75,7 @@ export async function runAuthorDesignMd(payload: AuthorDesignMdPayload): Promise
       brand,
       url,
       scrapedMarkdown,
+      userFeedback,
     });
     designMdContent = generated.content;
   } catch (err) {

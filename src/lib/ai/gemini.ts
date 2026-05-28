@@ -542,6 +542,9 @@ GENERAL RULES:
      Trust these over markdown text.
   4. Screenshot — visual inference. Use when the above sources lack a token.
   5. Markdown — lowest priority for design tokens; useful for naming and context only.
+- EXCEPTION: if the user message contains a USER-REPORTED ISSUE, it takes precedence over
+  this trust order for exactly the tokens it names — re-derive those from the screenshot
+  and correct them even if the branding/CSS data suggested otherwise.
 
 TOKEN COVERAGE — STRICT MINIMUMS. The downstream coverage scorer
 grades each section on resolved token counts; falling short of these
@@ -701,6 +704,10 @@ export interface GeminiExtractionInput {
   designExtract?: FirecrawlDesignExtract | null;
   /** On re-runs: per-section instructions focusing Gemini on coverage gaps from the previous run. */
   gapHints?: string;
+  /** On re-runs: free-text editor feedback describing what was wrong last time (e.g. a wrong
+   *  color token). Injected as a top-priority correction that overrides the trust hierarchy
+   *  for exactly the tokens it names. */
+  userFeedback?: string;
 }
 
 export async function extractBrandFromMarkdown(
@@ -760,6 +767,17 @@ export async function extractBrandFromMarkdown(
           'COVERAGE FOCUS — these sections scored below threshold in the previous run.',
           'Pay extra attention to filling gaps here:',
           input.gapHints,
+        ]
+      : []),
+    ...(input.userFeedback
+      ? [
+          '',
+          'USER-REPORTED ISSUE FROM THE PREVIOUS RUN — TOP PRIORITY TO FIX:',
+          input.userFeedback,
+          'Re-examine the screenshot and the computed-style snapshot carefully and correct',
+          'exactly this. For color complaints, re-derive each palette token from the',
+          'screenshot + CSS variables and double-check every hex matches what the live site',
+          'actually renders — do not repeat the previous values uncritically.',
         ]
       : []),
   ]
