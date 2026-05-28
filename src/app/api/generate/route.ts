@@ -138,6 +138,9 @@ async function handleUrl(req: NextRequest, userId: string | null, anonToken: str
   // Existing in-flight job for this user/url? Only applies to signed-in
   // users — anonymous gets a fresh job each time. (Rate limiting will
   // be the abuse gate; we don't try to dedupe by IP here.)
+  // Skip jobs whose updatedAt hasn't moved in 10 min — those are stuck
+  // (worker was SIGKILLed before cleanup) and should not block a fresh run.
+  const STALE_JOB_MS = 10 * 60 * 1000;
   if (userId) {
     try {
       const [inflight] = await db
@@ -151,7 +154,11 @@ async function handleUrl(req: NextRequest, userId: string | null, anonToken: str
           ),
         )
         .limit(1);
-      if (inflight) {
+      const isStale =
+        inflight &&
+        inflight.updatedAt != null &&
+        Date.now() - new Date(inflight.updatedAt).getTime() > STALE_JOB_MS;
+      if (inflight && !isStale) {
         return NextResponse.json(
           { jobId: inflight.id, status: inflight.status, currentStep: inflight.currentStep ?? null },
           { status: 202 },
