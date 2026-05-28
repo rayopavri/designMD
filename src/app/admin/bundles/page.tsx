@@ -1707,21 +1707,31 @@ function DetailEditor(props: DetailEditorProps) {
             <button
               type="button"
               onClick={() => void props.onRerunPipeline()}
-              disabled={busy || showProgress}
+              disabled={busy || (showProgress && !isStuck)}
               title={
-                showProgress
-                  ? "A re-run is already in flight for this bundle"
-                  : "Re-run the full extraction pipeline (scrape + brand + design.md + companion)"
+                isStuck
+                  ? "Job is stuck — click to replace it with a fresh re-run"
+                  : showProgress
+                    ? "A re-run is already in flight for this bundle"
+                    : "Re-run the full extraction pipeline (scrape + brand + design.md + companion)"
               }
               className="h-9 rounded-full px-4 text-[12.5px] inline-flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
-              style={{ background: SURFACE_2, color: INK, border: `1px solid ${CYAN}66` }}
+              style={{
+                background: SURFACE_2,
+                color: INK,
+                border: `1px solid ${isStuck ? PEACH : CYAN}66`,
+              }}
             >
-              {actionState === "rerunning-pipeline" || showProgress ? (
+              {actionState === "rerunning-pipeline" ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : isStuck ? (
+                <RotateCw className="h-3.5 w-3.5" style={{ color: PEACH }} />
+              ) : showProgress ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
               ) : (
                 <RotateCw className="h-3.5 w-3.5" style={{ color: CYAN }} />
               )}
-              {showProgress ? "Re-run in progress…" : "Re-run pipeline"}
+              {isStuck ? "Re-run (replace stuck)" : showProgress ? "Re-run in progress…" : "Re-run pipeline"}
             </button>
           ) : null}
 
