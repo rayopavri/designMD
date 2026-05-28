@@ -16,16 +16,14 @@ import { advanceBatch } from '@/lib/generator/batch';
 // This route makes outbound HTTP calls (Firecrawl, Gemini) and writes
 // to Postgres. It must run on the Node runtime, not edge.
 export const runtime = 'nodejs';
-export const maxDuration = 120;
+export const maxDuration = 300;
 
-// Hard watchdog: any single execution that exceeds 110s gets force-failed
-// before Vercel SIGKILLs the function at 120s. Critical for bulk-upload
-// batches — when a job hangs on Firecrawl (JS-heavy sites can stall the
-// API), the SIGKILL prevents failJob() AND advanceBatch() from running,
-// which strands the row in `running` AND halts the whole batch because
-// no next-job kick fires. The 10s gap to maxDuration leaves room for
-// the cleanup DB writes and the advanceBatch enqueue.
-const WATCHDOG_MS = 110_000;
+// Hard watchdog: mark the job failed before Vercel SIGKILLs the function.
+// Critical for bulk-upload batches — when a job hangs on Firecrawl (JS-heavy
+// sites can stall the API), the SIGKILL prevents failJob() AND advanceBatch()
+// from running, stranding the row in `running` and halting the whole batch.
+// 290s leaves a 10s cleanup window inside the 300s Pro-plan maxDuration.
+const WATCHDOG_MS = 290_000;
 
 const PayloadSchema = z.object({
   jobId: z.string().uuid(),

@@ -207,6 +207,21 @@ export async function runScrapeAndExtract(payload: ScrapeAndExtractPayload): Pro
     return failJob(jobId, 'resolving-orphans', err, job.batchId);
   }
 
+  // ─── 3c. Sparse-extraction guard ─────────────────────
+  // Fail fast if Gemini returned too few tokens to produce a meaningful
+  // DESIGN.md. Without this check, the author step silently writes a
+  // near-empty spec that scores below 40 and stays invisible in the library.
+  if (brand.colors.length < 3 || brand.typography.length < 2) {
+    return failJob(
+      jobId,
+      'extracting',
+      new Error(
+        `Sparse extraction: ${brand.colors.length} color(s), ${brand.typography.length} typography token(s) — insufficient to author a meaningful DESIGN.md`,
+      ),
+      job.batchId,
+    );
+  }
+
   // ─── 4. Persist draft bundle ──────────────────────────
   await setJobStep(jobId, 'persisting');
   let bundleId: string;
@@ -219,8 +234,8 @@ export async function runScrapeAndExtract(payload: ScrapeAndExtractPayload): Pro
   // ─── 5. Hand off to Phase 2 + Phase 3 in parallel ────
   // The companion-prompt worker only needs the brand JSON (not the finished
   // DESIGN.md), so we fire it alongside the author worker rather than
-  // chaining it after Sonnet returns. Both run in separate Vercel functions
-  // to stay under the 60s Hobby cap. QStash payloads cap at 1MB; trim
+  // chaining it after Sonnet returns. Both run in separate Vercel functions,
+  // each with a 300s Pro-plan budget. QStash payloads cap at 1MB; trim
   // markdown again from 80k → 40k to keep the author payload small.
   //
   // Author enqueue is required (no DESIGN.md without it). Companion enqueue

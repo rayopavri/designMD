@@ -1,9 +1,7 @@
 /**
  * Internal worker endpoint for the deferred companion-prompt step.
  *
- * Fires after the main scrape-and-extract worker finishes. Keeps each
- * Vercel function comfortably under the 60s Hobby cap by splitting the
- * pipeline in two.
+ * Fires in parallel with author-design-md (both enqueued by Phase 1).
  *
  * Auth: assertTaskAuth handles both QStash signature (production) and
  * x-internal-task-token (local dev).
@@ -14,7 +12,7 @@ import { assertTaskAuth } from '@/lib/queue';
 import { runGenerateCompanion } from '@/lib/generator/generate-companion-task';
 
 export const runtime = 'nodejs';
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 // Brand is already sanitized by gemini.ts in Phase 1 — we don't re-validate
 // its inner shape here. Same pattern as the author-design-md route.

@@ -15,14 +15,11 @@ import { generationJobs } from '@/lib/db/schema';
 import { advanceBatch } from '@/lib/generator/batch';
 
 export const runtime = 'nodejs';
-export const maxDuration = 60;
+export const maxDuration = 300;
 
-// Hard watchdog: any single execution that exceeds 55s gets force-failed
-// before Vercel SIGKILLs the function at 60s. This is belt-and-suspenders
-// for the in-process Sonnet timeout (50s) — if ANY other operation hangs
-// (DB write, QStash publish, lint), we still mark the job failed instead
-// of stranding the row in `running` forever.
-const WATCHDOG_MS = 55_000;
+// Hard watchdog: mark the job failed before Vercel SIGKILLs the function.
+// 290s leaves a 10s cleanup window inside the 300s Pro-plan maxDuration.
+const WATCHDOG_MS = 290_000;
 
 // We deliberately don't validate brand exhaustively here — Phase 1 already
 // ran it through sanitize() in gemini.ts. Treat the inbound shape as

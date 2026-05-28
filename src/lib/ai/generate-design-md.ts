@@ -361,14 +361,13 @@ async function generateMarkdownBody(input: Input, yaml: string): Promise<string>
  *   2. OpenRouter on Gemini 2.5 Flash (fallback on any error)
  *
  * Time budget is split so a slow primary doesn't starve the fallback:
- * 30s for the direct attempt, 18s for the fallback. Together that's
- * 48s, comfortably inside the 55s worker watchdog and 60s Vercel
- * maxDuration. If the primary succeeds quickly (~8-12s typical), the
- * fallback never fires and the user gets the fast path.
+ * 30s for the direct attempt, 30s for the fallback. Both fit comfortably
+ * inside the 290s worker watchdog. If the primary succeeds quickly
+ * (~8-12s typical), the fallback never fires and the user gets the fast path.
  */
 async function callAuthorModel(userPrompt: string): Promise<string> {
   const PRIMARY_TIMEOUT_MS = 30_000;
-  const FALLBACK_TIMEOUT_MS = 18_000;
+  const FALLBACK_TIMEOUT_MS = 30_000;
 
   // Primary: Gemini direct.
   try {
