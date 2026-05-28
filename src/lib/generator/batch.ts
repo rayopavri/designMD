@@ -12,6 +12,13 @@ import { enqueueTask } from '@/lib/queue';
 
 const BATCH_GAP_SECONDS = 8;
 
+// Retry the QStash publish up to 3 times with exponential backoff (100ms,
+// 200ms). Transient blips are recovered inline in ≤300ms without waiting
+// for the next cron tick. If all attempts fail, the error is rethrown so
+// callers (cron orphan sweep, worker watchdog) can log and the cron retries
+// on the next tick as a last resort.
+const ADVANCE_MAX_ATTEMPTS = 3;
+
 export async function advanceBatch(batchId: string | null | undefined): Promise<void> {
   if (!batchId) return;
 
@@ -29,9 +36,17 @@ export async function advanceBatch(batchId: string | null | undefined): Promise<
 
   if (!next) return; // batch complete
 
-  try {
-    await enqueueTask('scrape-and-extract', { jobId: next.id }, { delaySeconds: BATCH_GAP_SECONDS });
-  } catch (err) {
-    console.error('[batch] failed to enqueue next batch job:', err);
+  let lastErr: unknown;
+  for (let attempt = 0; attempt < ADVANCE_MAX_ATTEMPTS; attempt++) {
+    try {
+      await enqueueTask('scrape-and-extract', { jobId: next.id }, { delaySeconds: BATCH_GAP_SECONDS });
+      return;
+    } catch (err) {
+      lastErr = err;
+      if (attempt < ADVANCE_MAX_ATTEMPTS - 1) {
+        await new Promise<void>((resolve) => setTimeout(resolve, 100 * 2 ** attempt));
+      }
+    }
   }
+  throw lastErr;
 }
