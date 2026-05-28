@@ -39,7 +39,7 @@ const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
  * [ ] checklist of required headings — that visual checklist gives Flash
  * the structural cue it was missing the first time.
  */
-export const OPENROUTER_AUTHOR_MODEL = 'google/gemini-2.5-flash';
+export const OPENROUTER_AUTHOR_MODEL = 'google/gemini-3.1-flash';
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';

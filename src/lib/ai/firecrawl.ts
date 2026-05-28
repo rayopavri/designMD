@@ -174,7 +174,7 @@ export async function scrapeUrlSmart(
   // assume the worst-case per-step wrapper budgets and subtract them
   // from this number — slow primaries cause enrichment to skip rather
   // than risk pushing the worker past the watchdog.
-  const FIRECRAWL_BUDGET_MS = 40_000;
+  const FIRECRAWL_BUDGET_MS = 55_000;
   const start = Date.now();
 
   // Step 1: Full primary scrape (screenshot + html + branding).
@@ -201,7 +201,7 @@ export async function scrapeUrlSmart(
     const mapped = await withClientTimeout(
       () =>
         client().map(url, {
-          limit: 20,
+          limit: 40,
           timeout: 3000,
           ...(opts?.searchQuery ? { search: opts.searchQuery } : {}),
         }),
@@ -244,15 +244,15 @@ export async function scrapeUrlSmart(
   try {
     const batch = await withClientTimeout(
       () =>
-        client().batchScrape(rankedUrls.slice(0, 3), {
+        client().batchScrape(rankedUrls.slice(0, 5), {
           options: {
             formats: ['markdown'],
             onlyMainContent: true,
-            timeout: 8_000,
+            timeout: 10_000,
           },
-          pollInterval: 1000,
+          pollInterval: 500,
         }),
-      14_000,
+      22_000,
       `firecrawl batchScrape(${rankedUrls.length})`,
     );
     if (batch.data?.length) {
@@ -319,7 +319,7 @@ export async function scrapeUrl(url: string): Promise<ScrapeResult> {
     return await scrapeUrlOnce(url, {
       formats: primaryFormats,
       waitFor: 800,
-      timeout: 22_000,
+      timeout: 25_000,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
