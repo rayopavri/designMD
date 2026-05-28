@@ -270,6 +270,9 @@ export default function AdminBundlesPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [form, setForm] = useState<EditFormState | null>(null);
 
+  // Per-row active-job indicator: set of slugs currently queued/running.
+  const [activeJobSlugs, setActiveJobSlugs] = useState<Set<string>>(new Set());
+
   // Bulk re-run persistent state. `bulkRerunSince` (ISO timestamp) is stored in
   // localStorage so the button stays disabled across page reloads while jobs are
   // still in flight. Polling clears it once queued + running reach zero.
@@ -457,6 +460,29 @@ export default function AdminBundlesPage() {
       window.clearInterval(handle);
     };
   }, [bulkRerunSince]);
+
+  // Poll active-jobs every 8 s so per-row indicators stay current.
+  useEffect(() => {
+    let cancelled = false;
+
+    const poll = async () => {
+      try {
+        const res = await fetch('/api/admin/bundles/active-jobs');
+        if (!res.ok || cancelled) return;
+        const body = (await res.json()) as { slugs: string[] };
+        if (!cancelled) setActiveJobSlugs(new Set(body.slugs ?? []));
+      } catch {
+        // ignore — stale indicators are better than crashing
+      }
+    };
+
+    void poll();
+    const handle = window.setInterval(() => void poll(), 8_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(handle);
+    };
+  }, []);
 
   const loadDetail = useCallback(async (slug: string, silent = false) => {
     if (!silent) {
@@ -1153,6 +1179,7 @@ export default function AdminBundlesPage() {
               <ul className="flex flex-col gap-1">
                 {rows.map((row) => {
                   const isActive = row.slug === selectedSlug;
+                  const hasActiveJob = activeJobSlugs.has(row.slug);
                   return (
                     <li key={row.id}>
                       <button
@@ -1165,6 +1192,14 @@ export default function AdminBundlesPage() {
                         }}
                       >
                         <div className="flex items-center gap-2">
+                          {/* Active pipeline indicator */}
+                          {hasActiveJob ? (
+                            <span
+                              className="h-1.5 w-1.5 rounded-full animate-pulse shrink-0"
+                              style={{ background: CYAN }}
+                              title="Pipeline re-run in progress"
+                            />
+                          ) : null}
                           <span
                             className="text-[13px] truncate flex-1"
                             style={{ color: INK, fontWeight: isActive ? 600 : 400 }}
@@ -1192,9 +1227,18 @@ export default function AdminBundlesPage() {
                               {row.coverageScore}
                             </span>
                           ) : null}
-                          <span className="text-[10px] truncate" style={{ color: MUTED, fontFamily: MONO }}>
-                            {row.sourceDomain ?? "—"}
-                          </span>
+                          {hasActiveJob ? (
+                            <span
+                              className="text-[9.5px] uppercase tracking-[0.18em]"
+                              style={{ color: CYAN, fontFamily: MONO }}
+                            >
+                              running
+                            </span>
+                          ) : (
+                            <span className="text-[10px] truncate" style={{ color: MUTED, fontFamily: MONO }}>
+                              {row.sourceDomain ?? "—"}
+                            </span>
+                          )}
                         </div>
                         <div className="mt-1.5 flex gap-1">
                           {row.paletteColors?.slice(0, 6).map((c, i) => (
