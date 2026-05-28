@@ -1,11 +1,12 @@
 /**
- * Cron endpoint — does two cheap jobs on each tick:
+ * Cron endpoint — three jobs per tick:
  *   1. SELECT 1 to keep Neon out of its 5-min idle autosuspend.
- *   2. Mark generation jobs that have been `running` for > 5 minutes as
- *      `failed`. The Vercel Hobby plan caps function runtime at 60s, so
- *      any job stuck in `running` for far longer means the worker was
- *      killed mid-pipeline and there's nobody left to update the row.
- *      Without this sweep the /generate UI polls forever.
+ *   2. Expire stuck `running` jobs (worker SIGKILL'd without cleanup) and
+ *      advance the next queued sibling in any affected batch.
+ *   3. Repair orphaned batch queues — batches that still have queued jobs
+ *      but no running job and no recent activity. Catches the edge case
+ *      where step 2's advanceBatch threw (QStash blip) so the running row
+ *      was marked failed but the chain never advanced.
  *
  * Triggered by GitHub Actions (Vercel Hobby crons are once-per-day now).
  * Auth: optional Bearer via CRON_SECRET env var.
@@ -93,12 +94,46 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // 3. Repair orphaned batch queues. A batch is orphaned when it has queued
+    //    jobs, no running job, and no activity for STUCK_JOB_AGE_MS. This
+    //    happens when step 2's advanceBatch call throws: the expired running
+    //    row gets marked failed but the chain never advances, and because
+    //    queued+batchId rows are excluded from the expiry sweep above they
+    //    sit idle forever. The same 2-min guard avoids false-triggering
+    //    during the normal 8s QStash delivery window between advanceBatch
+    //    and the next worker starting.
+    const orphanRows = (await db.execute(
+      sql`
+        SELECT batch_id
+        FROM generation_jobs
+        WHERE batch_id IS NOT NULL
+        GROUP BY batch_id
+        HAVING
+          COUNT(*) FILTER (WHERE status = 'queued') > 0
+          AND COUNT(*) FILTER (WHERE status = 'running') = 0
+          AND MAX(updated_at) < ${cutoff}
+      `,
+    )) as Array<{ batch_id: string }>;
+
+    let repairedBatches = 0;
+    for (const { batch_id } of orphanRows) {
+      if (advancedBatches.has(batch_id)) continue;
+      advancedBatches.add(batch_id);
+      repairedBatches++;
+      try {
+        await advanceBatch(batch_id);
+      } catch (advErr) {
+        console.error('[cron:warm-db] orphan repair advanceBatch failed for batch', batch_id, advErr);
+      }
+    }
+
     const elapsedMs = Date.now() - startedAt;
     return NextResponse.json({
       ok: true,
       ping: row?.ping ?? null,
       expiredJobs: expired.length,
       advancedBatches: advancedBatches.size,
+      repairedBatches,
       elapsedMs,
     });
   } catch (err) {
