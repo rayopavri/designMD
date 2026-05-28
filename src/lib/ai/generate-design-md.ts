@@ -95,11 +95,12 @@ elevationNotes states the values were inferred, note that briefly.>
 
 ## Do's and Don'ts
 
-<A 2-column table with at least 8 data rows. Be specific — concrete, measurable rules
-score better than abstract style preferences. Draw from the dos/donts arrays in the brand
-context AND synthesise additional rules from the token values, component patterns, and
-brand tone. Cover token usage, layout decisions, typography choices, component variants,
-and brand voice.>
+<A 2-column table with at least 8 data rows. Every row MUST reference at least one
+specific token name from the YAML (e.g. \`{colors.primary}\`, \`elevation.md\`,
+\`rounded.full\`, \`typography.body-sm\`). Do not write abstract rules without a token
+anchor — they add no value to a codegen agent. Draw from the dos/donts arrays in the
+brand context and synthesise further rows from token relationships, component states,
+and spacing patterns visible in the YAML.>
 
 | Do | Don't |
 | --- | --- |
@@ -166,7 +167,7 @@ interface Input {
   derivedDonts?: string[];
 }
 
-const MAX_OUTPUT_TOKENS = 8192;
+const MAX_OUTPUT_TOKENS = 16_384;
 
 export interface GeneratedDesignMd {
   /** The full file: YAML front-matter + markdown body. */

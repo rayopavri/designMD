@@ -517,7 +517,11 @@ Prose sections — be terse, factual, designer-focused. No marketing copy.
 - layoutNotes: 1-2 short paragraphs OR bullets on grid + spacing strategy.
 - elevationNotes: 1-2 paragraphs on how depth is conveyed.
 - shapesNotes: 1-2 paragraphs on radius philosophy and component shape.
-- dos / donts: 6-8 entries each. Specific, actionable. Avoid duplicates and vague rules.
+- dos / donts: 6-8 entries each. EVERY entry MUST reference a specific token name or
+  component name you extracted (e.g. "Use {colors.primary} for all primary CTAs",
+  "Never apply {typography.body-md} on {colors.surface-dim} without a divider").
+  Generic rules without a token anchor ("maintain consistent spacing", "avoid mixing
+  weights") are worthless — if you cannot tie a rule to a named token, omit it.
 
 GENERAL RULES:
 - Be conservative. Don't invent tokens. Trust the provided data sources in this order:
