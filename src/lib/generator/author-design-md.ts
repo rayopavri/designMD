@@ -21,7 +21,7 @@ import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db/client';
 import { bundles, generationJobs } from '@/lib/db/schema';
 import type { ExtractedBrand } from '@/lib/ai/gemini';
-import { generateDesignMd } from '@/lib/ai/generate-design-md';
+import { generateDesignMd, appendWcagRows } from '@/lib/ai/generate-design-md';
 import { advanceBatch } from '@/lib/generator/batch';
 import { scoreFromLint } from '@/lib/generator/coverage';
 import {
@@ -98,6 +98,26 @@ export async function runAuthorDesignMd(payload: AuthorDesignMdPayload): Promise
     lintSummary = await lintDesignMd(designMdContent);
   } catch (err) {
     return failJob(jobId, 'linting', err, batchId);
+  }
+
+  // Splice WCAG-derived don'ts back into the Do's and Don'ts table.
+  // These are only knowable AFTER the linter runs on the generated content
+  // (they come from contrast-ratio checks against the extracted colour tokens),
+  // so they can't be fed to the author model upfront. We append them
+  // programmatically with a ⚠️ WCAG prefix so they're clearly distinguished
+  // from the AI-inferred rows.
+  if (lintSummary.derivedDonts.length > 0) {
+    designMdContent = appendWcagRows(designMdContent, lintSummary.derivedDonts);
+    // Persist the updated content (WCAG rows appended).
+    try {
+      await db
+        .update(bundles)
+        .set({ designMd: designMdContent, updatedAt: new Date() })
+        .where(eq(bundles.id, bundleId));
+    } catch (err) {
+      // Non-fatal: coverage scoring can proceed with the in-memory copy.
+      console.warn('[author-design-md] failed to persist WCAG-appended design.md:', err instanceof Error ? err.message : err);
+    }
   }
 
   await setJobStep(jobId, 'scoring', { lintDoneAt: new Date() });

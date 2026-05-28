@@ -363,6 +363,49 @@ async function generateMarkdownBody(input: Input, yaml: string): Promise<string>
     .trim();
 }
 
+/**
+ * Append WCAG-derived "don't" rows to the Do's and Don'ts table.
+ *
+ * These are produced by the @google/design.md linter AFTER the markdown body
+ * is generated, so they cannot be passed to the author model. Instead we
+ * splice them in programmatically with a ⚠️ WCAG prefix so they are clearly
+ * distinguished from the AI-inferred rows.
+ *
+ * Each derivedDont looks like:
+ *   "Avoid the combination at button-primary: white on #FF0000 fails WCAG AA"
+ *
+ * Resulting row appended to the table:
+ *   | ⚠️ WCAG: `button-primary` — white on #FF0000 fails WCAG AA | Verify all text-on-colour pairs with a contrast checker before shipping |
+ */
+export function appendWcagRows(markdown: string, derivedDonts: string[]): string {
+  if (derivedDonts.length === 0) return markdown;
+
+  // Find the Do's and Don'ts section and locate the last table row in it.
+  // The section ends at the next ## heading or end-of-string.
+  const sectionRe = /(^##\s+Do[''’]s and Don[''’]ts[^\n]*\n[\s\S]*?)(?=\n##\s+|$)/mi;
+  const match = markdown.match(sectionRe);
+  if (!match || match.index === undefined) return markdown;
+
+  const sectionStart = match.index;
+  const section = match[1];
+
+  // Find the index of the last `| … |` row within the section.
+  const tableRows = [...section.matchAll(/^\|[^\n]+\|\s*$/gm)];
+  if (tableRows.length === 0) return markdown;
+
+  const lastRow = tableRows[tableRows.length - 1];
+  const insertOffset = sectionStart + lastRow.index! + lastRow[0].length;
+
+  const newRows = derivedDonts
+    .map((dont) => {
+      const safe = dont.replace(/\|/g, '\\|');
+      return `\n| ⚠️ WCAG: ${safe} | Verify this colour combination with a contrast checker before shipping |`;
+    })
+    .join('');
+
+  return markdown.slice(0, insertOffset) + newRows + markdown.slice(insertOffset);
+}
+
 const REQUIRED_HEADINGS = [
   '## Overview',
   '## Colors',

@@ -268,6 +268,14 @@ export default function AdminBundlesPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [form, setForm] = useState<EditFormState | null>(null);
 
+  // Bulk re-run state (header button — re-runs all bundles with a source URL).
+  const [bulkRerunState, setBulkRerunState] = useState<"idle" | "running" | "done">("idle");
+  const [bulkRerunResult, setBulkRerunResult] = useState<{
+    enqueued: number;
+    remaining: number;
+    etaSeconds: number;
+  } | null>(null);
+
   // Live progress for the Re-run pipeline button. `rerunStep` is the raw
   // `currentStep` polled from /api/generate/[jobId]; `rerunStatus` mirrors
   // job.status so we know when to stop the polling loops.
@@ -705,6 +713,46 @@ export default function AdminBundlesPage() {
     }
   };
 
+  const onBulkRerun = async () => {
+    const confirmed = window.confirm(
+      "Re-run the full pipeline for ALL bundles that have a source URL?\n\n" +
+        "Up to 50 will be enqueued per call, staggered 20s apart. " +
+        "Already-in-flight bundles are skipped automatically. " +
+        "Call again if remaining > 0.",
+    );
+    if (!confirmed) return;
+    setBulkRerunState("running");
+    setBulkRerunResult(null);
+    try {
+      const res = await fetch("/api/admin/bundles/bulk-rerun", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ all: true }),
+      });
+      const body = (await res.json()) as {
+        ok?: boolean;
+        enqueued?: number;
+        remaining?: number;
+        etaSeconds?: number;
+        error?: string;
+      };
+      if (!res.ok) {
+        alert(body.error || `Bulk re-run failed (${res.status})`);
+        setBulkRerunState("idle");
+        return;
+      }
+      setBulkRerunResult({
+        enqueued: body.enqueued ?? 0,
+        remaining: body.remaining ?? 0,
+        etaSeconds: body.etaSeconds ?? 0,
+      });
+      setBulkRerunState("done");
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Network error");
+      setBulkRerunState("idle");
+    }
+  };
+
   const onRerunPipeline = async () => {
     if (!detail) return;
     const confirmed = window.confirm(
@@ -812,7 +860,34 @@ export default function AdminBundlesPage() {
             All bundles across every status. Edit metadata, archive, restore, or jump to the reviewer queue for pending items.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Bulk re-run result badge */}
+          {bulkRerunState === "done" && bulkRerunResult && (
+            <span
+              className="h-9 rounded-full border px-3 text-[11px] inline-flex items-center gap-1.5"
+              style={{ borderColor: BORDER, color: LIME, fontFamily: MONO }}
+            >
+              <Check className="h-3 w-3" />
+              {bulkRerunResult.enqueued} enqueued
+              {bulkRerunResult.remaining > 0 && (
+                <span style={{ color: PEACH }}>· {bulkRerunResult.remaining} remaining</span>
+              )}
+              · ~{Math.ceil(bulkRerunResult.etaSeconds / 60)}m ETA
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => void onBulkRerun()}
+            disabled={bulkRerunState === "running"}
+            className="h-9 rounded-full border px-3 text-[12px] inline-flex items-center gap-2 disabled:opacity-50"
+            style={{ borderColor: BORDER, color: bulkRerunState === "running" ? CYAN : VIOLET, fontFamily: MONO }}
+          >
+            {bulkRerunState === "running" ? (
+              <><Loader2 className="h-3.5 w-3.5 animate-spin" /> running…</>
+            ) : (
+              <><RotateCw className="h-3.5 w-3.5" /> bulk re-run all</>
+            )}
+          </button>
           <button
             type="button"
             onClick={() => void loadList()}
