@@ -38,6 +38,8 @@ export interface FirecrawlDesignExtract {
   typography?: Array<{ level: string; fontFamily?: string; fontSize?: string; fontWeight?: number }>;
   spacing?: Array<{ name: string; value: string }>;
   rounded?: Array<{ name: string; value: string }>;
+  shadows?: Array<{ name: string; value: string; elevation?: number }>;
+  animations?: Array<{ name: string; value: string }>;
 }
 
 let _client: Firecrawl | null = null;
@@ -288,7 +290,9 @@ const EXTRACT_PROMPT =
   '(1) colors — all brand colors with hex codes (#RRGGBB) and their semantic role (primary, secondary, surface, on-surface, outline, error, etc.); ' +
   '(2) typography — each visible type level with font family, font size in px or rem, and font weight; ' +
   '(3) spacing — spacing scale values with names (xs/sm/md/lg/xl or specific roles like gutter, container-padding); ' +
-  '(4) rounded — border-radius values with scale names (sm/md/lg/full). ' +
+  '(4) rounded — border-radius values with scale names (sm/md/lg/full); ' +
+  '(5) shadows — box-shadow values with semantic names (sm/md/lg/xl or card/dialog/tooltip/overlay) and the full CSS box-shadow string for each; ' +
+  '(6) animations — CSS transition and animation values: duration values in ms and easing functions (cubic-bezier or keyword), each with a name (duration-short, duration-medium, easing-standard, etc.). ' +
   'Prioritize values observable in CSS variables and computed styles over visual guesses.';
 
 export async function scrapeUrl(url: string): Promise<ScrapeResult> {

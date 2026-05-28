@@ -173,6 +173,14 @@ export interface ExtractedMotion {
   confidence?: ExtractionConfidence;
 }
 
+export interface ExtractedElevation {
+  /** Token name (kebab-case): sm, md, lg, xl, overlay — or semantic roles (card, dialog, tooltip). */
+  name: string;
+  /** Full CSS box-shadow value, e.g. "0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)" */
+  value: string;
+  confidence?: ExtractionConfidence;
+}
+
 /** Voice & content patterns observed on the page. Drives the ## Content Style section. */
 export interface ExtractedVoiceAndContent {
   /** CTA wording pattern. Example: "Imperative verbs; sentence case; no exclamation." */
@@ -234,6 +242,8 @@ export interface ExtractedBrand {
   components: ExtractedComponent[];
   /** Motion / animation tokens (duration, easing). Optional — omit if unobservable. */
   motion?: ExtractedMotion[];
+  /** Shadow / elevation tokens. Always present — minimum sm/md/lg (inferred if not observed). */
+  elevation: ExtractedElevation[];
   /** Prose for the ## Layout section. */
   layoutNotes: string;
   /** Prose for the ## Elevation & Depth section. */
@@ -326,6 +336,16 @@ const motionItemSchema: Schema = {
   required: ['name', 'value'],
 };
 
+const elevationItemSchema: Schema = {
+  type: Type.OBJECT,
+  properties: {
+    name: { type: Type.STRING },
+    value: { type: Type.STRING },
+    confidence: confidenceFieldSchema,
+  },
+  required: ['name', 'value'],
+};
+
 const voiceAndContentSchema: Schema = {
   type: Type.OBJECT,
   properties: {
@@ -378,6 +398,7 @@ const EXTRACTION_SCHEMA: Schema = {
     spacing: { type: Type.ARRAY, items: scaleItemSchema },
     components: { type: Type.ARRAY, items: componentItemSchema },
     motion: { type: Type.ARRAY, items: motionItemSchema, nullable: true },
+    elevation: { type: Type.ARRAY, items: elevationItemSchema },
     layoutNotes: { type: Type.STRING },
     elevationNotes: { type: Type.STRING },
     shapesNotes: { type: Type.STRING },
@@ -413,6 +434,7 @@ const EXTRACTION_SCHEMA: Schema = {
     'rounded',
     'spacing',
     'components',
+    'elevation',
     'layoutNotes',
     'elevationNotes',
     'shapesNotes',
@@ -476,7 +498,19 @@ Motion (optional — only if observable from CSS transitions or animation values
   easing-standard, easing-decelerate, easing-accelerate.
 - duration values: dimension strings ("100ms", "200ms", "300ms").
 - easing values: cubic-bezier string or CSS keyword ("ease-in-out", "cubic-bezier(0.4,0,0.2,1)").
+- When Firecrawl branding data provides animations.transitionDuration or animations.easing,
+  use those values directly as the basis for duration-medium and easing-standard.
+- When designExtract.animations provides named values, use them to fill the full scale.
 - If no transitions are observable, omit motion entirely (return null or empty array).
+
+Elevation (REQUIRED — always provide at least sm, md, lg):
+- Token names (kebab-case): sm, md, lg, xl, overlay — or semantic roles (card, dialog, tooltip).
+- value: full CSS box-shadow string, e.g. "0 1px 3px rgba(0,0,0,0.12)" or
+  "0 4px 6px -1px rgb(0,0,0,0.1), 0 2px 4px -1px rgb(0,0,0,0.06)".
+- When designExtract.shadows provides values, use them directly — they are CSS-extracted.
+- Order tokens from lowest to highest elevation (sm → overlay).
+- If no shadow values are directly observable, synthesize an inferred scale matching the
+  brand's visual weight (see STRICT MINIMUMS below) and mark confidence "inferred".
 
 Prose sections — be terse, factual, designer-focused. No marketing copy.
 - overview: 2-3 sentences on visual vibe, brand tone, emotional response.
@@ -489,11 +523,21 @@ GENERAL RULES:
 - Be conservative. Don't invent tokens. Trust the provided data sources in this order:
   1. Firecrawl branding data (when present) — CSS-parsed by a live browser renderer.
      Prefer its colorScheme, font families, font sizes, borderRadius, and primary colors
-     over any other source.
-  2. Computed-style snapshot — ACTUAL CSS variables and dominant hexes from the HTML.
+     over any other source. Additionally map these sub-fields directly:
+     - branding.animations.transitionDuration / .easing → motion duration-medium / easing-standard
+     - branding.animations (any fields) → motion tokens
+     - branding.icons.style → imageryStyle.notes icon shape language (e.g. "stroke", "filled", "rounded")
+     - branding.layout.grid.columns / .maxWidth → layoutNotes grid description
+     - branding.layout.headerHeight / .footerHeight → layoutNotes
+     - branding.tone.voice / branding.tone.emojiUsage → voiceAndContent hints
+     - branding.personality.tone / .energy → brandTone adjectives and overview mood
+     - branding.personality.targetAudience → overview context sentence
+  2. Firecrawl designExtract (when present) — LLM-extracted CSS values.
+     Use designExtract.shadows for elevation tokens, designExtract.animations for motion.
+  3. Computed-style snapshot — ACTUAL CSS variables and dominant hexes from the HTML.
      Trust these over markdown text.
-  3. Screenshot — visual inference. Use when the above sources lack a token.
-  4. Markdown — lowest priority for design tokens; useful for naming and context only.
+  4. Screenshot — visual inference. Use when the above sources lack a token.
+  5. Markdown — lowest priority for design tokens; useful for naming and context only.
 
 TOKEN COVERAGE — STRICT MINIMUMS. The downstream coverage scorer
 grades each section on resolved token counts; falling short of these
@@ -547,6 +591,16 @@ Components — MINIMUM 12 entries. Baseline always included:
   divider
   Add semantic variants (badge-error, badge-success) and surface
   variants (card-container, card-bright) when their colors exist.
+
+Elevation — MINIMUM 3 entries (sm, md, lg). This section is REQUIRED — never omit it.
+  If box-shadow values are observable in CSS variables, the computed-style snapshot, or
+  designExtract.shadows, use those values directly and mark confidence "observed".
+  If no shadow values are observable, synthesize a typical scale for the brand's style
+  and mark all entries confidence "inferred":
+    - Flat/minimal brands:  sm="0 1px 2px rgba(0,0,0,0.06)", md="0 2px 4px rgba(0,0,0,0.08)", lg="0 4px 8px rgba(0,0,0,0.10)"
+    - Standard brands:      sm="0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08)", md="0 4px 6px rgba(0,0,0,0.10)", lg="0 10px 15px rgba(0,0,0,0.12)"
+    - Bold/dark brands:     sm="0 2px 4px rgba(0,0,0,0.30)", md="0 6px 12px rgba(0,0,0,0.35)", lg="0 12px 24px rgba(0,0,0,0.40)"
+  State in elevationNotes whether the values are observed or inferred.
 
 Motion — optional. If CSS transitions are observable, include 3+
   entries: duration-short, duration-medium, easing-standard.
@@ -1044,6 +1098,11 @@ function sanitize(parsed: ExtractedBrand): ExtractedBrand {
       .slice(0, 12);
     if (parsed.motion.length === 0) delete parsed.motion;
   }
+  // Elevation — now required; always normalise, never delete.
+  parsed.elevation = (parsed.elevation ?? [])
+    .filter((e) => e.name && e.value)
+    .map((e) => normaliseConfidence({ ...e, name: kebab(e.name) }))
+    .slice(0, 8);
   // Lists.
   parsed.dos = (parsed.dos ?? []).slice(0, 10);
   parsed.donts = (parsed.donts ?? []).slice(0, 10);

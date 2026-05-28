@@ -29,6 +29,7 @@ import {
   type ExtractedColor,
   type ExtractedTypography,
   type ExtractedMotion,
+  type ExtractedElevation,
 } from './gemini';
 
 const SYSTEM_PROMPT = `You write the markdown body of canonical Google DESIGN.md files.
@@ -82,27 +83,33 @@ paragraph total or 5-7 bullets max.>
 
 ## Elevation & Depth
 
-<1-2 paragraphs on how depth is achieved — shadows, color contrast, borders, blur, etc.>
+<The elevation YAML key is always present (at minimum sm/md/lg). Open with one sentence
+naming the shadow weight — e.g. "Subtle single-layer shadows across three levels." Then
+list each token's use case: "elevation.sm — card lift; elevation.md — dropdown/popover;
+elevation.lg — modal/drawer overlay." Reference token names, not raw CSS values. If
+elevationNotes states the values were inferred, note that briefly.>
 
 ## Shapes
 
 <1-2 paragraphs on radius philosophy. Reference the rounded scale.>
 
-## Components
-
-<For each major component listed in the YAML, 2-3 sentences on its anatomy, states, and
-"use when" rule. Use ### subheadings for each component.>
-
 ## Do's and Don'ts
 
 <A 2-column table with at least 8 data rows. Be specific — concrete, measurable rules
-score better than abstract style preferences. Cover token usage, layout decisions,
-typography choices, component variants, and brand voice.>
+score better than abstract style preferences. Draw from the dos/donts arrays in the brand
+context AND synthesise additional rules from the token values, component patterns, and
+brand tone. Cover token usage, layout decisions, typography choices, component variants,
+and brand voice.>
 
 | Do | Don't |
 | --- | --- |
 | <specific rule> | <opposite> |
 | ... | ... |
+
+## Components
+
+<For each major component listed in the YAML, 2-3 sentences on its anatomy, states, and
+"use when" rule. Use ### subheadings for each component.>
 
 ## Content Style
 
@@ -126,17 +133,13 @@ RULES:
 - Reference token names (e.g. \`{colors.primary}\` or "primary") rather than restating hex
   values whenever possible — the YAML is the source of truth.
 - The reader is an LLM; write like you'd write to a junior dev.
-- If a section has nothing to say (e.g. brand has no shadows), keep it short and explicit:
-  "This brand uses flat surfaces; depth is conveyed through color contrast and borders."
 - Section order is fixed: Overview → Colors → Typography → Layout → Elevation & Depth →
-  Shapes → Components → Do's and Don'ts → Content Style → Imagery & Icons.
+  Shapes → Do's and Don'ts → Components → Content Style → Imagery & Icons.
 - DO NOT output YAML or --- delimiters. Just the markdown body.
 
 BEFORE YOU FINISH, verify your output contains ALL EIGHT of these headings,
 in this exact form and order. NEVER omit any of them. Even if the brand
-gives you weak signal for a section, write at least 1-2 factual sentences
-explaining the absence (e.g. "This brand uses flat surfaces — no observed
-elevation system; depth is conveyed through color and borders.").
+gives you weak signal for a section, write at least 1-2 factual sentences.
 
 REQUIRED HEADINGS CHECKLIST:
   [ ] ## Overview
@@ -145,8 +148,8 @@ REQUIRED HEADINGS CHECKLIST:
   [ ] ## Layout
   [ ] ## Elevation & Depth
   [ ] ## Shapes
-  [ ] ## Components
   [ ] ## Do's and Don'ts
+  [ ] ## Components
 
 If voiceAndContent or imageryStyle are provided in the brand context, ALSO include:
   [ ] ## Content Style
@@ -163,7 +166,7 @@ interface Input {
   derivedDonts?: string[];
 }
 
-const MAX_OUTPUT_TOKENS = 6144;
+const MAX_OUTPUT_TOKENS = 8192;
 
 export interface GeneratedDesignMd {
   /** The full file: YAML front-matter + markdown body. */
@@ -243,6 +246,10 @@ function buildYamlFrontMatter(brand: ExtractedBrand): string {
     obj.motion = mapFromList(brand.motion, (m: ExtractedMotion) => [m.name, m.value]);
   }
 
+  if (brand.elevation && brand.elevation.length > 0) {
+    obj.elevation = mapFromList(brand.elevation, (e: ExtractedElevation) => [e.name, e.value]);
+  }
+
   // YAML dump with consistent quoting (hex strings need quotes per spec).
   return yamlDump(obj, {
     quotingType: '"',
@@ -306,6 +313,7 @@ async function generateMarkdownBody(input: Input, yaml: string): Promise<string>
         confidence: t.confidence,
       })),
       componentNames: brand.components.map((c) => c.name),
+      elevation: brand.elevation ?? null,
       voiceAndContent: brand.voiceAndContent ?? null,
       imageryStyle: brand.imageryStyle ?? null,
       pagePatterns: brand.pagePatterns ?? null,
@@ -354,6 +362,26 @@ async function generateMarkdownBody(input: Input, yaml: string): Promise<string>
     .trim();
 }
 
+const REQUIRED_HEADINGS = [
+  '## Overview',
+  '## Colors',
+  '## Typography',
+  '## Layout',
+  '## Elevation & Depth',
+  '## Shapes',
+  "## Do's and Don'ts",
+  '## Components',
+] as const;
+
+function logMissingHeadings(provider: string, text: string): void {
+  const missing = REQUIRED_HEADINGS.filter((h) => !text.includes(h));
+  if (missing.length > 0) {
+    console.warn(
+      `[generate-design-md] ${provider} output missing required headings: ${missing.join(', ')}`,
+    );
+  }
+}
+
 /**
  * Author-model call with provider fallback chain:
  *
@@ -379,10 +407,11 @@ async function callAuthorModel(userPrompt: string): Promise<string> {
       temperature: 0.4,
     });
     console.log(
-      `[generate-design-md] primary=gemini-direct ${res.modelUsed} ${res.latencyMs}ms`,
+      `[generate-design-md] primary=gemini-direct ${res.modelUsed} ${res.latencyMs}ms chars=${res.content.length}`,
     );
     const text = res.content.trim();
     if (!text) throw new Error('Gemini direct returned empty markdown body');
+    logMissingHeadings('primary', text);
     return text;
   } catch (primaryErr) {
     const msg = primaryErr instanceof Error ? primaryErr.message : String(primaryErr);
@@ -409,5 +438,6 @@ async function callAuthorModel(userPrompt: string): Promise<string> {
   }
   const text = res.content.trim();
   if (!text) throw new Error('OpenRouter fallback returned empty markdown body');
+  logMissingHeadings('fallback', text);
   return text;
 }
