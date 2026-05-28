@@ -15,7 +15,8 @@ export const runtime = 'nodejs';
 
 // A running job whose updatedAt hasn't changed in 10 minutes is permanently
 // stuck (worker SIGKILLed before cleanup). Surface it as failed so the UI
-// shows the real state and the "unstick" button doesn't need to be clicked.
+// shows the real state. Queued jobs are excluded — they may be legitimately
+// waiting their turn in a sequential batch and should not be falsely failed.
 const STALE_JOB_MS = 10 * 60 * 1000;
 
 export async function GET(req: NextRequest) {
@@ -53,7 +54,7 @@ export async function GET(req: NextRequest) {
   const now = Date.now();
   const resolvedJobs = jobs.map((j) => {
     const isStuck =
-      (j.status === 'running' || j.status === 'queued') &&
+      j.status === 'running' &&
       j.updatedAt != null &&
       now - new Date(j.updatedAt).getTime() > STALE_JOB_MS;
     if (!isStuck) return j;
