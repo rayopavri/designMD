@@ -1,18 +1,22 @@
 /**
  * Bulk-upload supervisor cron.
  *
- * Runs every minute (see vercel.json). It reconciles batch state from the DB,
- * which is the single source of truth:
+ * Triggered every 5 minutes by the supervise-batches GitHub Actions workflow
+ * (the Hobby plan caps Vercel crons at once/day; the vercel.json entry is a
+ * once-daily backstop and becomes an every-minute tick on Pro). It reconciles
+ * batch state from the DB, which is the single source of truth:
  *   1. reapStale()     — resume or fail jobs that stopped making progress.
  *   2. dispatchReady() — start queued jobs up to the global concurrency cap.
  *
  * This is the backstop that makes the pipeline self-healing: any job orphaned
  * by a dropped queue message or a killed function is picked back up here,
- * without depending on workers chaining to one another.
+ * without depending on workers chaining to one another. The happy path still
+ * dispatches inline (each worker refills a slot on completion), so a 5-min
+ * cadence is enough — it only has to catch what slipped through.
  *
- * Auth: Vercel Cron sends `Authorization: Bearer <CRON_SECRET>` when the
- * CRON_SECRET env var is set. In local dev (no CRON_SECRET) we fall back to the
- * internal task token so the tick can be triggered by hand.
+ * Auth: requires `Authorization: Bearer <CRON_SECRET>` when CRON_SECRET is set
+ * (the production path — GitHub Actions sends it). In local dev (no CRON_SECRET)
+ * we fall back to the internal task token so the tick can be triggered by hand.
  */
 import { NextResponse, type NextRequest } from 'next/server';
 import { env } from '@/lib/env';

@@ -1,0 +1,38 @@
+name: supervise-batches
+# Hits /api/cron/supervise-batches every 5 minutes. This is the bulk-upload
+# supervisor: it reaps stalled jobs and refills concurrency slots from the
+# queue, making the pipeline self-healing after a dropped QStash message or a
+# killed worker. The happy path dispatches inline (each worker refills on
+# completion); this cron is the backstop that recovers orphaned batches.
+#
+# Why GitHub Actions and not a Vercel cron: the Hobby plan caps cron jobs at
+# once per day, same constraint that moved warm-db here. GitHub Actions has a
+# 5-min schedule floor — fine, since LEASE_MS is 6 min and inline dispatch
+# covers the happy path. The vercel.json entry stays as a once-daily backstop
+# (and becomes an every-minute tick automatically if the project moves to Pro).
+#
+# Auth: the endpoint REQUIRES a credential (it 401s otherwise), unlike warm-db.
+# Set CRON_SECRET on Vercel AND add it as a GitHub Actions secret named
+# CRON_SECRET so this workflow can authenticate.
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch: {}
+
+jobs:
+  supervise:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Hit /api/cron/supervise-batches
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "CRON_SECRET secret is not set — the supervisor endpoint will 401."
+            echo "Add CRON_SECRET in repo Settings > Secrets and on Vercel, then re-run."
+            exit 1
+          fi
+          curl -fsS -H "Authorization: Bearer $CRON_SECRET" \
+            https://uiuxskills.com/api/cron/supervise-batches
