@@ -9,9 +9,8 @@ import {
   matchesCategory,
   matchesShelf,
   useLibraryFilters,
-  type ShelfType,
 } from "@/lib/ui-data/libraryFilters";
-import { ArrowUpRight, X } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import { ItemCard } from "@/components/ui/ItemCard";
 import {
   BG,
@@ -73,7 +72,7 @@ function Library() {
   const initialQ = useMemo(() => new URLSearchParams(search).get("q") ?? "", [search]);
   const [query, setQuery] = useState(initialQ);
   const [sort, setSort] = useState<Sort>("popular");
-  const { filters, setType, setCategory, reset, activeCount } = useLibraryFilters();
+  const { filters, setType, reset, activeCount } = useLibraryFilters();
 
   // Phase 1: pin the library to the design-systems shelf so skill/agent/mcp
   // mock items don't leak into the grid while the other shelves are hidden.
@@ -89,7 +88,6 @@ function Library() {
     setQuery(initialQ);
   }, [initialQ]);
 
-  const hasAnyFilter = activeCount > 0 || query.trim().length > 0;
   const clearAll = () => {
     setQuery("");
     reset();
@@ -302,8 +300,8 @@ function Library() {
 
       {/* Unified grid + filters */}
       <div className="mx-auto max-w-7xl px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-12 gap-8">
-          <aside className="col-span-12 md:col-span-3">
+        <div className="grid grid-cols-12 gap-8 items-start">
+          <aside className="col-span-12 md:col-span-3 md:sticky md:top-20 md:max-h-[calc(100vh-6rem)] md:overflow-y-auto">
             <LibraryFilterPanel query={query} onQueryChange={setQuery} />
           </aside>
 
@@ -322,35 +320,6 @@ function Library() {
                 </h2>
               </div>
               <div className="flex items-center gap-3">
-                {hasAnyFilter ? (
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {query.trim() ? (
-                      <ActivePill
-                        label={`"${query.trim()}"`}
-                        onClear={() => setQuery("")}
-                      />
-                    ) : null}
-                    {filters.type !== "all" ? (
-                      <ActivePill
-                        label={shelfPillLabel(filters.type)}
-                        onClear={() => setType("all")}
-                      />
-                    ) : null}
-                    {filters.category !== "All" ? (
-                      <ActivePill
-                        label={filters.category}
-                        onClear={() => setCategory("All")}
-                      />
-                    ) : null}
-                    <button
-                      onClick={clearAll}
-                      className="text-[11.5px] underline-offset-2 hover:underline"
-                      style={{ color: MUTED, fontFamily: MONO }}
-                    >
-                      clear all
-                    </button>
-                  </div>
-                ) : null}
                 <SortSelect value={sort} onChange={setSort} />
               </div>
             </div>
@@ -407,27 +376,6 @@ function Library() {
         </div>
       </div>
     </>
-  );
-}
-
-function shelfPillLabel(t: ShelfType): string {
-  if (t === "design-systems") return "Design systems";
-  if (t === "skills") return "Skills";
-  if (t === "agents") return "Agents";
-  if (t === "mcps") return "MCPs";
-  return "All";
-}
-
-function ActivePill({ label, onClear }: { label: string; onClear: () => void }) {
-  return (
-    <button
-      onClick={onClear}
-      className="inline-flex items-center gap-1.5 h-7 rounded-full border px-2.5 text-[11.5px]"
-      style={{ borderColor: BORDER, background: SURFACE, color: SUB }}
-    >
-      {label}
-      <X className="h-3 w-3" style={{ color: MUTED }} />
-    </button>
   );
 }
 

@@ -1,13 +1,10 @@
 import { Search } from "lucide-react";
 import { BORDER, INK, MONO, MUTED, SUB, SURFACE, VIOLET } from "@/lib/ui-data/tokens";
-import { ITEMS } from "@/lib/ui-data/items";
 import {
   CATEGORIES,
   SHELF_LABEL,
   SHELF_TYPES,
-  matchesShelf,
   useLibraryFilters,
-  type Category,
   type ShelfType,
 } from "@/lib/ui-data/libraryFilters";
 import { PHASE_2_SHELVES_ENABLED } from "@/lib/ui-data/featureFlags";
@@ -27,16 +24,6 @@ type Props = {
 export function LibraryFilterPanel({ query, onQueryChange, presetType }: Props) {
   const { filters, setType, setCategory } = useLibraryFilters();
   const activeType: ShelfType = presetType ?? filters.type;
-
-  const typeCounts = (t: ShelfType): number =>
-    t === "all"
-      ? ITEMS.length
-      : ITEMS.filter((it) => matchesShelf(it, t)).length;
-
-  const categoryCounts = (c: Category): number => {
-    const pool = ITEMS.filter((it) => matchesShelf(it, activeType));
-    return c === "All" ? pool.length : pool.filter((it) => it.category === c).length;
-  };
 
   return (
     <div className="space-y-8">
@@ -63,7 +50,6 @@ export function LibraryFilterPanel({ query, onQueryChange, presetType }: Props) 
             <Row
               key={t}
               label={SHELF_LABEL[t]}
-              count={typeCounts(t)}
               checked={activeType === t}
               onChange={() => setType(t)}
             />
@@ -76,7 +62,6 @@ export function LibraryFilterPanel({ query, onQueryChange, presetType }: Props) 
           <Row
             key={c}
             label={c}
-            count={categoryCounts(c)}
             checked={filters.category === c}
             onChange={() => setCategory(c)}
           />
@@ -102,12 +87,10 @@ function Section({ label, children }: { label: string; children: React.ReactNode
 
 function Row({
   label,
-  count,
   checked,
   onChange,
 }: {
   label: string;
-  count: number;
   checked: boolean;
   onChange: () => void;
 }) {
@@ -129,12 +112,6 @@ function Row({
       />
       <span className="flex-1 truncate" style={{ color: checked ? INK : SUB }}>
         {label}
-      </span>
-      <span
-        className="text-[11px] tabular-nums"
-        style={{ fontFamily: MONO, color: MUTED }}
-      >
-        {count}
       </span>
     </label>
   );
