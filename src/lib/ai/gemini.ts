@@ -41,6 +41,60 @@ function client(): GoogleGenAI {
 
 const MODEL = 'gemini-3.1-flash-lite';
 
+// ─── 429 / RESOURCE_EXHAUSTED retry ──────────────────────────
+//
+// Gemini returns HTTP 429 (status RESOURCE_EXHAUSTED) when a per-minute (RPM)
+// or per-day (RPD) quota is hit. RPM spikes are transient and clear within
+// seconds, so a short bounded retry keeps the *direct* Google API path winning
+// instead of prematurely failing over to OpenRouter — which matters most for
+// extraction, whose call has no fallback at all (a bare 429 there fails the
+// whole job). RPD exhaustion won't clear inside our budget, so we cap attempts
+// and let the error surface rather than burning the worker's time on a doomed
+// retry. When the server includes a RetryInfo.retryDelay we honor it; otherwise
+// we use exponential backoff with jitter. Each attempt is invoked via the
+// passed factory so it gets a *fresh* AbortSignal (a reused one would already
+// be aborted on retry).
+const MAX_RATE_LIMIT_RETRIES = 3;
+const RATE_LIMIT_BASE_DELAY_MS = 1_000;
+const RATE_LIMIT_MAX_DELAY_MS = 16_000;
+
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms).unref());
+
+function isRateLimitError(err: unknown): boolean {
+  const status =
+    (err as { status?: unknown })?.status ?? (err as { code?: unknown })?.code;
+  if (status === 429 || status === 'RESOURCE_EXHAUSTED') return true;
+  const msg = err instanceof Error ? err.message : String(err);
+  return /\b429\b|RESOURCE_EXHAUSTED|rate.?limit|quota exceeded/i.test(msg);
+}
+
+/** Best-effort parse of the server's RetryInfo.retryDelay (e.g. "12s"), in ms. */
+function serverRetryDelayMs(err: unknown): number | null {
+  const msg = err instanceof Error ? err.message : String(err);
+  const m = msg.match(/retryDelay["']?\s*[:=]\s*["']?(\d+(?:\.\d+)?)\s*s/i);
+  return m ? Math.ceil(parseFloat(m[1]) * 1000) : null;
+}
+
+async function withGeminiRetry<T>(label: string, fn: () => Promise<T>): Promise<T> {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (!isRateLimitError(err) || attempt >= MAX_RATE_LIMIT_RETRIES) throw err;
+      const backoff = Math.min(
+        RATE_LIMIT_BASE_DELAY_MS * 2 ** attempt,
+        RATE_LIMIT_MAX_DELAY_MS,
+      );
+      const delayMs =
+        serverRetryDelayMs(err) ?? backoff + Math.floor(Math.random() * 250);
+      console.warn(
+        `[gemini:${label}] 429 rate-limited (attempt ${attempt + 1}/${MAX_RATE_LIMIT_RETRIES}) — retrying in ${delayMs}ms`,
+      );
+      await sleep(delayMs);
+    }
+  }
+}
+
 // ─── System-instruction cache (Gemini context caching) ───────
 //
 // Gemini 3.1 Flash-Lite supports explicit context caching: upload a long stable prefix
@@ -818,19 +872,21 @@ export async function extractBrandFromMarkdown(
   }
 
   const cachedName = await getCachedSystemInstruction(MODEL, SYSTEM_PROMPT);
-  const result = await client().models.generateContent({
-    model: MODEL,
-    contents: [{ role: 'user', parts }],
-    config: {
-      ...(cachedName
-        ? { cachedContent: cachedName }
-        : { systemInstruction: SYSTEM_PROMPT }),
-      responseMimeType: 'application/json',
-      responseSchema: EXTRACTION_SCHEMA,
-      temperature: 0.2,
-      abortSignal: AbortSignal.timeout(GEMINI_TIMEOUT_MS),
-    },
-  });
+  const result = await withGeminiRetry('extract', () =>
+    client().models.generateContent({
+      model: MODEL,
+      contents: [{ role: 'user', parts }],
+      config: {
+        ...(cachedName
+          ? { cachedContent: cachedName }
+          : { systemInstruction: SYSTEM_PROMPT }),
+        responseMimeType: 'application/json',
+        responseSchema: EXTRACTION_SCHEMA,
+        temperature: 0.2,
+        abortSignal: AbortSignal.timeout(GEMINI_TIMEOUT_MS),
+      },
+    }),
+  );
 
   const text = result.text ?? '';
   let parsed: ExtractedBrand;
@@ -926,19 +982,21 @@ export async function extractBrandFromImage(
   ];
 
   const cachedName = await getCachedSystemInstruction(MODEL, IMAGE_SYSTEM_PROMPT);
-  const result = await client().models.generateContent({
-    model: MODEL,
-    contents: [{ role: 'user', parts }],
-    config: {
-      ...(cachedName
-        ? { cachedContent: cachedName }
-        : { systemInstruction: IMAGE_SYSTEM_PROMPT }),
-      responseMimeType: 'application/json',
-      responseSchema: EXTRACTION_SCHEMA,
-      temperature: 0.2,
-      abortSignal: AbortSignal.timeout(GEMINI_TIMEOUT_MS),
-    },
-  });
+  const result = await withGeminiRetry('extract-image', () =>
+    client().models.generateContent({
+      model: MODEL,
+      contents: [{ role: 'user', parts }],
+      config: {
+        ...(cachedName
+          ? { cachedContent: cachedName }
+          : { systemInstruction: IMAGE_SYSTEM_PROMPT }),
+        responseMimeType: 'application/json',
+        responseSchema: EXTRACTION_SCHEMA,
+        temperature: 0.2,
+        abortSignal: AbortSignal.timeout(GEMINI_TIMEOUT_MS),
+      },
+    }),
+  );
 
   const text = result.text ?? '';
   let parsed: ExtractedBrand;
@@ -989,18 +1047,20 @@ export interface GeminiTextResult {
 export async function generateTextFromGemini(input: GeminiTextInput): Promise<GeminiTextResult> {
   const startedAt = Date.now();
   const cachedName = await getCachedSystemInstruction(MODEL, input.systemPrompt);
-  const result = await client().models.generateContent({
-    model: MODEL,
-    contents: [{ role: 'user', parts: [{ text: input.userPrompt }] }],
-    config: {
-      ...(cachedName
-        ? { cachedContent: cachedName }
-        : { systemInstruction: input.systemPrompt }),
-      temperature: input.temperature ?? 0.4,
-      maxOutputTokens: input.maxOutputTokens ?? 6144,
-      abortSignal: AbortSignal.timeout(input.timeoutMs),
-    },
-  });
+  const result = await withGeminiRetry('author-text', () =>
+    client().models.generateContent({
+      model: MODEL,
+      contents: [{ role: 'user', parts: [{ text: input.userPrompt }] }],
+      config: {
+        ...(cachedName
+          ? { cachedContent: cachedName }
+          : { systemInstruction: input.systemPrompt }),
+        temperature: input.temperature ?? 0.4,
+        maxOutputTokens: input.maxOutputTokens ?? 6144,
+        abortSignal: AbortSignal.timeout(input.timeoutMs),
+      },
+    }),
+  );
   const content = result.text ?? '';
   if (!content.trim()) {
     throw new Error(`Gemini direct returned empty content (model=${MODEL})`);
