@@ -274,6 +274,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-05-29** - Fix type error in companion model A/B harness breaking the build (635504d)
 - [x] **2026-05-29** - Add 429/RESOURCE_EXHAUSTED retry to direct Gemini calls (038c1c9)
 - [x] **2026-05-29** - Add 429/RESOURCE_EXHAUSTED retry to direct Gemini calls (547a1bc)
 - [x] **2026-05-29** - Re-run existing personal drafts in place instead of duplicating (8b51ecf)
