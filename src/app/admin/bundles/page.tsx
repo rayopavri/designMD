@@ -649,29 +649,32 @@ export default function AdminBundlesPage() {
     setActionState("saving");
     setActionError(null);
     try {
-      const body = {
-        title: form.title,
-        description: form.description,
-        designStyle: form.designStyle,
-        compatibleTools: form.compatibleTools,
-        primaryCategoryId: form.primaryCategoryId,
-        license: form.license,
-        attributionStatement: form.attributionStatement.trim() || null,
-        isFeatured: form.isFeatured,
-        isCurated: form.isCurated,
-        // Only send these when changed — sourceUrl recomputes the dedup key,
-        // designMd triggers a re-lint, and companionPrompt bumps its version,
-        // so we don't want a title-only edit to fire those side-effects.
-        ...(form.sourceUrl !== (detail.sourceUrl ?? "")
-          ? { sourceUrl: form.sourceUrl }
-          : {}),
-        ...(form.designMd !== (detail.designMd ?? "")
-          ? { designMd: form.designMd }
-          : {}),
-        ...(form.companionPrompt !== (detail.companionPrompt ?? "")
-          ? { companionPrompt: form.companionPrompt }
-          : {}),
-      };
+      // Send only fields that actually changed (mirrors `isDirty`). This keeps
+      // a title-only edit from re-validating untouched fields — e.g. a bundle
+      // with no license would otherwise fail the `license` min(1) check — and
+      // avoids needless side-effects: sourceUrl recomputes the dedup key,
+      // designMd triggers a re-lint, and companionPrompt bumps its version.
+      const body: Record<string, unknown> = {};
+      if (form.title !== detail.title) body.title = form.title;
+      if (form.description !== detail.description) body.description = form.description;
+      if (form.sourceUrl !== (detail.sourceUrl ?? "")) body.sourceUrl = form.sourceUrl;
+      if (form.designMd !== (detail.designMd ?? "")) body.designMd = form.designMd;
+      if (form.companionPrompt !== (detail.companionPrompt ?? ""))
+        body.companionPrompt = form.companionPrompt;
+      // Metadata fields below have no dedicated input yet, so they won't change
+      // through this UI — but keep them diff-guarded for the scaffolded editor.
+      if (form.license !== (detail.license ?? "") && form.license.trim())
+        body.license = form.license;
+      if (form.attributionStatement !== (detail.attributionStatement ?? ""))
+        body.attributionStatement = form.attributionStatement.trim() || null;
+      if (form.designStyle.join("|") !== (detail.designStyle ?? []).join("|"))
+        body.designStyle = form.designStyle;
+      if (form.compatibleTools.join("|") !== (detail.compatibleTools ?? []).join("|"))
+        body.compatibleTools = form.compatibleTools;
+      if (form.primaryCategoryId !== detail.primaryCategoryId)
+        body.primaryCategoryId = form.primaryCategoryId;
+      if (form.isFeatured !== detail.isFeatured) body.isFeatured = form.isFeatured;
+      if (form.isCurated !== detail.isCurated) body.isCurated = form.isCurated;
       const res = await fetch(`/api/admin/bundles/${encodeURIComponent(detail.slug)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -679,7 +682,10 @@ export default function AdminBundlesPage() {
       });
       if (!res.ok) {
         const respBody = await res.json().catch(() => ({ error: res.statusText }));
-        setActionError(respBody.error || `Save failed (${res.status})`);
+        const detailMsg = respBody.details ? `: ${respBody.details}` : "";
+        setActionError(
+          (respBody.error || `Save failed (${res.status})`) + detailMsg,
+        );
         return;
       }
       const respBody = (await res.json()) as { data: DetailRow };
