@@ -768,7 +768,15 @@ export async function extractBrandFromMarkdown(
           'Pay extra attention to filling gaps here:',
           input.gapHints,
         ]
-      : []),
+      : [
+          '',
+          'COVERAGE FOCUS — extract thoroughly across ALL of these sections; leave none underspecified:',
+          '- Colors: extract role-bound tokens (primary, secondary, neutral, surface, error, etc.) with hex values and rationale',
+          '- Typography: identify display, headline, body, label scale levels with font families, sizes, and weights',
+          '- Layout: describe grid system, max-width, spacing rhythm, responsive breakpoints',
+          '- Shapes: extract border-radius tokens at each scale (sm, md, lg, full)',
+          '- Components: identify buttons, cards, inputs, badges, navigation with full token specs',
+        ]),
     ...(input.userFeedback
       ? [
           '',
@@ -990,6 +998,87 @@ export async function generateTextFromGemini(input: GeminiTextInput): Promise<Ge
     modelUsed: MODEL,
     latencyMs: Date.now() - startedAt,
   };
+}
+
+export interface QuickNameItem {
+  url: string;
+  title?: string;
+  ogSiteName?: string;
+  ogTitle?: string;
+}
+
+const QUICK_NAMES_SCHEMA: Schema = {
+  type: Type.ARRAY,
+  items: {
+    type: Type.OBJECT,
+    properties: {
+      url: { type: Type.STRING },
+      name: { type: Type.STRING },
+    },
+    required: ['url', 'name'],
+  },
+};
+
+const QUICK_NAMES_SYSTEM_PROMPT = `You map website metadata to canonical brand names.
+
+For each item you are given a URL and whatever page metadata could be read (HTML
+<title>, og:site_name, og:title — any may be missing). Return the brand / product
+name a person would call the site, NOT the full page title.
+
+Rules:
+- Strip taglines and section suffixes: "Stripe | Payments Infrastructure" -> "Stripe";
+  "Linear – The issue tracker for modern teams" -> "Linear".
+- Prefer og:site_name when it already looks like a clean brand name.
+- Do not invent names. If metadata is too sparse to tell, echo the registrable
+  domain label (e.g. "example" for example.com).
+- Return exactly one entry per input URL, preserving the exact url string given.`;
+
+/**
+ * Lightweight batched brand-name extraction for bulk-upload dedup. Given raw
+ * page-metadata tuples for a set of URLs, returns the canonical brand name for
+ * each in ONE structured-output call.
+ *
+ * This is deliberately NOT the full design extraction — it exists only so the
+ * bulk-upload endpoint can detect "same brand, different URL" duplicates cheaply
+ * before enqueuing. Best-effort: callers fall back to metadata-derived names if
+ * this throws or times out. Reuses the extraction client / model / billing surface.
+ */
+export async function extractBrandNamesQuick(
+  items: QuickNameItem[],
+  timeoutMs = 12_000,
+): Promise<{ url: string; name: string }[]> {
+  if (items.length === 0) return [];
+
+  const userPrompt = [
+    'Return the canonical brand name for each of these sites:',
+    '```json',
+    JSON.stringify(items, null, 2),
+    '```',
+  ].join('\n');
+
+  const result = await client().models.generateContent({
+    model: MODEL,
+    contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+    config: {
+      systemInstruction: QUICK_NAMES_SYSTEM_PROMPT,
+      responseMimeType: 'application/json',
+      responseSchema: QUICK_NAMES_SCHEMA,
+      temperature: 0,
+      abortSignal: AbortSignal.timeout(timeoutMs),
+    },
+  });
+
+  const text = result.text ?? '';
+  const parsed = JSON.parse(text) as unknown;
+  if (!Array.isArray(parsed)) {
+    throw new Error('extractBrandNamesQuick: expected a JSON array');
+  }
+  return parsed
+    .filter(
+      (r): r is { url: string; name: string } =>
+        !!r && typeof r.url === 'string' && typeof r.name === 'string',
+    )
+    .map((r) => ({ url: r.url, name: r.name }));
 }
 
 // Full-page screenshots can be 10,000+ px tall. Gemini downscales aggressively

@@ -38,6 +38,14 @@ import { advanceBatch } from '@/lib/generator/batch';
 // Sonnet's context.
 const PHASE_2_MARKDOWN_CAP = 40_000;
 
+// Fresh (non-re-run) URL jobs have no coverage gaps to derive a search query
+// from, so subpage discovery via Firecrawl map() would be generic. Seed it with
+// a design-oriented query so map() surfaces design-rich pages (style guides,
+// component / pricing pages) — the same `map({ search })` lever the re-run path
+// uses from gap analysis. rankDesignUrls still re-ranks afterward, so this only
+// widens the candidate set, never narrows correctness.
+const DEFAULT_DESIGN_SEARCH = 'design system colors typography components layout buttons';
+
 export interface ScrapeAndExtractPayload {
   jobId: string;
   /** On re-runs: free-text editor feedback about what was wrong last time. Threaded into
@@ -110,6 +118,13 @@ export async function runScrapeAndExtract(payload: ScrapeAndExtractPayload): Pro
         searchQuery = searchTerms.join(' ');
       }
     }
+  }
+
+  // Fresh URL jobs (and re-runs whose sections all passed threshold) get a
+  // default design-oriented search query so subpage discovery is biased toward
+  // design-rich pages rather than generic links.
+  if (!isUpload && !searchQuery) {
+    searchQuery = DEFAULT_DESIGN_SEARCH;
   }
 
   let scrape: ScrapeResult;

@@ -621,7 +621,7 @@ function BulkUploadPageInner() {
                 className="text-[11.5px] px-3 py-1.5 rounded-full border"
                 style={{ fontFamily: MONO, color: PEACH, borderColor: `${PEACH}33` }}
               >
-                {v} {k.replace(/([A-Z])/g, " $1").toLowerCase()}
+                {v} {k === "nameExists" ? "name already in library" : k.replace(/([A-Z])/g, " $1").toLowerCase()}
               </span>
             ) : null,
           )}
