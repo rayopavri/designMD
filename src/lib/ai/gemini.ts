@@ -57,6 +57,12 @@ const CACHE_TTL_SECONDS = 300; // 5-min window
 const CACHE_TTL_MS = CACHE_TTL_SECONDS * 1_000;
 // Refresh ~30s before expiry so an in-flight request doesn't race the TTL.
 const CACHE_REFRESH_MARGIN_MS = 30_000;
+// Hard cap on the cache-create preflight. caches.create() carries no implicit
+// timeout, so an unhealthy caching endpoint (e.g. a model that doesn't support
+// context caching) hangs it indefinitely — which defeats the per-request budget
+// the generateContent call enforces and rides the worker to its watchdog. On
+// timeout we treat it as a cache miss and fall through to inline systemInstruction.
+const CACHE_CREATE_TIMEOUT_MS = 8_000;
 
 interface CacheEntry {
   name: string;
@@ -95,6 +101,7 @@ async function getCachedSystemInstruction(
       config: {
         systemInstruction,
         ttl: `${CACHE_TTL_SECONDS}s`,
+        abortSignal: AbortSignal.timeout(CACHE_CREATE_TIMEOUT_MS),
       },
     });
     if (!created.name) {

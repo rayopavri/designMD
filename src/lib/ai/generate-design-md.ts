@@ -448,15 +448,31 @@ async function callAuthorModel(userPrompt: string): Promise<string> {
   const PRIMARY_TIMEOUT_MS = 10_000;
   const FALLBACK_TIMEOUT_MS = 30_000;
 
-  // Primary: Gemini direct.
+  // Primary: Gemini direct. The external race below is what actually enforces
+  // the budget: generateTextFromGemini's internal AbortSignal only covers the
+  // generateContent call, NOT the caches.create() preflight (now also bounded,
+  // but defensively), so a hung SDK path can't ride the worker to its 290s
+  // watchdog — we abandon it here and fail over to OpenRouter within budget.
   try {
-    const res = await generateTextFromGemini({
+    const primary = generateTextFromGemini({
       systemPrompt: SYSTEM_PROMPT,
       userPrompt,
       timeoutMs: PRIMARY_TIMEOUT_MS,
       maxOutputTokens: MAX_OUTPUT_TOKENS,
       temperature: 0.4,
     });
+    // If the primary loses the race it may still settle later; swallow any
+    // late rejection so it doesn't surface as an unhandled rejection.
+    primary.catch(() => {});
+    const res = await Promise.race([
+      primary,
+      new Promise<never>((_, reject) =>
+        setTimeout(
+          () => reject(new Error(`gemini-direct exceeded ${PRIMARY_TIMEOUT_MS}ms budget`)),
+          PRIMARY_TIMEOUT_MS,
+        ).unref(),
+      ),
+    ]);
     console.log(
       `[generate-design-md] primary=gemini-direct ${res.modelUsed} ${res.latencyMs}ms chars=${res.content.length}`,
     );
