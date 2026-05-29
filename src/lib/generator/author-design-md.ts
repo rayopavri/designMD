@@ -65,6 +65,12 @@ export async function runAuthorDesignMd(payload: AuthorDesignMdPayload): Promise
   const batchId = jobRow.batchId;
   const autoPublish = Boolean(jobRow.autoPublish);
   const isRerun = Boolean(jobRow.targetBundleId);
+  // Editor-initiated re-runs (rerun-pipeline / bulk-rerun) are always
+  // autoPublish=false and should preserve the bundle's curated status. A
+  // bulk-upload re-run that lands on an existing personal draft is
+  // autoPublish=true and must be allowed to promote like a fresh generation,
+  // otherwise the draft would be refreshed but stay personal forever.
+  const preserveStatus = isRerun && !autoPublish;
   const url = jobRow.url;
   const editorUserId: string | null = autoPublish ? (jobRow.userId ?? null) : null;
 
@@ -137,8 +143,9 @@ export async function runAuthorDesignMd(payload: AuthorDesignMdPayload): Promise
 
   // Quality-gated promotion. Bundles with errors OR overall score < 40
   // stay personal so the editor queue isn't polluted with low-quality
-  // drafts. Re-run mode preserves the existing status (the editor
-  // already curated this bundle).
+  // drafts. Editor re-runs (preserveStatus) keep the existing status — the
+  // editor already curated this bundle; bulk-upload re-runs of a personal
+  // draft re-evaluate promotion like a fresh generation.
   const shouldPromote = lintSummary.counts.errors === 0 && coverage.overall >= 40;
 
   // Auto-publish jobs (bulk-upload and editor-initiated generations) publish
@@ -164,7 +171,7 @@ export async function runAuthorDesignMd(payload: AuthorDesignMdPayload): Promise
         coverageDosDonts: coverage.dosDonts,
         reviewNotes: renderLintSummary(lintSummary),
         accessibilityNotes: renderAccessibilityAdvisory(lintSummary),
-        ...(isRerun
+        ...(preserveStatus
           ? {}
           : meetsAutoPublishBar
             ? {
@@ -195,7 +202,7 @@ export async function runAuthorDesignMd(payload: AuthorDesignMdPayload): Promise
     .update(generationJobs)
     .set({
       status: 'completed',
-      currentStep: isRerun
+      currentStep: preserveStatus
         ? 'rerun_complete'
         : meetsAutoPublishBar
           ? 'published'

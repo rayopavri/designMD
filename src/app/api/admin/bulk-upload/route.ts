@@ -16,6 +16,12 @@
  *    different URL
  *  - URLs that already have a queued/running job
  *
+ * Re-runs in place (instead of inserting a duplicate):
+ *  - URLs whose normalized form already has a personal (draft) bundle. The job
+ *    is enqueued with targetBundleId set so the pipeline UPDATEs that draft
+ *    rather than creating a second one. If several stale drafts exist for the
+ *    same URL, the most-recently-updated is targeted and the rest are archived.
+ *
  * Body:  { urls: string[] }  (max 150)
  * Response (202): { batchId, enqueued, skipped, outcomes, etaSeconds }
  */
@@ -102,10 +108,13 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // ── 2. Check for existing bundles (published or pending_review only) ─────────
-  // Match single-generate's behaviour: personal and archived bundles can be
-  // re-generated. Blocking on ANY status was the root cause of URLs that
-  // succeeded via single generate being permanently rejected here.
+  // ── 2. Check for existing bundles by normalized URL ──────────────────────
+  // published / pending_review → skip (already in the library or queue).
+  // personal (draft) → re-run in place: target the existing draft so the
+  // pipeline UPDATEs it instead of inserting a duplicate. Blocking personal
+  // drafts outright was the root cause of URLs that succeeded via single
+  // generate being permanently rejected here; re-running avoids that while
+  // also avoiding duplicate draft rows.
   const normalizedList = candidates.map((c) => c.normalized);
 
   // Kick off best-effort brand-name discovery in parallel with the DB lookups
@@ -114,17 +123,46 @@ export async function POST(req: NextRequest) {
   const namesPromise = prefetchBrandNames(normalizedList);
 
   const existingBundles = await db
-    .select({ sourceUrlNormalized: bundles.sourceUrlNormalized })
+    .select({
+      id: bundles.id,
+      sourceUrlNormalized: bundles.sourceUrlNormalized,
+      status: bundles.status,
+      updatedAt: bundles.updatedAt,
+    })
     .from(bundles)
     .where(
       and(
         inArray(bundles.sourceUrlNormalized, normalizedList),
-        inArray(bundles.status, ['published', 'pending_review']),
+        inArray(bundles.status, ['published', 'pending_review', 'personal']),
       ),
     );
-  const existingNormalized = new Set(
-    existingBundles.map((b) => b.sourceUrlNormalized).filter(Boolean) as string[],
-  );
+
+  // URLs that already have a published/pending_review bundle are skipped.
+  const existingNormalized = new Set<string>();
+  // URLs whose only existing bundle(s) are personal drafts are re-run in place.
+  // Group the drafts per normalized URL so we can target the newest and archive
+  // any older duplicates.
+  const draftsByUrl = new Map<string, { id: string; updatedAt: Date | null }[]>();
+  for (const b of existingBundles) {
+    if (!b.sourceUrlNormalized) continue;
+    if (b.status === 'published' || b.status === 'pending_review') {
+      existingNormalized.add(b.sourceUrlNormalized);
+    } else if (b.status === 'personal') {
+      const arr = draftsByUrl.get(b.sourceUrlNormalized) ?? [];
+      arr.push({ id: b.id, updatedAt: b.updatedAt });
+      draftsByUrl.set(b.sourceUrlNormalized, arr);
+    }
+  }
+
+  // Build re-run targets only for URLs not already covered by a
+  // published/pending_review bundle (those skip outright).
+  const rerunTargets = new Map<string, { targetId: string; extraIds: string[] }>();
+  for (const [norm, drafts] of draftsByUrl) {
+    if (existingNormalized.has(norm)) continue;
+    drafts.sort((a, b) => (b.updatedAt?.getTime() ?? 0) - (a.updatedAt?.getTime() ?? 0));
+    const [target, ...extras] = drafts;
+    rerunTargets.set(norm, { targetId: target.id, extraIds: extras.map((e) => e.id) });
+  }
 
   // ── 3. Check for in-flight jobs ───────────────────────────────────────────
   // Scoped to the editor's own jobs (mirrors single-generate). A global check
@@ -213,6 +251,25 @@ export async function POST(req: NextRequest) {
   // ── 5. Insert all jobs sharing one batchId, then dispatch up to the cap ───
   const batchId = crypto.randomUUID();
 
+  // Before enqueueing, archive any older duplicate drafts for the URLs we're
+  // about to re-run, so re-running collapses the pile-up to a single bundle.
+  // Only touches extras for candidates we actually enqueue (not skipped ones).
+  const draftExtraIds = toEnqueue.flatMap(
+    (c) => rerunTargets.get(c.normalized)?.extraIds ?? [],
+  );
+  if (draftExtraIds.length > 0) {
+    try {
+      await db
+        .update(bundles)
+        .set({ status: 'archived', updatedAt: new Date() })
+        .where(inArray(bundles.id, draftExtraIds));
+    } catch (err) {
+      // Non-fatal: re-run still targets the newest draft; the extras just
+      // linger as drafts. Don't fail the batch over cleanup.
+      console.warn('[bulk-upload] failed to archive duplicate drafts:', err);
+    }
+  }
+
   const insertedJobs = await db
     .insert(generationJobs)
     .values(
@@ -224,6 +281,9 @@ export async function POST(req: NextRequest) {
         currentStep: 'queued',
         userId: editor.id,
         autoPublish: true,
+        // When a personal draft already exists, target it so the pipeline
+        // updates that bundle in place instead of inserting a duplicate.
+        targetBundleId: rerunTargets.get(c.normalized)?.targetId ?? null,
         batchId,
       })),
     )
