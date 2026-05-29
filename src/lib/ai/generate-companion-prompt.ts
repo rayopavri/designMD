@@ -15,7 +15,7 @@
 import { anthropic, ANTHROPIC_MODELS } from './anthropic';
 import type { ExtractedBrand } from './gemini';
 
-const SYSTEM_PROMPT = `You write companion prompts for design system specs.
+export const SYSTEM_PROMPT = `You write companion prompts for design system specs.
 
 A companion prompt sits next to a design.md file and tells an AI coding tool how to apply
 that spec when generating UI. It is read by Claude / Cursor / Lovable / Figma Make on every
@@ -170,6 +170,14 @@ const MAX_SPEC_CHARS = 40_000;
  * in Phase 1. Used by the parallel companion worker while DESIGN.md is authored.
  */
 export async function generateCompanionPrompt(input: Input): Promise<string> {
+  return runCompanionSonnet(buildBrandUserPrompt(input));
+}
+
+/**
+ * Builds the user message for the JSON-driven (pipeline) companion path.
+ * Exported so model-comparison tooling can reproduce the exact prompt.
+ */
+export function buildBrandUserPrompt(input: Input): string {
   const { brand } = input;
   const brandSummary = JSON.stringify(
     {
@@ -198,7 +206,7 @@ export async function generateCompanionPrompt(input: Input): Promise<string> {
     2,
   );
 
-  const userPrompt = [
+  return [
     `Brand: ${input.brandName}`,
     `Design styles: ${input.designStyles.join(', ') || '(none)'}`,
     '',
@@ -209,8 +217,6 @@ export async function generateCompanionPrompt(input: Input): Promise<string> {
     '',
     'Produce the companion prompt. Output only the markdown, no preamble.',
   ].join('\n');
-
-  return runCompanionSonnet(userPrompt);
 }
 
 /**
@@ -221,8 +227,16 @@ export async function generateCompanionPrompt(input: Input): Promise<string> {
  * name, so it's a complete substitute for the structured brand object.
  */
 export async function generateCompanionPromptFromSpec(input: SpecInput): Promise<string> {
+  return runCompanionSonnet(buildSpecUserPrompt(input));
+}
+
+/**
+ * Builds the user message for the spec-driven (editor regenerate) companion
+ * path. Exported so model-comparison tooling can reproduce the exact prompt.
+ */
+export function buildSpecUserPrompt(input: SpecInput): string {
   const spec = input.designMd.slice(0, MAX_SPEC_CHARS);
-  const userPrompt = [
+  return [
     `Brand: ${input.brandName}`,
     `Design styles: ${input.designStyles.join(', ') || '(none)'}`,
     '',
@@ -233,8 +247,6 @@ export async function generateCompanionPromptFromSpec(input: SpecInput): Promise
     '',
     'Produce the companion prompt. Output only the markdown, no preamble.',
   ].join('\n');
-
-  return runCompanionSonnet(userPrompt);
 }
 
 /**
