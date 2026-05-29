@@ -396,7 +396,8 @@ async function main() {
     }
   }
 
-  const avg = (m: string, k: 'score' | 'latency' | 'cost') => (agg[m].n ? agg[m][k] / agg[m].n : 0);
+  const avg = (m: typeof SONNET_MODEL | typeof GEMINI_MODEL, k: 'score' | 'latency' | 'cost') =>
+    agg[m].n ? agg[m][k] / agg[m].n : 0;
 
   log(`\n---\n\n## Summary (averages)`);
   log('');
