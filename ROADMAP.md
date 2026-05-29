@@ -275,6 +275,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 Most-recent first.
 
 - [x] **2026-05-29** - Re-run existing personal drafts in place instead of duplicating (8b51ecf)
+- [x] **2026-05-29** - chore: roadmap auto-update (27da7b5)
 - [x] **2026-05-29** - Only PATCH changed bundle fields on manual save, fix validation error display (999b079)
 - [x] **2026-05-27** - Pin search_path = public on all 11 plpgsql functions (a685803)
 - [x] **2026-05-27** - chore: roadmap auto-update (a0ae2db)
