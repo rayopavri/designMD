@@ -388,7 +388,10 @@ export default function AdminBundlesPage() {
       const res = await fetch(buildListUrl(nextCursor));
       if (!res.ok) return;
       const body = (await res.json()) as { items: ListRow[]; nextCursor: string | null };
-      setRows((prev) => [...prev, ...body.items]);
+      setRows((prev) => {
+        const seen = new Set(prev.map((r) => r.id));
+        return [...prev, ...body.items.filter((r) => !seen.has(r.id))];
+      });
       setNextCursor(body.nextCursor);
     } catch {
       // ignore — user can retry

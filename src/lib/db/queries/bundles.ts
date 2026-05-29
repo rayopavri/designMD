@@ -52,6 +52,7 @@ export async function listPublishedBundles(
   filters: BundleListFilters
 ): Promise<{ items: BundleListItem[]; nextCursor: string | null }> {
   const limit = Math.min(filters.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
+  const offset = filters.cursor ? Math.max(0, Number.parseInt(filters.cursor, 10) || 0) : 0;
 
   const conditions: SQL[] = [eq(bundles.status, 'published')];
 
@@ -77,26 +78,23 @@ export async function listPublishedBundles(
     const qCond = or(ilike(bundles.title, term), ilike(bundles.description, term));
     if (qCond) conditions.push(qCond);
   }
-  if (filters.cursor) {
-    conditions.push(sql`${bundles.id} > ${filters.cursor}`);
-  }
-
   // Sort: 'recent' = publishedAt desc; 'top' = positiveVoteRate desc, voteCount desc;
   // 'trending' = a simple recency-weighted score for now (positive rate * log(votes+1)).
   let orderBy: SQL[];
   switch (filters.sort) {
     case 'top':
-      orderBy = [desc(bundles.positiveVoteRate), desc(bundles.voteCount), desc(bundles.publishedAt)];
+      orderBy = [desc(bundles.positiveVoteRate), desc(bundles.voteCount), desc(bundles.publishedAt), desc(bundles.id)];
       break;
     case 'trending':
       orderBy = [
         desc(sql`(${bundles.positiveVoteRate}::numeric * ln(${bundles.voteCount} + 1))`),
         desc(bundles.publishedAt),
+        desc(bundles.id),
       ];
       break;
     case 'recent':
     default:
-      orderBy = [desc(bundles.publishedAt), desc(bundles.createdAt)];
+      orderBy = [desc(bundles.publishedAt), desc(bundles.createdAt), desc(bundles.id)];
       break;
   }
 
@@ -130,11 +128,12 @@ export async function listPublishedBundles(
     .leftJoin(categories, eq(bundles.primaryCategoryId, categories.id))
     .where(and(...conditions))
     .orderBy(...orderBy)
-    .limit(limit + 1);
+    .limit(limit + 1)
+    .offset(offset);
 
   const hasMore = rows.length > limit;
   const items = hasMore ? rows.slice(0, limit) : rows;
-  const nextCursor = hasMore ? (items[items.length - 1]?.id ?? null) : null;
+  const nextCursor = hasMore ? String(offset + limit) : null;
 
   return { items: items as BundleListItem[], nextCursor };
 }
@@ -169,6 +168,7 @@ export async function listAdminBundles(
   filters: AdminBundleListFilters,
 ): Promise<{ items: AdminBundleListItem[]; nextCursor: string | null }> {
   const limit = Math.min(filters.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
+  const offset = filters.cursor ? Math.max(0, Number.parseInt(filters.cursor, 10) || 0) : 0;
 
   const conditions: SQL[] = [];
 
@@ -196,23 +196,19 @@ export async function listAdminBundles(
     const qCond = or(ilike(bundles.title, term), ilike(bundles.description, term));
     if (qCond) conditions.push(qCond);
   }
-  if (filters.cursor) {
-    conditions.push(sql`${bundles.id} > ${filters.cursor}`);
-  }
-
   // Admin sort modes: 'recent' = updatedAt desc, 'submitted' = submittedAt desc,
   // 'score' = coverageScore desc.
   let orderBy: SQL[];
   switch (filters.sort) {
     case 'top':
-      orderBy = [desc(bundles.coverageScore), desc(bundles.updatedAt)];
+      orderBy = [desc(bundles.coverageScore), desc(bundles.updatedAt), desc(bundles.id)];
       break;
     case 'trending':
-      orderBy = [desc(bundles.submittedAt), desc(bundles.updatedAt)];
+      orderBy = [desc(bundles.submittedAt), desc(bundles.updatedAt), desc(bundles.id)];
       break;
     case 'recent':
     default:
-      orderBy = [desc(bundles.updatedAt), desc(bundles.createdAt)];
+      orderBy = [desc(bundles.updatedAt), desc(bundles.createdAt), desc(bundles.id)];
       break;
   }
 
@@ -250,11 +246,12 @@ export async function listAdminBundles(
     .leftJoin(categories, eq(bundles.primaryCategoryId, categories.id))
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(...orderBy)
-    .limit(limit + 1);
+    .limit(limit + 1)
+    .offset(offset);
 
   const hasMore = rows.length > limit;
   const items = hasMore ? rows.slice(0, limit) : rows;
-  const nextCursor = hasMore ? (items[items.length - 1]?.id ?? null) : null;
+  const nextCursor = hasMore ? String(offset + limit) : null;
 
   return { items: items as AdminBundleListItem[], nextCursor };
 }

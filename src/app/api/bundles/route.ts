@@ -9,7 +9,7 @@
  *   q=<text>                   search query
  *   sort=recent|top|trending   default: recent
  *   limit=<n>                  default 24, max 60
- *   cursor=<bundleId>          opaque pagination cursor
+ *   cursor=<offset>            opaque pagination cursor (row offset)
  *
  * Returns: { data: BundleListItem[], meta: { nextCursor } }
  */
@@ -25,7 +25,7 @@ const QuerySchema = z.object({
   q: z.string().max(120).optional(),
   sort: z.enum(['recent', 'top', 'trending']).optional(),
   limit: z.coerce.number().int().min(1).max(60).optional(),
-  cursor: z.string().uuid().optional(),
+  cursor: z.string().regex(/^\d+$/).optional(),
 });
 
 function csvToArray(v: string | undefined): string[] | undefined {
