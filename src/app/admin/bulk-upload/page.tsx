@@ -943,7 +943,7 @@ function BatchStatusView({
                   <td className="px-4 py-2.5 text-right">
                     {isPublished && job.bundleSlug ? (
                       <Link
-                        href={`/b/${job.bundleSlug}`}
+                        href={`/library/${job.bundleSlug}`}
                         target="_blank"
                         className="inline-flex items-center gap-1 text-[11px]"
                         style={{ color: LIME }}
