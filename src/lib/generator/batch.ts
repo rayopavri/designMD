@@ -1,52 +1,205 @@
 /**
- * Batch sequencing helper for bulk-upload jobs.
+ * Bulk-upload supervisor primitives.
  *
- * When a batch job reaches a terminal state (completed or failed) this
- * finds the next queued job in the same batch and enqueues it with a
- * short delay, giving upstream APIs a brief breathing gap between jobs.
+ * The old model was *choreographed*: each worker, on finishing, enqueued the
+ * next job in the batch. A single dropped message (e.g. a job orphaned between
+ * Phase 1 returning and Phase 2 starting) stalled the whole batch forever,
+ * because nothing reconciled desired vs. actual state.
+ *
+ * The new model is *reconciled*: the database is the single source of truth and
+ * a 1-minute cron (plus the bulk-upload entrypoint, opportunistically) calls:
+ *
+ *   reapStale()     — resume or fail jobs that stopped making progress
+ *   dispatchReady() — start queued jobs up to a global concurrency cap
+ *
+ * Liveness no longer depends on the happy path: a lost message is recovered on
+ * the next tick by re-deriving what should be running from the DB. Workers
+ * receive a thin { jobId } and hydrate their inputs from `phase_payload`, so a
+ * resume is a RESUME of the current phase, not a restart from scrape.
  */
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, count, eq, inArray, isNotNull, lt, sql } from 'drizzle-orm';
 import { db } from '@/lib/db/client';
 import { generationJobs } from '@/lib/db/schema';
-import { enqueueTask } from '@/lib/queue';
+import { enqueueTask, type TaskName } from '@/lib/queue';
+import { env } from '@/lib/env';
 
-const BATCH_GAP_SECONDS = 8;
+// Arbitrary app-wide constant identifying the advisory lock that serializes
+// batch dispatch. pg_advisory_xact_lock is transaction-scoped (released on
+// COMMIT), so it is safe under PgBouncer transaction pooling — unlike
+// session-level advisory locks, which leak across pooled connections.
+const DISPATCH_LOCK_KEY = 4_727_001;
 
-// Retry the QStash publish up to 3 times with exponential backoff (100ms,
-// 200ms). Transient blips are recovered inline in ≤300ms without waiting
-// for the next cron tick. If all attempts fail, the error is rethrown so
-// callers (cron orphan sweep, worker watchdog) can log and the cron retries
-// on the next tick as a last resort.
-const ADVANCE_MAX_ATTEMPTS = 3;
+// A running job that hasn't bumped updated_at within this window is presumed
+// dead. Must exceed the Vercel function timeout (maxDuration 300s) so we never
+// reap a worker that is legitimately still executing a slow substage.
+const LEASE_MS = 360_000; // 6 minutes
 
-export async function advanceBatch(batchId: string | null | undefined): Promise<void> {
-  if (!batchId) return;
+// Total dispatch attempts (initial + reaper resumes) before a stuck job is
+// failed. attempts starts at 1, so this permits exactly one reaper resume:
+// transient orphans recover on the first resume; genuinely poisoned jobs fail
+// fast instead of being re-run forever (each enqueue already carries one
+// QStash retry of its own).
+const REAP_MAX_ATTEMPTS = 2;
 
-  const [next] = await db
-    .select({ id: generationJobs.id })
+function taskForPhase(phase: string): TaskName {
+  return phase === 'author' ? 'author-design-md' : 'scrape-and-extract';
+}
+
+/**
+ * Start queued batch jobs up to the global concurrency cap.
+ *
+ * Atomicity model:
+ *   1. Inside a transaction, take a transaction-scoped advisory lock so
+ *      overlapping dispatchers (cron tick, entrypoint, worker completions)
+ *      can't each read the same `running` count and collectively over-claim.
+ *   2. Claim the oldest queued jobs with FOR UPDATE SKIP LOCKED (row-level
+ *      safety against any other tx touching the same rows) and CAS them to
+ *      'running' in the same tx.
+ *   3. AFTER commit, enqueue each job's worker. QStash latency is kept out of
+ *      the lock window. A job that fails to enqueue is reverted to 'queued'
+ *      for the next tick; if even the revert fails it stays 'running' and the
+ *      reaper recovers it. A job is therefore never silently lost.
+ */
+export async function dispatchReady(): Promise<{ claimed: number }> {
+  const cap = env.BULK_CONCURRENCY;
+
+  const claimedJobs = await db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(${DISPATCH_LOCK_KEY})`);
+
+    const [runningRow] = await tx
+      .select({ value: count() })
+      .from(generationJobs)
+      .where(and(eq(generationJobs.status, 'running'), isNotNull(generationJobs.batchId)));
+
+    const slots = cap - Number(runningRow?.value ?? 0);
+    if (slots <= 0) return [];
+
+    const ready = await tx
+      .select({ id: generationJobs.id, phase: generationJobs.phase })
+      .from(generationJobs)
+      .where(and(eq(generationJobs.status, 'queued'), isNotNull(generationJobs.batchId)))
+      .orderBy(asc(generationJobs.createdAt))
+      .limit(slots)
+      .for('update', { skipLocked: true });
+
+    if (ready.length === 0) return [];
+
+    await tx
+      .update(generationJobs)
+      .set({ status: 'running', updatedAt: new Date() })
+      .where(
+        inArray(
+          generationJobs.id,
+          ready.map((r) => r.id),
+        ),
+      );
+
+    return ready;
+  });
+
+  let claimed = 0;
+  for (const job of claimedJobs) {
+    try {
+      await enqueueTask(taskForPhase(job.phase), { jobId: job.id });
+      claimed++;
+    } catch (err) {
+      console.error(`[dispatchReady] enqueue failed for job ${job.id}; reverting to queued`, err);
+      await db
+        .update(generationJobs)
+        .set({ status: 'queued', updatedAt: new Date() })
+        .where(eq(generationJobs.id, job.id))
+        .catch((revertErr) => {
+          console.error(
+            `[dispatchReady] revert failed for job ${job.id}; reaper will recover`,
+            revertErr,
+          );
+        });
+    }
+  }
+
+  return { claimed };
+}
+
+/**
+ * Recover batch jobs that are 'running' but have stopped making progress
+ * (updated_at older than the lease). For each:
+ *   - attempts < REAP_MAX_ATTEMPTS  → resume: renew the lease, bump attempts,
+ *     re-enqueue the worker for the job's CURRENT phase (a resume, using the
+ *     persisted phase_payload — not a re-scrape).
+ *   - otherwise                     → fail: free the slot so the batch can
+ *     progress; the admin can retry-failed manually.
+ *
+ * Every state change is CAS-guarded on (status='running' AND still stale) so we
+ * never fight a worker that came back to life and renewed its own lease.
+ */
+export async function reapStale(): Promise<{ resumed: number; failed: number }> {
+  const cutoff = new Date(Date.now() - LEASE_MS);
+
+  const stale = await db
+    .select({
+      id: generationJobs.id,
+      phase: generationJobs.phase,
+      attempts: generationJobs.attempts,
+    })
     .from(generationJobs)
     .where(
       and(
-        eq(generationJobs.batchId, batchId),
-        eq(generationJobs.status, 'queued'),
+        eq(generationJobs.status, 'running'),
+        isNotNull(generationJobs.batchId),
+        lt(generationJobs.updatedAt, cutoff),
       ),
     )
-    .orderBy(asc(generationJobs.createdAt))
-    .limit(1);
+    .orderBy(asc(generationJobs.updatedAt));
 
-  if (!next) return; // batch complete
+  let resumed = 0;
+  let failed = 0;
 
-  let lastErr: unknown;
-  for (let attempt = 0; attempt < ADVANCE_MAX_ATTEMPTS; attempt++) {
-    try {
-      await enqueueTask('scrape-and-extract', { jobId: next.id }, { delaySeconds: BATCH_GAP_SECONDS });
-      return;
-    } catch (err) {
-      lastErr = err;
-      if (attempt < ADVANCE_MAX_ATTEMPTS - 1) {
-        await new Promise<void>((resolve) => setTimeout(resolve, 100 * 2 ** attempt));
+  for (const job of stale) {
+    if (job.attempts < REAP_MAX_ATTEMPTS) {
+      const [renewed] = await db
+        .update(generationJobs)
+        .set({ attempts: job.attempts + 1, updatedAt: new Date() })
+        .where(
+          and(
+            eq(generationJobs.id, job.id),
+            eq(generationJobs.status, 'running'),
+            lt(generationJobs.updatedAt, cutoff),
+          ),
+        )
+        .returning({ id: generationJobs.id });
+
+      if (!renewed) continue; // a live worker renewed the lease first — leave it alone
+
+      try {
+        await enqueueTask(taskForPhase(job.phase), { jobId: job.id });
+        resumed++;
+      } catch (err) {
+        // Lease + attempts are already bumped; the next tick retries. We avoid
+        // failing here so a transient QStash blip doesn't kill a recoverable job.
+        console.error(`[reapStale] re-enqueue failed for job ${job.id}`, err);
       }
+    } else {
+      const [failedRow] = await db
+        .update(generationJobs)
+        .set({
+          status: 'failed',
+          errorStep: 'supervisor-reap',
+          errorMessage: `Stalled in phase '${job.phase}' past ${REAP_MAX_ATTEMPTS} dispatch attempts`,
+          phasePayload: null,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(generationJobs.id, job.id),
+            eq(generationJobs.status, 'running'),
+            lt(generationJobs.updatedAt, cutoff),
+          ),
+        )
+        .returning({ id: generationJobs.id });
+
+      if (failedRow) failed++;
     }
   }
-  throw lastErr;
+
+  return { resumed, failed };
 }

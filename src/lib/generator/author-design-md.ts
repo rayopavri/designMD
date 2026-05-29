@@ -12,17 +12,18 @@
  * take 25-35s and was blowing past Vercel Hobby's 60s function cap when
  * combined with Firecrawl + Gemini in a single worker.
  *
- * Phase 1 (scrape-and-extract) passes the full brand object + a trimmed
- * scraped markdown through the QStash payload, and ALSO enqueues the
- * companion-prompt worker (Phase 3) at the same time as this one so
- * the two run concurrently rather than chained.
+ * Phase 1 (scrape-and-extract) persists the brand object + trimmed scraped
+ * markdown + draft bundleId onto generation_jobs.phase_payload, then enqueues
+ * this worker AND the companion-prompt worker (Phase 3) with a thin { jobId }.
+ * Both run concurrently and hydrate their inputs from the DB, so the supervisor
+ * can resume either one after a dropped message without re-scraping.
  */
 import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db/client';
 import { bundles, generationJobs } from '@/lib/db/schema';
-import type { ExtractedBrand } from '@/lib/ai/gemini';
 import { generateDesignMd, appendWcagRows } from '@/lib/ai/generate-design-md';
-import { advanceBatch } from '@/lib/generator/batch';
+import { dispatchReady } from '@/lib/generator/batch';
+import { parseAuthorPhasePayload, type AuthorPhasePayload } from '@/lib/generator/phase-payload';
 import { scoreFromLint } from '@/lib/generator/coverage';
 import {
   lintDesignMd,
@@ -33,40 +34,47 @@ import {
 
 export interface AuthorDesignMdPayload {
   jobId: string;
-  bundleId: string;
-  url: string;
-  scrapedMarkdown: string;
-  brand: ExtractedBrand;
-  /** True when the parent generation_jobs row is a re-run (preserves status). */
-  isRerun: boolean;
-  /** True when triggered by bulk-upload — skips quality gate and publishes directly. */
-  autoPublish: boolean;
-  /** Batch ID for sequential processing — chains to next queued job on completion/failure. */
-  batchId: string | null;
-  /** On re-runs: free-text editor feedback about what was wrong last time. Folded into the
-   *  DESIGN.md prose. Null on first-run / bulk jobs. */
-  userFeedback: string | null;
 }
 
 export async function runAuthorDesignMd(payload: AuthorDesignMdPayload): Promise<void> {
-  const { jobId, bundleId, url, scrapedMarkdown, brand, isRerun, autoPublish, batchId, userFeedback } = payload;
+  const { jobId } = payload;
 
-  // QStash retry guard — mirrors runScrapeAndExtract. If the prior
-  // invocation already committed a terminal status (watchdog cleanup
-  // marked failed, in-process failJob ran, or success path completed),
-  // bail. Without this, a watchdog-failed invocation followed by a
-  // QStash retry re-runs the AI author + lint + score and re-enqueues
-  // Phase 3 from scratch, burning credits and overwriting bundle
-  // content. Folds the existing autoPublish userId fetch into this
-  // lookup so it's still one round-trip.
+  // Hydrate everything from the DB — the queue message is just { jobId }.
+  // QStash retry guard — mirrors runScrapeAndExtract. If the prior invocation
+  // already committed a terminal status (watchdog cleanup marked failed,
+  // in-process failJob ran, or success path completed), bail. Without this, a
+  // watchdog-failed invocation followed by a QStash retry re-runs the AI author
+  // + lint + score and re-enqueues Phase 3 from scratch, burning credits and
+  // overwriting bundle content.
   const [jobRow] = await db
-    .select({ status: generationJobs.status, userId: generationJobs.userId })
+    .select({
+      status: generationJobs.status,
+      userId: generationJobs.userId,
+      url: generationJobs.url,
+      autoPublish: generationJobs.autoPublish,
+      targetBundleId: generationJobs.targetBundleId,
+      batchId: generationJobs.batchId,
+      phasePayload: generationJobs.phasePayload,
+    })
     .from(generationJobs)
     .where(eq(generationJobs.id, jobId))
     .limit(1);
   if (!jobRow) throw new Error(`generation job ${jobId} not found`);
   if (jobRow.status !== 'queued' && jobRow.status !== 'running') return;
+
+  const batchId = jobRow.batchId;
+  const autoPublish = Boolean(jobRow.autoPublish);
+  const isRerun = Boolean(jobRow.targetBundleId);
+  const url = jobRow.url;
   const editorUserId: string | null = autoPublish ? (jobRow.userId ?? null) : null;
+
+  let hydrated: AuthorPhasePayload;
+  try {
+    hydrated = parseAuthorPhasePayload(jobRow.phasePayload);
+  } catch (err) {
+    return failJob(jobId, 'hydrate-payload', err, batchId);
+  }
+  const { bundleId, brand, scrapedMarkdown, userFeedback } = hydrated;
 
   await setJobStep(jobId, 'writing-design-md');
   let designMdContent: string;
@@ -198,11 +206,18 @@ export async function runAuthorDesignMd(payload: AuthorDesignMdPayload): Promise
               : 'held_as_draft',
       resultBundleId: bundleId,
       imageData: null,
+      phasePayload: null,
       updatedAt: new Date(),
     })
     .where(eq(generationJobs.id, jobId));
 
-  await advanceBatch(batchId);
+  // Batch job done → free its slot and refill immediately. Best-effort; the
+  // supervisor cron backstops this if the call is lost.
+  if (batchId) {
+    await dispatchReady().catch((dispatchErr) =>
+      console.error(`[author-design-md] dispatchReady after complete (${jobId}) failed:`, dispatchErr),
+    );
+  }
 }
 
 async function setJobStep(
@@ -236,8 +251,13 @@ async function failJob(jobId: string, step: string, err: unknown, batchId?: stri
       status: 'failed',
       errorStep: step,
       errorMessage: message.slice(0, 1000),
+      phasePayload: null,
       updatedAt: new Date(),
     })
     .where(eq(generationJobs.id, jobId));
-  await advanceBatch(batchId);
+  if (batchId) {
+    await dispatchReady().catch((dispatchErr) =>
+      console.error(`[author-design-md] dispatchReady after fail (${jobId}) failed:`, dispatchErr),
+    );
+  }
 }

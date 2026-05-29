@@ -2,8 +2,10 @@
  * POST /api/admin/bulk-upload
  *
  * Editor-only. Accepts a list of URLs, creates all generation jobs sharing
- * a batchId, and enqueues ONLY the first one. Each job chains to the next
- * (via advanceBatch) after it completes or fails, with a 10s gap.
+ * a batchId (status='queued'), then calls dispatchReady() to claim up to the
+ * concurrency cap and start them in parallel. As each job finishes it calls
+ * dispatchReady() to refill its slot; the supervisor cron backstops any lost
+ * dispatch. No job-to-job chaining.
  *
  * Skips:
  *  - Invalid URLs
@@ -23,9 +25,10 @@ import { and, eq, inArray, sql } from 'drizzle-orm';
 import { requireEditor } from '@/lib/auth/session';
 import { db } from '@/lib/db/client';
 import { bundles, generationJobs } from '@/lib/db/schema';
-import { enqueueTask } from '@/lib/queue';
+import { dispatchReady } from '@/lib/generator/batch';
 import { normalizeUrl } from '@/lib/generator/url';
 import { prefetchBrandNames } from '@/lib/generator/prefetch-names';
+import { env } from '@/lib/env';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -207,7 +210,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // ── 5. Insert all jobs sharing one batchId, enqueue only the first ────────
+  // ── 5. Insert all jobs sharing one batchId, then dispatch up to the cap ───
   const batchId = crypto.randomUUID();
 
   const insertedJobs = await db
@@ -235,23 +238,21 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Enqueue only the first job — it chains to the rest on completion/failure
-  const firstJob = insertedJobs[0];
-  if (firstJob) {
-    try {
-      await enqueueTask('scrape-and-extract', { jobId: firstJob.id });
-    } catch (err) {
-      console.error('[bulk-upload] failed to enqueue first job:', err);
-      return NextResponse.json(
-        { error: 'Failed to start pipeline', details: err instanceof Error ? err.message : String(err) },
-        { status: 500 },
-      );
-    }
+  // Claim up to the concurrency cap and enqueue them in parallel. The rows are
+  // already durable, so a failed dispatch here is recoverable — the supervisor
+  // cron picks up the still-queued jobs on its next tick. We therefore don't
+  // 500 the request on a dispatch error; the batch will start within ~60s.
+  try {
+    await dispatchReady();
+  } catch (err) {
+    console.error('[bulk-upload] initial dispatchReady failed (supervisor will recover):', err);
   }
 
   const enqueuedCount = toEnqueue.length;
-  // ETA: first job starts now, each subsequent adds ~3 min processing + 10s gap
-  const etaSeconds = enqueuedCount > 0 ? enqueuedCount * 180 + (enqueuedCount - 1) * 10 : 0;
+  // ETA: jobs run BULK_CONCURRENCY-wide, ~3 min each. Wall-clock ≈ number of
+  // waves × per-job time.
+  const cap = env.BULK_CONCURRENCY;
+  const etaSeconds = enqueuedCount > 0 ? Math.ceil(enqueuedCount / cap) * 180 : 0;
 
   return NextResponse.json(
     { batchId, enqueued: enqueuedCount, skipped: buildSkipCounts(outcomes), outcomes, etaSeconds },

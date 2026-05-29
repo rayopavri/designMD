@@ -3,22 +3,22 @@
  *
  * Editor-only. Marks every job in the batch that has been stuck in
  * `status='running'` longer than UNSTUCK_THRESHOLD_MS as `failed` with
- * errorStep='manual-unstick', then calls advanceBatch() to kick the
- * next queued URL so the batch resumes.
+ * errorStep='manual-unstick', then calls dispatchReady() to refill the
+ * freed concurrency slots so the batch keeps moving.
  *
  * Use when a Firecrawl / Gemini / Sonnet call hung past Vercel's
  * maxDuration in production — the SIGKILL would have prevented
- * failJob() AND advanceBatch() from running, stranding the row AND
- * halting the rest of the queue. Newer deploys have worker-level
- * watchdogs that catch this automatically, but this endpoint
- * remains useful as a manual escape hatch.
+ * failJob() AND slot-refill from running, stranding the row AND
+ * tying up a concurrency slot. The worker watchdogs and the
+ * supervise-batches cron catch this automatically, but this endpoint
+ * remains useful as an immediate manual escape hatch.
  */
 import { NextResponse, type NextRequest } from 'next/server';
 import { and, eq, lt } from 'drizzle-orm';
 import { requireEditor } from '@/lib/auth/session';
 import { db } from '@/lib/db/client';
 import { generationJobs } from '@/lib/db/schema';
-import { advanceBatch } from '@/lib/generator/batch';
+import { dispatchReady } from '@/lib/generator/batch';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
@@ -76,20 +76,21 @@ export async function POST(
         status: 'failed',
         errorStep: 'manual-unstick',
         errorMessage: `Manually unstuck — was stuck at currentStep='${job.currentStep ?? 'unknown'}' since ${job.updatedAt.toISOString()}`,
+        phasePayload: null,
         updatedAt: new Date(),
       })
       .where(eq(generationJobs.id, job.id));
   }
 
-  // Kick the next queued job in the batch (only fires once even if
-  // multiple stuck jobs were unstuck — advanceBatch picks the single
-  // next queued row and enqueues scrape-and-extract for it).
+  // Refill the concurrency slots the unstuck jobs just freed. dispatchReady
+  // claims up to BULK_CONCURRENCY queued rows and enqueues them; the
+  // supervise-batches cron backstops this if it throws.
   let advanced = false;
   try {
-    await advanceBatch(batchId);
+    await dispatchReady();
     advanced = true;
   } catch (err) {
-    console.error('[unstick] advanceBatch failed:', err);
+    console.error('[unstick] dispatchReady failed:', err);
   }
 
   return NextResponse.json({

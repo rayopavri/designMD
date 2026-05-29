@@ -11,7 +11,7 @@ import { assertTaskAuth } from '@/lib/queue';
 import { runScrapeAndExtract } from '@/lib/generator/scrape-and-extract';
 import { db } from '@/lib/db/client';
 import { generationJobs } from '@/lib/db/schema';
-import { advanceBatch } from '@/lib/generator/batch';
+import { dispatchReady } from '@/lib/generator/batch';
 
 // This route makes outbound HTTP calls (Firecrawl, Gemini) and writes
 // to Postgres. It must run on the Node runtime, not edge.
@@ -20,9 +20,10 @@ export const maxDuration = 300;
 
 // Hard watchdog: mark the job failed before Vercel SIGKILLs the function.
 // Critical for bulk-upload batches — when a job hangs on Firecrawl (JS-heavy
-// sites can stall the API), the SIGKILL prevents failJob() AND advanceBatch()
-// from running, stranding the row in `running` and halting the whole batch.
-// 290s leaves a 10s cleanup window inside the 300s Pro-plan maxDuration.
+// sites can stall the API), the SIGKILL prevents failJob() AND dispatchReady()
+// from running, stranding the row in `running` and tying up a concurrency slot
+// until the supervisor cron reaps it. 290s leaves a 10s cleanup window inside
+// the 300s Pro-plan maxDuration.
 const WATCHDOG_MS = 290_000;
 
 const PayloadSchema = z.object({
@@ -64,32 +65,33 @@ export async function POST(req: NextRequest) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     console.error('[task:scrape-and-extract] uncaught:', message);
     // If the watchdog fired, runScrapeAndExtract never reached failJob —
-    // mark the row failed AND kick the next batch job (otherwise the
-    // entire bulk batch stalls forever).
+    // mark the row failed AND refill the batch slot via dispatchReady
+    // (otherwise the batch loses a concurrency slot until the supervisor cron
+    // reaps it).
     //
     // The UPDATE is CAS-guarded on status='running': if runScrapeAndExtract
-    // already committed a terminal status (its in-process failJob ran,
-    // or the success path enqueued the next worker) before the watchdog
-    // tripped, the UPDATE affects zero rows and we DON'T call advanceBatch
-    // here — the in-process handler already did. Without this guard the
-    // watchdog would clobber a specific errorStep with 'watchdog' AND
-    // double-enqueue the next batch job. The .returning() also gives us
-    // batchId in the same round-trip when we DO need to advance, avoiding
-    // a separate lookup.
+    // already committed a terminal status (its in-process failJob ran, or the
+    // success path advanced to Phase 2) before the watchdog tripped, the
+    // UPDATE affects zero rows and we DON'T dispatch here — the in-process
+    // handler already did. Without this guard the watchdog would clobber a
+    // specific errorStep with 'watchdog' AND double-dispatch.
     //
-    // Each DB call races a 3s timeout so a hung connection can't hold us
-    // past maxDuration.
+    // We read batchId back from RETURNING: truthy → batch job, refill its
+    // slot; null → single-generate, nothing to dispatch; zero rows → already
+    // terminal. Each DB call races a 3s timeout so a hung connection can't
+    // hold us past maxDuration.
     if (watchdogFired) {
       const jobId = parsed.jobId;
-      let advancedBatchId: string | null | undefined = undefined;
+      let rows: { batchId: string | null }[] = [];
       try {
-        const rows = await Promise.race([
+        rows = await Promise.race([
           db
             .update(generationJobs)
             .set({
               status: 'failed',
               errorStep: 'watchdog',
               errorMessage: message.slice(0, 1000),
+              phasePayload: null,
               updatedAt: new Date(),
             })
             .where(and(eq(generationJobs.id, jobId), eq(generationJobs.status, 'running')))
@@ -98,26 +100,26 @@ export async function POST(req: NextRequest) {
             setTimeout(() => reject(new Error('failJob db timeout')), 3_000).unref(),
           ),
         ]);
-        if (rows.length > 0) advancedBatchId = rows[0].batchId;
       } catch (failErr) {
         console.error('[task:scrape-and-extract] watchdog failJob failed:', failErr);
       }
-      if (advancedBatchId !== undefined) {
+      if (rows.length === 0) {
+        console.warn(
+          '[task:scrape-and-extract] watchdog fired but row no longer running — skipping dispatch (in-process handler already terminated)',
+        );
+      } else if (rows[0].batchId) {
         try {
           await Promise.race([
-            advanceBatch(advancedBatchId),
+            dispatchReady(),
             new Promise<never>((_, reject) =>
-              setTimeout(() => reject(new Error('advanceBatch timeout')), 3_000).unref(),
+              setTimeout(() => reject(new Error('dispatchReady timeout')), 3_000).unref(),
             ),
           ]);
-        } catch (advErr) {
-          console.error('[task:scrape-and-extract] watchdog advanceBatch failed:', advErr);
+        } catch (dispErr) {
+          console.error('[task:scrape-and-extract] watchdog dispatchReady failed:', dispErr);
         }
-      } else {
-        console.warn(
-          '[task:scrape-and-extract] watchdog fired but row no longer running — skipping advanceBatch (in-process handler already terminated)',
-        );
       }
+      // else: single-generate job (batchId null) — nothing to dispatch.
     }
     return NextResponse.json({ error: message }, { status: 500 });
   }

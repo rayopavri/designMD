@@ -452,11 +452,30 @@ export const generationJobs = pgTable(
     errorMessage: text('error_message'),
     errorStep: text('error_step'),
 
-    // Batch grouping for sequential bulk-upload processing. All jobs created
-    // by a single /api/admin/bulk-upload call share the same batchId.
-    // Only the first job is enqueued immediately; each job chains to the next
-    // on completion or failure.
+    // Batch grouping for bulk-upload processing. All jobs created by a single
+    // /api/admin/bulk-upload call share the same batchId. A supervisor cron
+    // reconciles the batch: it dispatches queued jobs up to a global
+    // concurrency cap and reaps stale running jobs, so liveness no longer
+    // depends on workers chaining to one another.
     batchId: uuid('batch_id'),
+
+    // Which pipeline phase the job is in. The supervisor re-enqueues the
+    // worker for the current phase when resuming a stalled job, so a dropped
+    // message becomes a resume (not a restart from scrape).
+    //   'scrape_extract' -> Phase 1 (scrape + extract, writes draft bundle)
+    //   'author'         -> Phase 2 (author DESIGN.md + lint + score)
+    phase: text('phase').notNull().default('scrape_extract'),
+
+    // Dispatch attempt counter. Incremented each time the supervisor resumes a
+    // stale running job; once it exceeds the cap the reaper fails the job
+    // instead of retrying forever.
+    attempts: integer('attempts').notNull().default(1),
+
+    // Transient pipeline inputs handed from one phase to the next (brand
+    // tokens, trimmed scraped markdown, draft bundleId, design styles, editor
+    // feedback). Lets workers receive a thin {jobId} message and hydrate the
+    // rest from the DB. Nulled out when the job completes.
+    phasePayload: jsonb('phase_payload'),
 
     // Auto-publish flag: when true the author-design-md worker skips the
     // quality gate and publishes the bundle directly (used by bulk-upload).

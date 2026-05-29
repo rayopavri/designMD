@@ -40,6 +40,15 @@ const EnvSchema = z.object({
   // Security
   RATE_LIMIT_SECRET: z.string().min(32).optional(),
   TAKEDOWN_SECRET: z.string().min(32).optional(),
+  // Bearer token the Vercel Cron supervisor must present. When unset (local
+  // dev), the supervisor route falls back to the internal task token so it
+  // can still be invoked manually.
+  CRON_SECRET: z.string().min(16).optional(),
+
+  // Bulk-upload supervisor: max generation jobs (across all batches) the
+  // dispatcher lets run concurrently. Bounds downstream API pressure
+  // (Firecrawl / Gemini / Anthropic) and Vercel function fan-out.
+  BULK_CONCURRENCY: z.coerce.number().int().min(1).max(20).default(3),
 
   // Safe Browsing
   GOOGLE_SAFE_BROWSING_API_KEY: z.string().min(1).optional(),

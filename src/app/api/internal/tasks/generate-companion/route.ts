@@ -3,6 +3,9 @@
  *
  * Fires in parallel with author-design-md (both enqueued by Phase 1).
  *
+ * The queue message is just { jobId }; runGenerateCompanion hydrates brand /
+ * designStyles / bundleId from generation_jobs.phase_payload.
+ *
  * Auth: assertTaskAuth handles both QStash signature (production) and
  * x-internal-task-token (local dev).
  */
@@ -14,13 +17,8 @@ import { runGenerateCompanion } from '@/lib/generator/generate-companion-task';
 export const runtime = 'nodejs';
 export const maxDuration = 300;
 
-// Brand is already sanitized by gemini.ts in Phase 1 — we don't re-validate
-// its inner shape here. Same pattern as the author-design-md route.
 const PayloadSchema = z.object({
-  bundleId: z.string().uuid(),
-  jobId: z.string().uuid().nullable().optional(),
-  brand: z.unknown(),
-  designStyles: z.array(z.string()).default([]),
+  jobId: z.string().uuid(),
 });
 
 export async function POST(req: NextRequest) {
@@ -43,13 +41,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    await runGenerateCompanion({
-      bundleId: parsed.bundleId,
-      jobId: parsed.jobId ?? null,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      brand: parsed.brand as any,
-      designStyles: parsed.designStyles,
-    });
+    await runGenerateCompanion({ jobId: parsed.jobId });
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error('[task:generate-companion] uncaught:', err);

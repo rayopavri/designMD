@@ -5,8 +5,8 @@
  * (cancelled). Already-completed and already-failed jobs are untouched.
  *
  * The running worker (if any) will still finish its current QStash task,
- * but when it calls advanceBatch there will be no queued rows left, so
- * the chain stops naturally. No DB rows are deleted.
+ * but when it calls dispatchReady there will be no queued rows left in the
+ * batch, so nothing refills. No DB rows are deleted.
  *
  * Response: { cancelled: number }
  */
@@ -40,6 +40,7 @@ export async function POST(
     .set({
       status: 'failed',
       errorMessage: 'Cancelled by admin',
+      phasePayload: null,
       updatedAt: new Date(),
     })
     .where(

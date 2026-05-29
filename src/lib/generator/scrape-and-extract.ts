@@ -9,9 +9,12 @@
  *   persisting           → write draft bundle (status=personal)
  *
  * Phase 2 (Sonnet design.md + lint + score) lives in author-design-md.ts.
- * Splitting was forced by Vercel Hobby's 60s function cap — the Sonnet
- * call alone takes 25-35s. Phase 1 enqueues Phase 2 via QStash and
- * passes the full brand object + trimmed scrape markdown in the payload.
+ * Splitting was forced by Vercel's function cap — the Sonnet call alone takes
+ * 25-35s. Phase 1 persists its outputs (brand, trimmed markdown, draft
+ * bundleId) onto generation_jobs.phase_payload, sets phase='author', then
+ * enqueues Phase 2 + Phase 3 with a thin { jobId }. Those workers hydrate from
+ * the DB, so a dropped message is recovered by the supervisor as a resume of
+ * the current phase — never a re-scrape.
  */
 import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db/client';
@@ -30,7 +33,8 @@ import {
 import { resolveOrphans } from '@/lib/generator/resolve-orphans';
 import { extractDomain } from '@/lib/generator/url';
 import { uniqueBundleSlug } from '@/lib/generator/slug';
-import { advanceBatch } from '@/lib/generator/batch';
+import { dispatchReady } from '@/lib/generator/batch';
+import type { AuthorPhasePayload } from '@/lib/generator/phase-payload';
 
 // QStash payloads are capped at 1MB. Trim the scraped markdown before
 // passing to Phase 2 — design.md authoring only needs a representative
@@ -242,47 +246,47 @@ export async function runScrapeAndExtract(payload: ScrapeAndExtractPayload): Pro
     return failJob(jobId, 'persisting', err, job.batchId);
   }
 
-  // ─── 5. Hand off to Phase 2 + Phase 3 in parallel ────
-  // The companion-prompt worker only needs the brand JSON (not the finished
-  // DESIGN.md), so we fire it alongside the author worker rather than
-  // chaining it after Sonnet returns. Both run in separate Vercel functions,
-  // each with a 300s Pro-plan budget. QStash payloads cap at 1MB; trim
-  // markdown again from 80k → 40k to keep the author payload small.
-  //
-  // Author enqueue is required (no DESIGN.md without it). Companion enqueue
-  // is best-effort — if QStash hiccups we log and continue, matching the
-  // legacy behavior from author-design-md.ts where companion was fired
-  // with try/catch + log on failure.
+  // ─── 5. Persist phase payload + hand off to Phase 2 / Phase 3 ────
+  // Durably store everything the later workers need (trimmed markdown, brand,
+  // draft bundleId, editor feedback) on the job row and advance phase→'author'
+  // BEFORE enqueuing. Once this commits, the job is recoverable: if either
+  // enqueue is lost, the supervisor re-enqueues phase 'author' with { jobId }
+  // and the worker hydrates from phase_payload — no re-scrape.
+  const phasePayload: AuthorPhasePayload = {
+    bundleId,
+    brand,
+    scrapedMarkdown: scrape.markdown.slice(0, PHASE_2_MARKDOWN_CAP),
+    designStyles: brand.designStyles ?? [],
+    userFeedback: feedback ?? null,
+  };
   try {
-    await enqueueTask('author-design-md', {
-      jobId,
-      bundleId,
-      url: job.url,
-      scrapedMarkdown: scrape.markdown.slice(0, PHASE_2_MARKDOWN_CAP),
-      brand,
-      isRerun: Boolean(job.targetBundleId),
-      autoPublish: Boolean(job.autoPublish),
-      batchId: job.batchId ?? null,
-      userFeedback: feedback ?? null,
-    });
+    await db
+      .update(generationJobs)
+      .set({ phase: 'author', phasePayload, status: 'running', updatedAt: new Date() })
+      .where(eq(generationJobs.id, jobId));
+  } catch (err) {
+    return failJob(jobId, 'persisting', err, job.batchId);
+  }
+
+  // Author enqueue is required (no DESIGN.md without it). Companion enqueue is
+  // best-effort — if QStash hiccups we log and continue; the supervisor will
+  // re-dispatch the author phase and the bundle keeps its placeholder
+  // companion until that worker runs.
+  try {
+    await enqueueTask('author-design-md', { jobId });
   } catch (err) {
     return failJob(jobId, 'enqueueing-author', err, job.batchId);
   }
   try {
-    await enqueueTask('generate-companion', {
-      bundleId,
-      jobId,
-      brand,
-      designStyles: brand.designStyles ?? [],
-    });
+    await enqueueTask('generate-companion', { jobId });
   } catch (err) {
     console.error('[scrape-and-extract] failed to enqueue companion task:', err);
     // Continue — the bundle has a placeholder companion; the worker can be
     // retried later or run from author-design-md as a future fallback.
   }
 
-  // Phase 1 ends here. The job stays `running` with currentStep='persisting'
-  // until Phase 2 picks it up and advances to 'writing-design-md'.
+  // Phase 1 ends here. The job stays `running` with phase='author' until Phase
+  // 2 picks it up (or the supervisor resumes it) and advances the step.
 }
 
 // ─── Helpers ─────────────────────────────────────────────────
@@ -321,10 +325,17 @@ async function failJob(jobId: string, step: string, err: unknown, batchId?: stri
       status: 'failed',
       errorStep: step,
       errorMessage: message.slice(0, 1000),
+      phasePayload: null,
       updatedAt: new Date(),
     })
     .where(eq(generationJobs.id, jobId));
-  await advanceBatch(batchId);
+  // Batch job failed → its slot is now free. Refill immediately rather than
+  // waiting for the next cron tick. Best-effort: the supervisor backstops this.
+  if (batchId) {
+    await dispatchReady().catch((dispatchErr) =>
+      console.error(`[scrape-and-extract] dispatchReady after fail (${jobId}) failed:`, dispatchErr),
+    );
+  }
 }
 
 async function writeDraftBundle(input: {

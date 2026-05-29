@@ -146,6 +146,13 @@ interface Input {
   designStyles: string[];
 }
 
+interface SpecInput {
+  brandName: string;
+  /** The finished design.md spec text — ground truth for an existing bundle. */
+  designMd: string;
+  designStyles: string[];
+}
+
 const MAX_OUTPUT_TOKENS = 1500;
 
 // Per-request timeout. Vercel kills the generate-companion function at 60s.
@@ -154,6 +161,14 @@ const MAX_OUTPUT_TOKENS = 1500;
 // A normal companion call returns in 10-20s so this is ~3x healthy headroom.
 const SONNET_TIMEOUT_MS = 45_000;
 
+// Guards against a pathological design.md blowing the context window. A real
+// design.md is a few KB; this cap (~10k tokens) never truncates a healthy spec.
+const MAX_SPEC_CHARS = 40_000;
+
+/**
+ * Pipeline companion generator, driven by the structured brand JSON extracted
+ * in Phase 1. Used by the parallel companion worker while DESIGN.md is authored.
+ */
 export async function generateCompanionPrompt(input: Input): Promise<string> {
   const { brand } = input;
   const brandSummary = JSON.stringify(
@@ -195,11 +210,44 @@ export async function generateCompanionPrompt(input: Input): Promise<string> {
     'Produce the companion prompt. Output only the markdown, no preamble.',
   ].join('\n');
 
-  // Uses the .beta.messages endpoint because @anthropic-ai/sdk@0.32 only
-  // surfaces typed `cache_control` on the beta path. Runtime behavior is
-  // identical to .messages.create() on the same model — Sonnet 4.6 — and
-  // prompt caching is GA on the Anthropic API. Upgrading the SDK to the
-  // current major would resolve this but is out of scope.
+  return runCompanionSonnet(userPrompt);
+}
+
+/**
+ * Companion generator for an EXISTING bundle, driven by its finished design.md
+ * instead of the brand JSON. Used by the editor "regenerate companion" action,
+ * where the original Phase-1 brand extraction is long gone — the design.md is
+ * the only surviving source of truth, and it already carries every token by
+ * name, so it's a complete substitute for the structured brand object.
+ */
+export async function generateCompanionPromptFromSpec(input: SpecInput): Promise<string> {
+  const spec = input.designMd.slice(0, MAX_SPEC_CHARS);
+  const userPrompt = [
+    `Brand: ${input.brandName}`,
+    `Design styles: ${input.designStyles.join(', ') || '(none)'}`,
+    '',
+    'The design.md spec below is the ground truth. Write the companion that teaches an AI tool to apply it:',
+    '```markdown',
+    spec,
+    '```',
+    '',
+    'Produce the companion prompt. Output only the markdown, no preamble.',
+  ].join('\n');
+
+  return runCompanionSonnet(userPrompt);
+}
+
+/**
+ * Shared Sonnet call for both companion paths: identical model, cached system
+ * prompt, timeout, and text extraction — only the user message differs.
+ *
+ * Uses the .beta.messages endpoint because @anthropic-ai/sdk@0.32 only surfaces
+ * typed `cache_control` on the beta path. Runtime behavior is identical to
+ * .messages.create() on the same model — Sonnet 4.6 — and prompt caching is GA
+ * on the Anthropic API. Upgrading the SDK to the current major would resolve
+ * this but is out of scope.
+ */
+async function runCompanionSonnet(userPrompt: string): Promise<string> {
   const res = await anthropic().beta.messages.create(
     {
       model: ANTHROPIC_MODELS.sonnet,

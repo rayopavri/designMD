@@ -730,14 +730,13 @@ function BatchStatusView({
       );
       const data = (await res.json()) as {
         retried: number;
-        enqueuedFirst: string | null;
-        inFlight: boolean;
+        dispatched: boolean;
       };
       if (data.retried === 0) {
         setActionMessage('No failed jobs to retry.');
       } else {
         setActionMessage(
-          `Re-queued ${data.retried} job${data.retried === 1 ? '' : 's'}${data.enqueuedFirst ? ' · first one kicked' : data.inFlight ? ' · waiting for in-flight job to finish' : ''}.`,
+          `Re-queued ${data.retried} job${data.retried === 1 ? '' : 's'}${data.dispatched ? ' · processing resumed' : ' · supervisor will start them shortly'}.`,
         );
       }
       onRefresh();

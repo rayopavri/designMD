@@ -1,6 +1,10 @@
 /**
  * Internal worker endpoint for Phase 2 of the pipeline: Sonnet authors
- * DESIGN.md, fires the companion worker, then lints + scores.
+ * DESIGN.md, then lints + scores. The companion worker (Phase 3) is enqueued
+ * by Phase 1 alongside this one and runs in parallel.
+ *
+ * The queue message is just { jobId }; runAuthorDesignMd hydrates brand /
+ * markdown / bundleId from generation_jobs.phase_payload.
  *
  * Auth: assertTaskAuth handles both QStash signature (production) and
  * x-internal-task-token (local dev).
@@ -12,7 +16,7 @@ import { assertTaskAuth } from '@/lib/queue';
 import { runAuthorDesignMd } from '@/lib/generator/author-design-md';
 import { db } from '@/lib/db/client';
 import { generationJobs } from '@/lib/db/schema';
-import { advanceBatch } from '@/lib/generator/batch';
+import { dispatchReady } from '@/lib/generator/batch';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
@@ -21,19 +25,10 @@ export const maxDuration = 300;
 // 290s leaves a 10s cleanup window inside the 300s Pro-plan maxDuration.
 const WATCHDOG_MS = 290_000;
 
-// We deliberately don't validate brand exhaustively here — Phase 1 already
-// ran it through sanitize() in gemini.ts. Treat the inbound shape as
-// trusted ExtractedBrand JSON and let TypeScript narrow at the boundary.
+// The message is just { jobId }; the worker hydrates brand / markdown /
+// bundleId from generation_jobs.phase_payload.
 const PayloadSchema = z.object({
   jobId: z.string().uuid(),
-  bundleId: z.string().uuid(),
-  url: z.string(),
-  scrapedMarkdown: z.string(),
-  brand: z.unknown(),
-  isRerun: z.boolean(),
-  autoPublish: z.boolean().default(false),
-  batchId: z.string().uuid().nullable().default(null),
-  userFeedback: z.string().nullable().default(null),
 });
 
 export async function POST(req: NextRequest) {
@@ -64,81 +59,68 @@ export async function POST(req: NextRequest) {
   );
 
   try {
-    await Promise.race([
-      runAuthorDesignMd({
-        jobId: parsed.jobId,
-        bundleId: parsed.bundleId,
-        url: parsed.url,
-        scrapedMarkdown: parsed.scrapedMarkdown,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        brand: parsed.brand as any,
-        isRerun: parsed.isRerun,
-        autoPublish: parsed.autoPublish,
-        batchId: parsed.batchId,
-        userFeedback: parsed.userFeedback,
-      }),
-      watchdog,
-    ]);
+    await Promise.race([runAuthorDesignMd({ jobId: parsed.jobId }), watchdog]);
     return NextResponse.json({ ok: true });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     console.error('[task:author-design-md] uncaught:', message);
     // If the watchdog fired, runAuthorDesignMd never reached its own failJob
-    // path — mark the row failed AND kick the next batch job (otherwise a
-    // bulk-upload batch stalls forever at this job since no advanceBatch
-    // fires).
+    // path — mark the row failed AND refill the batch slot via dispatchReady
+    // (otherwise the batch loses a concurrency slot until the supervisor cron
+    // reaps it).
     //
     // The UPDATE is CAS-guarded on status='running': if runAuthorDesignMd
-    // already committed status='completed' or 'failed' before the watchdog
-    // tripped (e.g. the trailing await advanceBatch was the slow path, not
-    // the AI call), the UPDATE affects zero rows and we DON'T call
-    // advanceBatch here — the in-process handler already enqueued the next
-    // job. Without this guard the watchdog would (a) flip completed → failed,
-    // (b) clobber a specific errorStep with generic 'watchdog', (c)
-    // double-enqueue the next batch job since the in-process advanceBatch
-    // is still in flight.
+    // already committed a terminal status before the watchdog tripped (e.g.
+    // the trailing await dispatchReady was the slow path, not the AI call),
+    // the UPDATE affects zero rows and we DON'T dispatch here — the in-process
+    // handler already refilled the slot. Without this guard the watchdog would
+    // (a) flip completed → failed, (b) clobber a specific errorStep with
+    // generic 'watchdog', (c) double-dispatch while the in-process
+    // dispatchReady is still in flight.
     //
-    // Each DB call races a 3s timeout so a hung DB can't hold us past
-    // maxDuration. The payload already carries batchId so no lookup
-    // round-trip is needed when we do need to advance.
+    // We read batchId back from the UPDATE's RETURNING (the queue message is
+    // only { jobId } now): truthy → batch job, refill its slot; null →
+    // single-generate, nothing to dispatch. Each DB call races a 3s timeout so
+    // a hung DB can't hold us past maxDuration.
     if (watchdogFired) {
-      let affectedCount = 0;
+      let rows: { batchId: string | null }[] = [];
       try {
-        const rows = await Promise.race([
+        rows = await Promise.race([
           db
             .update(generationJobs)
             .set({
               status: 'failed',
               errorStep: 'watchdog',
               errorMessage: message.slice(0, 1000),
+              phasePayload: null,
               updatedAt: new Date(),
             })
             .where(and(eq(generationJobs.id, parsed.jobId), eq(generationJobs.status, 'running')))
-            .returning({ id: generationJobs.id }),
+            .returning({ batchId: generationJobs.batchId }),
           new Promise<never>((_, reject) =>
             setTimeout(() => reject(new Error('failJob db timeout')), 3_000).unref(),
           ),
         ]);
-        affectedCount = rows.length;
       } catch (failErr) {
         console.error('[task:author-design-md] watchdog failJob failed:', failErr);
       }
-      if (affectedCount > 0) {
+      if (rows.length === 0) {
+        console.warn(
+          '[task:author-design-md] watchdog fired but row no longer running — skipping dispatch (in-process handler already terminated)',
+        );
+      } else if (rows[0].batchId) {
         try {
           await Promise.race([
-            advanceBatch(parsed.batchId),
+            dispatchReady(),
             new Promise<never>((_, reject) =>
-              setTimeout(() => reject(new Error('advanceBatch timeout')), 3_000).unref(),
+              setTimeout(() => reject(new Error('dispatchReady timeout')), 3_000).unref(),
             ),
           ]);
-        } catch (advErr) {
-          console.error('[task:author-design-md] watchdog advanceBatch failed:', advErr);
+        } catch (dispErr) {
+          console.error('[task:author-design-md] watchdog dispatchReady failed:', dispErr);
         }
-      } else {
-        console.warn(
-          '[task:author-design-md] watchdog fired but row no longer running — skipping advanceBatch (in-process handler already terminated)',
-        );
       }
+      // else: single-generate job (batchId null) — nothing to dispatch.
     }
     return NextResponse.json({ error: message }, { status: 500 });
   }
