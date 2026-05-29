@@ -7,6 +7,7 @@ import {
   ChevronRight,
   ExternalLink,
   Loader2,
+  Pencil,
   RefreshCw,
   RotateCw,
   Save,
@@ -107,6 +108,9 @@ interface Category {
 interface EditFormState {
   title: string;
   description: string;
+  sourceUrl: string;
+  designMd: string;
+  companionPrompt: string;
   designStyle: string[];
   compatibleTools: string[];
   primaryCategoryId: string | null;
@@ -269,6 +273,9 @@ export default function AdminBundlesPage() {
   const [actionState, setActionState] = useState<ActionState>("idle");
   const [actionError, setActionError] = useState<string | null>(null);
   const [form, setForm] = useState<EditFormState | null>(null);
+  // Manual-edit mode for the detail panel. Reset when switching bundles so an
+  // open edit session can't carry over to a different row.
+  const [editing, setEditing] = useState(false);
 
   // Per-row active-job indicator: set of slugs currently queued/running.
   const [activeJobSlugs, setActiveJobSlugs] = useState<Set<string>>(new Set());
@@ -519,6 +526,9 @@ export default function AdminBundlesPage() {
       setForm({
         title: body.data.title,
         description: body.data.description,
+        sourceUrl: body.data.sourceUrl ?? "",
+        designMd: body.data.designMd ?? "",
+        companionPrompt: body.data.companionPrompt ?? "",
         designStyle: body.data.designStyle ?? [],
         compatibleTools: body.data.compatibleTools ?? [],
         primaryCategoryId: body.data.primaryCategoryId,
@@ -590,11 +600,19 @@ export default function AdminBundlesPage() {
     if (
       (prev === "queued" || prev === "running") &&
       (curr === "completed" || curr === "failed") &&
-      selectedSlug
+      selectedSlug &&
+      // Don't clobber an in-progress manual edit with the silent refresh.
+      !editing
     ) {
       void loadDetail(selectedSlug, true);
     }
-  }, [latestJob?.status, selectedSlug, loadDetail]);
+  }, [latestJob?.status, selectedSlug, loadDetail, editing]);
+
+  // Leave edit mode whenever the selected bundle changes so an open edit
+  // session can't carry over to a different row.
+  useEffect(() => {
+    setEditing(false);
+  }, [selectedSlug]);
 
   // Dirty state — true when form differs from the loaded detail.
   const isDirty = useMemo(() => {
@@ -602,6 +620,9 @@ export default function AdminBundlesPage() {
     return (
       form.title !== detail.title ||
       form.description !== detail.description ||
+      form.sourceUrl !== (detail.sourceUrl ?? "") ||
+      form.designMd !== (detail.designMd ?? "") ||
+      form.companionPrompt !== (detail.companionPrompt ?? "") ||
       form.license !== (detail.license ?? "") ||
       form.attributionStatement !== (detail.attributionStatement ?? "") ||
       form.isFeatured !== detail.isFeatured ||
@@ -638,6 +659,18 @@ export default function AdminBundlesPage() {
         attributionStatement: form.attributionStatement.trim() || null,
         isFeatured: form.isFeatured,
         isCurated: form.isCurated,
+        // Only send these when changed — sourceUrl recomputes the dedup key,
+        // designMd triggers a re-lint, and companionPrompt bumps its version,
+        // so we don't want a title-only edit to fire those side-effects.
+        ...(form.sourceUrl !== (detail.sourceUrl ?? "")
+          ? { sourceUrl: form.sourceUrl }
+          : {}),
+        ...(form.designMd !== (detail.designMd ?? "")
+          ? { designMd: form.designMd }
+          : {}),
+        ...(form.companionPrompt !== (detail.companionPrompt ?? "")
+          ? { companionPrompt: form.companionPrompt }
+          : {}),
       };
       const res = await fetch(`/api/admin/bundles/${encodeURIComponent(detail.slug)}`, {
         method: "PATCH",
@@ -651,9 +684,13 @@ export default function AdminBundlesPage() {
       }
       const respBody = (await res.json()) as { data: DetailRow };
       setDetail(respBody.data);
+      setEditing(false);
       setForm({
         title: respBody.data.title,
         description: respBody.data.description,
+        sourceUrl: respBody.data.sourceUrl ?? "",
+        designMd: respBody.data.designMd ?? "",
+        companionPrompt: respBody.data.companionPrompt ?? "",
         designStyle: respBody.data.designStyle ?? [],
         compatibleTools: respBody.data.compatibleTools ?? [],
         primaryCategoryId: respBody.data.primaryCategoryId,
@@ -687,6 +724,28 @@ export default function AdminBundlesPage() {
     } finally {
       setActionState("idle");
     }
+  };
+
+  // Discard edits: re-seed the form from the loaded detail and exit edit mode.
+  const onCancelEdit = () => {
+    if (detail) {
+      setForm({
+        title: detail.title,
+        description: detail.description,
+        sourceUrl: detail.sourceUrl ?? "",
+        designMd: detail.designMd ?? "",
+        companionPrompt: detail.companionPrompt ?? "",
+        designStyle: detail.designStyle ?? [],
+        compatibleTools: detail.compatibleTools ?? [],
+        primaryCategoryId: detail.primaryCategoryId,
+        license: detail.license ?? "",
+        attributionStatement: detail.attributionStatement ?? "",
+        isFeatured: detail.isFeatured,
+        isCurated: detail.isCurated,
+      });
+    }
+    setActionError(null);
+    setEditing(false);
   };
 
   const onDelete = async () => {
@@ -1463,6 +1522,9 @@ export default function AdminBundlesPage() {
               detail={detail}
               form={form}
               setForm={setForm}
+              editing={editing}
+              onEnterEdit={() => setEditing(true)}
+              onCancelEdit={onCancelEdit}
               categories={categories}
               isDirty={isDirty}
               actionState={actionState}
@@ -1491,6 +1553,9 @@ interface DetailEditorProps {
   detail: DetailRow;
   form: EditFormState;
   setForm: (form: EditFormState) => void;
+  editing: boolean;
+  onEnterEdit: () => void;
+  onCancelEdit: () => void;
   categories: Category[];
   isDirty: boolean;
   actionState: ActionState;
@@ -1657,7 +1722,11 @@ function RerunProgress({
 }
 
 function DetailEditor(props: DetailEditorProps) {
-  const { detail, form, setForm, categories, isDirty, actionState, actionError, rerunStep, rerunStatus, latestJob } = props;
+  const { detail, form, setForm, editing, onEnterEdit, onCancelEdit, categories, isDirty, actionState, actionError, rerunStep, rerunStatus, latestJob } = props;
+  // `categories` is reserved for the (still-scaffolded) category picker; the
+  // current manual-edit surface covers title, URL, description, design.md,
+  // and the companion prompt.
+  void categories;
   const status = detail.status as BundleStatus;
   const busy = actionState !== "idle";
 
@@ -1694,30 +1763,68 @@ function DetailEditor(props: DetailEditorProps) {
               slug: {detail.slug}
             </span>
           </div>
-          <h1
-            className="mt-3 text-[24px] font-medium tracking-[-0.014em]"
-            style={{ color: INK }}
-          >
-            {detail.title}
-          </h1>
-          <p
-            className="mt-2 text-[13px] leading-[1.55]"
-            style={{ color: SUB }}
-          >
-            {detail.description}
-          </p>
-          {detail.sourceUrl ? (
-            <a
-              href={detail.sourceUrl}
-              target="_blank"
-              rel="noreferrer noopener"
-              className="mt-3 inline-flex items-center gap-1.5 text-[11px] underline underline-offset-4"
-              style={{ color: SUB, fontFamily: MONO }}
-            >
-              {detail.sourceUrl}
-              <ExternalLink className="h-3 w-3" />
-            </a>
-          ) : null}
+          {editing ? (
+            <div className="mt-3 flex flex-col gap-3">
+              <FieldGroup label="title">
+                <input
+                  type="text"
+                  value={form.title}
+                  maxLength={200}
+                  onChange={(e) => setForm({ ...form, title: e.target.value })}
+                  className="w-full rounded-md border px-2.5 py-2 text-[14px] outline-none"
+                  style={{ color: INK, background: SURFACE_2, borderColor: BORDER }}
+                />
+              </FieldGroup>
+              <FieldGroup label="description">
+                <textarea
+                  value={form.description}
+                  rows={3}
+                  maxLength={2000}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  className="w-full resize-y rounded-md border px-2.5 py-2 text-[13px] outline-none"
+                  style={{ color: INK, background: SURFACE_2, borderColor: BORDER }}
+                />
+              </FieldGroup>
+              <FieldGroup label="source url">
+                <input
+                  type="url"
+                  value={form.sourceUrl}
+                  maxLength={2000}
+                  placeholder="https://example.com"
+                  onChange={(e) => setForm({ ...form, sourceUrl: e.target.value })}
+                  className="w-full rounded-md border px-2.5 py-2 text-[12px] outline-none"
+                  style={{ color: INK, background: SURFACE_2, borderColor: BORDER, fontFamily: MONO }}
+                />
+              </FieldGroup>
+            </div>
+          ) : (
+            <>
+              <h1
+                className="mt-3 text-[24px] font-medium tracking-[-0.014em]"
+                style={{ color: INK }}
+              >
+                {detail.title}
+              </h1>
+              <p
+                className="mt-2 text-[13px] leading-[1.55]"
+                style={{ color: SUB }}
+              >
+                {detail.description}
+              </p>
+              {detail.sourceUrl ? (
+                <a
+                  href={detail.sourceUrl}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="mt-3 inline-flex items-center gap-1.5 text-[11px] underline underline-offset-4"
+                  style={{ color: SUB, fontFamily: MONO }}
+                >
+                  {detail.sourceUrl}
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              ) : null}
+            </>
+          )}
         </div>
         {detail.coverageScore !== null ? (
           <div
@@ -1829,34 +1936,64 @@ function DetailEditor(props: DetailEditorProps) {
         </div>
       </div>
 
-      {/* Read-only design.md / companion + lint notes */}
-      <details className="rounded-lg border" style={{ borderColor: BORDER, background: SURFACE }}>
+      {/* design.md / companion — read-only until the editor enters edit mode */}
+      <details
+        className="rounded-lg border"
+        style={{ borderColor: BORDER, background: SURFACE }}
+        open={editing || undefined}
+      >
         <summary
           className="cursor-pointer p-3 text-[11.5px] uppercase tracking-[0.22em]"
           style={{ color: SUB, fontFamily: MONO }}
         >
-          design.md (read-only)
+          design.md {editing ? "(editing — re-lints on save)" : "(read-only)"}
         </summary>
-        <pre
-          className="px-4 py-3 text-[11px] leading-[1.55] whitespace-pre-wrap overflow-x-auto max-h-[360px] border-t"
-          style={{ color: INK, fontFamily: MONO, borderColor: BORDER_SOFT }}
-        >
-          {detail.designMd ?? "(empty)"}
-        </pre>
+        {editing ? (
+          <textarea
+            value={form.designMd}
+            rows={24}
+            maxLength={200_000}
+            onChange={(e) => setForm({ ...form, designMd: e.target.value })}
+            className="w-full resize-y px-4 py-3 text-[11px] leading-[1.55] outline-none border-t"
+            style={{ color: INK, fontFamily: MONO, background: SURFACE_2, borderColor: BORDER_SOFT }}
+          />
+        ) : (
+          <pre
+            className="px-4 py-3 text-[11px] leading-[1.55] whitespace-pre-wrap overflow-x-auto max-h-[360px] border-t"
+            style={{ color: INK, fontFamily: MONO, borderColor: BORDER_SOFT }}
+          >
+            {detail.designMd ?? "(empty)"}
+          </pre>
+        )}
       </details>
-      <details className="rounded-lg border" style={{ borderColor: BORDER, background: SURFACE }}>
+      <details
+        className="rounded-lg border"
+        style={{ borderColor: BORDER, background: SURFACE }}
+        open={editing || undefined}
+      >
         <summary
           className="cursor-pointer p-3 text-[11.5px] uppercase tracking-[0.22em]"
           style={{ color: SUB, fontFamily: MONO }}
         >
-          companion prompt (read-only) · {detail.companionStatus}
+          companion prompt {editing ? "(editing — bumps version)" : "(read-only)"} · {detail.companionStatus}
         </summary>
-        <pre
-          className="px-4 py-3 text-[11px] leading-[1.55] whitespace-pre-wrap overflow-x-auto max-h-[360px] border-t"
-          style={{ color: INK, fontFamily: MONO, borderColor: BORDER_SOFT }}
-        >
-          {detail.companionPrompt || "(empty)"}
-        </pre>
+        {editing ? (
+          <textarea
+            value={form.companionPrompt}
+            rows={20}
+            maxLength={200_000}
+            onChange={(e) => setForm({ ...form, companionPrompt: e.target.value })}
+            className="w-full resize-y px-4 py-3 text-[11px] leading-[1.55] outline-none border-t"
+            style={{ color: INK, fontFamily: MONO, background: SURFACE_2, borderColor: BORDER_SOFT }}
+          />
+        ) : (
+          <pre
+            className="px-4 py-3 text-[11px] leading-[1.55] whitespace-pre-wrap overflow-x-auto max-h-[360px] border-t"
+            style={{ color: INK, fontFamily: MONO, borderColor: BORDER_SOFT }}
+          >
+            {detail.companionPrompt || "(empty)"}
+          </pre>
+        )}
       </details>
       {detail.reviewNotes ? (
         <details className="rounded-lg border" style={{ borderColor: BORDER, background: SURFACE_2 }}>
@@ -1935,7 +2072,69 @@ function DetailEditor(props: DetailEditorProps) {
           </div>
         ) : null}
         <div className="flex flex-wrap items-center gap-2">
-          {status === "personal" || status === "pending_review" ? (() => {
+          {editing ? (
+            <>
+              <button
+                type="button"
+                onClick={() => void props.onSave()}
+                disabled={
+                  !isDirty || busy || showProgress || form.companionPrompt.trim() === ""
+                }
+                title={
+                  form.companionPrompt.trim() === ""
+                    ? "Companion prompt can't be empty"
+                    : !isDirty
+                      ? "No changes to save"
+                      : "Save your manual edits"
+                }
+                className="h-9 rounded-full px-4 text-[12.5px] font-medium inline-flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{
+                  background: INK,
+                  color: INK_ON_LIGHT,
+                  boxShadow: `0 0 0 1px ${LIME}55, 0 10px 28px -12px ${LIME}66`,
+                }}
+              >
+                {actionState === "saving" ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Saving
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-3.5 w-3.5" style={{ color: LIME }} />
+                    Save
+                  </>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => props.onCancelEdit()}
+                disabled={busy}
+                className="h-9 rounded-full px-4 text-[12.5px] inline-flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ background: SURFACE_2, color: SUB, border: `1px solid ${BORDER}` }}
+              >
+                Cancel
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => props.onEnterEdit()}
+              disabled={busy || showProgress}
+              title={
+                showProgress
+                  ? "A re-run is in flight — wait for it to finish before editing"
+                  : "Manually edit title, URL, description, design.md, and companion prompt"
+              }
+              className="h-9 rounded-full px-4 text-[12.5px] inline-flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{ background: SURFACE_2, color: INK, border: `1px solid ${BORDER}` }}
+            >
+              <Pencil className="h-3.5 w-3.5" style={{ color: SUB }} />
+              Edit
+            </button>
+          )}
+
+          {!editing && (status === "personal" || status === "pending_review") ? (() => {
             // Pre-publish guards. Each blocks the click with a tooltip
             // explaining why, instead of letting the editor publish a
             // broken bundle that needs immediate revert.
@@ -1982,7 +2181,7 @@ function DetailEditor(props: DetailEditorProps) {
             );
           })() : null}
 
-          {detail.sourceUrl && !detail.sourceUrl.startsWith("upload://") ? (
+          {!editing && detail.sourceUrl && !detail.sourceUrl.startsWith("upload://") ? (
             <button
               type="button"
               onClick={() => setShowRerunPanel((v) => !v)}
@@ -2014,23 +2213,25 @@ function DetailEditor(props: DetailEditorProps) {
             </button>
           ) : null}
 
-          <button
-            type="button"
-            onClick={() => void props.onDelete()}
-            disabled={busy}
-            title="Permanently delete this bundle (use Archive to soft-delete)"
-            className="h-9 rounded-full px-4 text-[12.5px] inline-flex items-center gap-2"
-            style={{ background: SURFACE_2, color: INK, border: `1px solid #ff5a5a66` }}
-          >
-            {actionState === "deleting" ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Trash2 className="h-3.5 w-3.5" style={{ color: "#ff7070" }} />
-            )}
-            Delete
-          </button>
+          {!editing ? (
+            <button
+              type="button"
+              onClick={() => void props.onDelete()}
+              disabled={busy}
+              title="Permanently delete this bundle (use Archive to soft-delete)"
+              className="h-9 rounded-full px-4 text-[12.5px] inline-flex items-center gap-2"
+              style={{ background: SURFACE_2, color: INK, border: `1px solid #ff5a5a66` }}
+            >
+              {actionState === "deleting" ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Trash2 className="h-3.5 w-3.5" style={{ color: "#ff7070" }} />
+              )}
+              Delete
+            </button>
+          ) : null}
 
-          {status !== "archived" ? (
+          {!editing && status !== "archived" ? (
             <a
               href={`/library/${detail.slug}`}
               target="_blank"
