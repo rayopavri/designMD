@@ -24,6 +24,11 @@ import {
 import { env } from '@/lib/env';
 import type { ComputedStyleSnapshot } from '@/lib/generator/extract-computed-styles';
 import type { FirecrawlBranding, FirecrawlDesignExtract } from '@/lib/ai/firecrawl';
+import {
+  elevationWeightFor,
+  inferElevationScale,
+  inferredElevationNote,
+} from '@/lib/generator/infer-elevation';
 
 let _client: GoogleGenAI | null = null;
 
@@ -1221,6 +1226,19 @@ function sanitize(parsed: ExtractedBrand): ExtractedBrand {
     .filter((e) => e.name && e.value)
     .map((e) => normaliseConfidence({ ...e, name: kebab(e.name) }))
     .slice(0, 8);
+  // Shadows are effectively unobservable from a scrape (the branding profile
+  // carries none, external-stylesheet box-shadows aren't inlined in the HTML,
+  // and a screenshot can't yield exact values), so Gemini frequently returns no
+  // elevation tokens despite the schema requiring them. Guarantee a usable scale
+  // by synthesising one from the brand's visual weight — the same deterministic
+  // inference the backfill script uses — so the Elevation & Depth section is
+  // never empty and never scores as "missing".
+  if (parsed.elevation.length === 0) {
+    parsed.elevation = inferElevationScale(parsed.designStyles ?? []);
+  }
+  if (!parsed.elevationNotes?.trim()) {
+    parsed.elevationNotes = inferredElevationNote(elevationWeightFor(parsed.designStyles ?? []));
+  }
   // Lists.
   parsed.dos = (parsed.dos ?? []).slice(0, 10);
   parsed.donts = (parsed.donts ?? []).slice(0, 10);

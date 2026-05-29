@@ -6,6 +6,7 @@
  * many tokens/components/dos-donts the model resolved. Overall is then
  * gated on linter pass/fail and section presence.
  */
+import { load as yamlLoad } from 'js-yaml';
 import type { LintSummary } from './lint-design-md';
 
 export interface CoverageBreakdown {
@@ -55,8 +56,21 @@ export function scoreFromLint(lintSummary: LintSummary, rawMd: string): Coverage
   const spacingCount = report.designSystem.spacing.size;
   const layout = clamp(20 + Math.min(spacingCount, 8) * 10 + (has(['Layout', 'Layout & Spacing']) ? 0 : -20));
 
-  // Elevation: prose-only section in the spec. Score on section presence + prose length.
-  const elevation = scoreProseSection(rawMd, ['Elevation & Depth', 'Elevation']);
+  // Elevation: the prose lives in the spec body, but the canonical token scale
+  // lives in the YAML front-matter (`elevation:` map). Score on whichever signal
+  // is stronger — token count (mirrors colors/typography/shapes) or prose length.
+  // A present shadow scale with thin prose should NOT read as "missing": shadows
+  // are effectively unobservable from a scrape, so the scale is usually inferred,
+  // but a complete inferred scale is still real, usable coverage.
+  const elevationCount = countFrontMatterMapKeys(rawMd, 'elevation');
+  const hasElevation = has(['Elevation & Depth', 'Elevation']) || elevationCount > 0;
+  const elevationTokenScore = clamp(
+    20 + Math.min(elevationCount, 6) * 13 + (hasElevation ? 0 : -20),
+  );
+  const elevation = Math.max(
+    elevationTokenScore,
+    scoreProseSection(rawMd, ['Elevation & Depth', 'Elevation']),
+  );
 
   // Shapes: count rounded tokens.
   const roundedCount = report.designSystem.rounded.size;
@@ -121,6 +135,26 @@ function scoreDosDonts(md: string): number {
 
 function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Count the entries in a DESIGN.md YAML front-matter map key (e.g. "elevation").
+ * Returns 0 for the old markdown format, missing keys, or malformed front-matter
+ * — callers fall back to prose scoring in those cases.
+ */
+function countFrontMatterMapKeys(rawMd: string, key: string): number {
+  const fm = rawMd.match(/^---\n([\s\S]*?)\n---/m);
+  if (!fm) return 0;
+  try {
+    const obj = yamlLoad(fm[1]) as Record<string, unknown> | null;
+    const map = obj?.[key];
+    if (map && typeof map === 'object' && !Array.isArray(map)) {
+      return Object.keys(map as Record<string, unknown>).length;
+    }
+  } catch {
+    // Malformed front-matter — treat as no tokens.
+  }
+  return 0;
 }
 
 function clamp(n: number): number {
