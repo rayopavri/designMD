@@ -77,7 +77,7 @@ const BUNDLE_STEPS_URL: PipelineStep[] = [
   {
     id: "extract",
     label: "Brand extraction",
-    tool: "Gemini 2.5 Flash",
+    tool: "Gemini 3.1 Flash-Lite",
     detail: "Multi-modal token extraction + token wiring",
     durationMs: 13000,
     steps: ["extracting", "resolving-orphans"],
@@ -85,7 +85,7 @@ const BUNDLE_STEPS_URL: PipelineStep[] = [
   {
     id: "author",
     label: "Design.md authored",
-    tool: "Gemini 2.5 Flash",
+    tool: "Gemini 3.1 Flash-Lite",
     detail: "Direct + OpenRouter fallback · write canonical DESIGN.md",
     durationMs: 19000,
     steps: ["persisting", "writing-design-md"],
@@ -113,7 +113,7 @@ const BUNDLE_STEPS_UPLOAD: PipelineStep[] = [
   {
     id: "extract",
     label: "Brand extraction",
-    tool: "Gemini 2.5 Flash",
+    tool: "Gemini 3.1 Flash-Lite",
     detail: "Vision-only token extraction + token wiring",
     durationMs: 15000,
     steps: ["extracting", "resolving-orphans"],
@@ -121,7 +121,7 @@ const BUNDLE_STEPS_UPLOAD: PipelineStep[] = [
   {
     id: "author",
     label: "Design.md authored",
-    tool: "Gemini 2.5 Flash",
+    tool: "Gemini 3.1 Flash-Lite",
     detail: "Direct + OpenRouter fallback · write canonical DESIGN.md",
     durationMs: 19000,
     steps: ["persisting", "writing-design-md"],

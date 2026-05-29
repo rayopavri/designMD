@@ -13,7 +13,7 @@
  * This is more reliable than asking it to emit YAML, and keeps the token
  * authority deterministic.
  *
- * Provider chain: Gemini 2.5 Flash direct (primary) -> OpenRouter (fallback).
+ * Provider chain: Gemini 3.1 Flash-Lite direct (primary) -> OpenRouter (fallback).
  * Direct call is preferred — same model, fewer hops, same GEMINI_API_KEY
  * billing surface as extraction. OpenRouter is the safety net for the
  * rare case where Google's API has an outage; same Flash model on the
@@ -436,7 +436,7 @@ function logMissingHeadings(provider: string, text: string): void {
  * Author-model call with provider fallback chain:
  *
  *   1. Gemini direct via @google/genai (primary)
- *   2. OpenRouter on Gemini 2.5 Flash (fallback on any error)
+ *   2. OpenRouter on Gemini 3.1 Flash-Lite (fallback on any error)
  *
  * Time budget is split so a slow primary doesn't starve the fallback:
  * 10s for the direct attempt, 30s for the fallback. Primary typically
