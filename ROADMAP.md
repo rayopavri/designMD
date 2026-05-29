@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-05-27** (Roadmap auto-update via PostToolUse hook)
+> Last updated: **2026-05-29** (Roadmap auto-update via PostToolUse hook)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -274,6 +274,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-05-29** - Only PATCH changed bundle fields on manual save, fix validation error display (999b079)
 - [x] **2026-05-27** - Pin search_path = public on all 11 plpgsql functions (a685803)
 - [x] **2026-05-27** - chore: roadmap auto-update (a0ae2db)
 - [x] **2026-05-27** - chore: roadmap auto-update (85fb507)
