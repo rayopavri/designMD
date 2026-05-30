@@ -16,7 +16,7 @@
  * the DB, so a dropped message is recovered by the supervisor as a resume of
  * the current phase — never a re-scrape.
  */
-import { eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { db } from '@/lib/db/client';
 import { bundles, categories, generationJobs } from '@/lib/db/schema';
 import {
@@ -413,36 +413,78 @@ Source: ${job.url}
 
   const slug = await uniqueBundleSlug(brand.name || domain || 'upload');
 
-  const [row] = await db
-    .insert(bundles)
-    .values({
-      slug,
-      title: brand.name || domain,
-      description,
-      type: 'design_md',
-      designMd: null,
-      companionPrompt: placeholderCompanion,
-      companionPromptVersion: 0,
-      companionStatus: 'pending',
-      primaryCategoryId,
-      designStyle: brand.designStyles,
-      compatibleTools,
-      status: 'personal',
-      isCurated: false,
-      isFeatured: false,
-      createdBy: job.userId,
-      // Uploads have no canonical source URL — leave attribution fields null.
-      sourceUrl: isUpload ? null : scrape.url,
-      sourceUrlNormalized: isUpload ? null : job.normalizedUrl,
-      sourceDomain: isUpload ? null : domain,
-      authorName: brand.name,
-      paletteColors: palette,
-      brandLogoUrl: scrape.brandLogoUrl,
-      brandInitial: brand.name ? brand.name.charAt(0).toUpperCase() : null,
-      brandColor: primary,
-    })
-    .returning({ id: bundles.id });
+  let row: { id: string } | undefined;
+  try {
+    [row] = await db
+      .insert(bundles)
+      .values({
+        slug,
+        title: brand.name || domain,
+        description,
+        type: 'design_md',
+        designMd: null,
+        companionPrompt: placeholderCompanion,
+        companionPromptVersion: 0,
+        companionStatus: 'pending',
+        primaryCategoryId,
+        designStyle: brand.designStyles,
+        compatibleTools,
+        status: 'personal',
+        isCurated: false,
+        isFeatured: false,
+        createdBy: job.userId,
+        // Uploads have no canonical source URL — leave attribution fields null.
+        sourceUrl: isUpload ? null : scrape.url,
+        sourceUrlNormalized: isUpload ? null : job.normalizedUrl,
+        sourceDomain: isUpload ? null : domain,
+        authorName: brand.name,
+        paletteColors: palette,
+        brandLogoUrl: scrape.brandLogoUrl,
+        brandInitial: brand.name ? brand.name.charAt(0).toUpperCase() : null,
+        brandColor: primary,
+      })
+      .returning({ id: bundles.id });
+  } catch (err) {
+    // Backstop for the uq_bundles_source_active guard: a concurrent job won
+    // the race and already created an active bundle for this URL. The unique
+    // index blocks the duplicate row; rather than fail, we attach this job to
+    // the existing winner. (Uploads insert a NULL source URL and can't hit
+    // the partial index, so this only applies to URL jobs.)
+    if (!isUpload && job.normalizedUrl && isUniqueViolation(err)) {
+      const [winner] = await db
+        .select({ id: bundles.id })
+        .from(bundles)
+        .where(
+          and(
+            eq(bundles.sourceUrlNormalized, job.normalizedUrl),
+            inArray(bundles.status, ['personal', 'pending_review', 'published', 'flagged']),
+          ),
+        )
+        .limit(1);
+      if (winner) {
+        console.warn(
+          `[scrape-and-extract] duplicate active bundle for ${job.normalizedUrl}; ` +
+            `attaching job ${job.id} to existing bundle ${winner.id}`,
+        );
+        return winner.id;
+      }
+    }
+    throw err;
+  }
 
   if (!row) throw new Error('Failed to insert draft bundle');
   return row.id;
+}
+
+/**
+ * Postgres unique-constraint violation (SQLSTATE 23505), as surfaced by the
+ * postgres-js driver (errors carry a `.code` string).
+ */
+function isUniqueViolation(err: unknown): boolean {
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    'code' in err &&
+    (err as { code?: unknown }).code === '23505'
+  );
 }

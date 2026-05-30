@@ -113,13 +113,22 @@ async function handleUrl(req: NextRequest, userId: string | null, anonToken: str
     );
   }
 
-  // Existing published bundle?
-  let existing: { id: string; slug: string; status: string } | undefined;
+  // Existing active bundle for this URL? Matches the scope of the
+  // uq_bundles_source_active index so we return a clean 409 instead of
+  // letting a duplicate hit the DB and surface as a 500. We block on any
+  // active status — not just 'published' — because the index forbids a
+  // second active bundle regardless of who owns it or whether it's live yet.
+  let existing: { slug: string; status: string } | undefined;
   try {
     [existing] = await db
-      .select({ id: bundles.id, slug: bundles.slug, status: bundles.status })
+      .select({ slug: bundles.slug, status: bundles.status })
       .from(bundles)
-      .where(and(eq(bundles.sourceUrlNormalized, normalized), eq(bundles.status, 'published')))
+      .where(
+        and(
+          eq(bundles.sourceUrlNormalized, normalized),
+          inArray(bundles.status, ['personal', 'pending_review', 'published', 'flagged']),
+        ),
+      )
       .limit(1);
   } catch (err) {
     console.error('[/api/generate] bundles lookup failed:', err);
@@ -129,8 +138,12 @@ async function handleUrl(req: NextRequest, userId: string | null, anonToken: str
     );
   }
   if (existing) {
+    // Only expose the slug for a published bundle (publicly resolvable);
+    // for in-flight/private statuses we block without leaking the slug.
     return NextResponse.json(
-      { error: 'Already exists', existingBundleSlug: existing.slug },
+      existing.status === 'published'
+        ? { error: 'Already exists', existingBundleSlug: existing.slug }
+        : { error: 'A bundle for this URL is already being processed' },
       { status: 409 },
     );
   }
