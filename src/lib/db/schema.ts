@@ -288,6 +288,16 @@ export const bundles = pgTable(
     index('idx_bundles_status_creator').on(table.status, table.createdBy),
     index('idx_bundles_source_normalized').on(table.sourceUrlNormalized),
     index('idx_bundles_fingerprint').on(table.contentFingerprint),
+    // Race-proof dedup guard: at most one *active* bundle per normalized
+    // source URL. Excludes 'rejected'/'archived' (those are dead and a URL
+    // should be re-submittable) and NULL urls (uploads have no source).
+    // The /api/generate pre-check only blocks on 'published'; this index is
+    // the backstop that holds even under concurrent submissions.
+    uniqueIndex('uq_bundles_source_active')
+      .on(table.sourceUrlNormalized)
+      .where(
+        sql`${table.sourceUrlNormalized} IS NOT NULL AND ${table.status} IN ('personal', 'pending_review', 'published', 'flagged')`,
+      ),
   ],
 );
 
