@@ -1,0 +1,27 @@
+# pnpm 11 reads build-script approval (and other settings) from this file,
+# not from the "pnpm" field in package.json anymore.
+#
+# These trusted deps have install/build scripts (sharp's native libvips,
+# esbuild's binary, protobufjs, firebase, etc.). pnpm 10+ refuses to run them
+# unless approved, and a plain `pnpm install` then exits non-zero -- which
+# breaks `next lint` and `next build` (both run an internal deps-status check
+# that shells out to `pnpm install`).
+#
+# `allowBuilds` is the key pnpm 11.5+ honors (written by `pnpm approve-builds`).
+# `onlyBuiltDependencies` is kept as a fallback for the pnpm 10.x that Vercel
+# may use. Both are harmless when unused.
+allowBuilds:
+  '@firebase/util': true
+  '@google/genai': true
+  esbuild: true
+  protobufjs: true
+  sharp: true
+  unrs-resolver: true
+
+onlyBuiltDependencies:
+  - '@firebase/util'
+  - '@google/genai'
+  - esbuild
+  - protobufjs
+  - sharp
+  - unrs-resolver
