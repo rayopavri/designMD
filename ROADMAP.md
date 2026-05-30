@@ -274,6 +274,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-05-30** - generate: handle source-URL dedup gracefully at the app layer (b9ecf6c)
 - [x] **2026-05-30** - db: add partial unique index guarding active bundles per source URL (83b6736)
 - [x] **2026-05-30** - Admin bundles: show/edit brand logo, reorder actions, fix approve icon (108aa21)
 - [x] **2026-05-30** - Add SessionStart hook to install deps in web sessions (5ce2511)
