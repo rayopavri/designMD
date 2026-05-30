@@ -9,6 +9,7 @@ import { SectionLabel } from "@/components/ui/Shell";
 import { CodePanel } from "@/components/ui/CodePanel";
 import { AttributionRow } from "@/components/ui/AttributionRow";
 import { WorksWellWith } from "@/components/ui/WorksWellWith";
+import { LegalDisclaimer } from "@/components/ui/LegalDisclaimer";
 import { SectionCoverage } from "@/components/ui/SectionCoverage";
 import { PulseRow } from "@/components/ui/PulseRow";
 import { BrandLogo } from "@/components/ui/BrandLogo";
@@ -680,6 +681,8 @@ function BundleView({ item }: { item: BundleItem }) {
       </section>
 
       <WorksWellWith itemId={item.id} sectionNum={showInstall ? "04" : "03"} />
+
+      <LegalDisclaimer name={bundle.name} />
     </>
   );
 }
@@ -1182,6 +1185,8 @@ function NonBundleView({ item }: { item: SkillItem | AgentItem | McpItem }) {
       </section>
 
       <WorksWellWith itemId={item.id} sectionNum={showInstall ? "04" : "03"} />
+
+      <LegalDisclaimer name={item.name} />
     </>
   );
 }
