@@ -18,6 +18,7 @@ import {
   X,
 } from "lucide-react";
 import { SectionLabel } from "@/components/ui/Shell";
+import { BrandLogo } from "@/components/ui/BrandLogo";
 import {
   BG,
   BORDER,
@@ -83,6 +84,9 @@ interface ListRow {
 interface DetailRow extends ListRow {
   designMd: string | null;
   companionPrompt: string;
+  brandLogoUrl: string | null;
+  brandInitial: string | null;
+  brandColor: string | null;
   primaryCategoryId: string | null;
   attributionStatement: string | null;
   reviewNotes: string | null;
@@ -109,6 +113,7 @@ interface EditFormState {
   title: string;
   description: string;
   sourceUrl: string;
+  brandLogoUrl: string;
   designMd: string;
   companionPrompt: string;
   designStyle: string[];
@@ -527,6 +532,7 @@ export default function AdminBundlesPage() {
         title: body.data.title,
         description: body.data.description,
         sourceUrl: body.data.sourceUrl ?? "",
+        brandLogoUrl: body.data.brandLogoUrl ?? "",
         designMd: body.data.designMd ?? "",
         companionPrompt: body.data.companionPrompt ?? "",
         designStyle: body.data.designStyle ?? [],
@@ -621,6 +627,7 @@ export default function AdminBundlesPage() {
       form.title !== detail.title ||
       form.description !== detail.description ||
       form.sourceUrl !== (detail.sourceUrl ?? "") ||
+      form.brandLogoUrl !== (detail.brandLogoUrl ?? "") ||
       form.designMd !== (detail.designMd ?? "") ||
       form.companionPrompt !== (detail.companionPrompt ?? "") ||
       form.license !== (detail.license ?? "") ||
@@ -658,6 +665,9 @@ export default function AdminBundlesPage() {
       if (form.title !== detail.title) body.title = form.title;
       if (form.description !== detail.description) body.description = form.description;
       if (form.sourceUrl !== (detail.sourceUrl ?? "")) body.sourceUrl = form.sourceUrl;
+      // Send null (not "") when cleared so the PATCH .url() check isn't tripped.
+      if (form.brandLogoUrl !== (detail.brandLogoUrl ?? ""))
+        body.brandLogoUrl = form.brandLogoUrl.trim() || null;
       if (form.designMd !== (detail.designMd ?? "")) body.designMd = form.designMd;
       if (form.companionPrompt !== (detail.companionPrompt ?? ""))
         body.companionPrompt = form.companionPrompt;
@@ -695,6 +705,7 @@ export default function AdminBundlesPage() {
         title: respBody.data.title,
         description: respBody.data.description,
         sourceUrl: respBody.data.sourceUrl ?? "",
+        brandLogoUrl: respBody.data.brandLogoUrl ?? "",
         designMd: respBody.data.designMd ?? "",
         companionPrompt: respBody.data.companionPrompt ?? "",
         designStyle: respBody.data.designStyle ?? [],
@@ -739,6 +750,7 @@ export default function AdminBundlesPage() {
         title: detail.title,
         description: detail.description,
         sourceUrl: detail.sourceUrl ?? "",
+        brandLogoUrl: detail.brandLogoUrl ?? "",
         designMd: detail.designMd ?? "",
         companionPrompt: detail.companionPrompt ?? "",
         designStyle: detail.designStyle ?? [],
@@ -1802,15 +1814,40 @@ function DetailEditor(props: DetailEditorProps) {
                   style={{ color: INK, background: SURFACE_2, borderColor: BORDER, fontFamily: MONO }}
                 />
               </FieldGroup>
+              <FieldGroup label="brand logo url">
+                <div className="flex items-center gap-2.5">
+                  <BrandLogo
+                    src={form.brandLogoUrl || null}
+                    fallbackDomain={detail.sourceDomain}
+                    size={32}
+                  />
+                  <input
+                    type="url"
+                    value={form.brandLogoUrl}
+                    maxLength={2000}
+                    placeholder="https://example.com/icon.png"
+                    onChange={(e) => setForm({ ...form, brandLogoUrl: e.target.value })}
+                    className="w-full rounded-md border px-2.5 py-2 text-[12px] outline-none"
+                    style={{ color: INK, background: SURFACE_2, borderColor: BORDER, fontFamily: MONO }}
+                  />
+                </div>
+              </FieldGroup>
             </div>
           ) : (
             <>
-              <h1
-                className="mt-3 text-[24px] font-medium tracking-[-0.014em]"
-                style={{ color: INK }}
-              >
-                {detail.title}
-              </h1>
+              <div className="mt-3 flex items-center gap-2.5">
+                <BrandLogo
+                  src={detail.brandLogoUrl}
+                  fallbackDomain={detail.sourceDomain}
+                  size={36}
+                />
+                <h1
+                  className="text-[24px] font-medium tracking-[-0.014em]"
+                  style={{ color: INK }}
+                >
+                  {detail.title}
+                </h1>
+              </div>
               <p
                 className="mt-2 text-[13px] leading-[1.55]"
                 style={{ color: SUB }}
@@ -2107,7 +2144,7 @@ function DetailEditor(props: DetailEditorProps) {
                   </>
                 ) : (
                   <>
-                    <Save className="h-3.5 w-3.5" style={{ color: LIME }} />
+                    <Save className="h-3.5 w-3.5" style={{ color: INK_ON_LIGHT }} />
                     Save
                   </>
                 )}
@@ -2122,23 +2159,7 @@ function DetailEditor(props: DetailEditorProps) {
                 Cancel
               </button>
             </>
-          ) : (
-            <button
-              type="button"
-              onClick={() => props.onEnterEdit()}
-              disabled={busy || showProgress}
-              title={
-                showProgress
-                  ? "A re-run is in flight — wait for it to finish before editing"
-                  : "Manually edit title, URL, description, design.md, and companion prompt"
-              }
-              className="h-9 rounded-full px-4 text-[12.5px] inline-flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
-              style={{ background: SURFACE_2, color: INK, border: `1px solid ${BORDER}` }}
-            >
-              <Pencil className="h-3.5 w-3.5" style={{ color: SUB }} />
-              Edit
-            </button>
-          )}
+          ) : null}
 
           {!editing && (status === "personal" || status === "pending_review") ? (() => {
             // Pre-publish guards. Each blocks the click with a tooltip
@@ -2179,7 +2200,7 @@ function DetailEditor(props: DetailEditorProps) {
                   </>
                 ) : (
                   <>
-                    <Check className="h-3.5 w-3.5" style={{ color: LIME }} />
+                    <Check className="h-3.5 w-3.5" style={{ color: INK_ON_LIGHT }} />
                     {status === "personal" ? "Publish" : "Approve & publish"}
                   </>
                 )}
@@ -2216,6 +2237,24 @@ function DetailEditor(props: DetailEditorProps) {
                 <RotateCw className="h-3.5 w-3.5" style={{ color: CYAN }} />
               )}
               {isStuck ? "Re-run (replace stuck)" : showProgress ? "Re-run in progress…" : "Re-run pipeline"}
+            </button>
+          ) : null}
+
+          {!editing ? (
+            <button
+              type="button"
+              onClick={() => props.onEnterEdit()}
+              disabled={busy || showProgress}
+              title={
+                showProgress
+                  ? "A re-run is in flight — wait for it to finish before editing"
+                  : "Manually edit title, URL, description, design.md, and companion prompt"
+              }
+              className="h-9 rounded-full px-4 text-[12.5px] inline-flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{ background: SURFACE_2, color: INK, border: `1px solid ${BORDER}` }}
+            >
+              <Pencil className="h-3.5 w-3.5" style={{ color: SUB }} />
+              Edit
             </button>
           ) : null}
 
