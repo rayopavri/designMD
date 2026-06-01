@@ -45,12 +45,12 @@ const MODEL = 'gemini-3.1-flash-lite';
 //
 // Gemini returns HTTP 429 (status RESOURCE_EXHAUSTED) when a per-minute (RPM)
 // or per-day (RPD) quota is hit. RPM spikes are transient and clear within
-// seconds, so a short bounded retry keeps the *direct* Google API path winning
-// instead of prematurely failing over to OpenRouter — which matters most for
-// extraction, whose call has no fallback at all (a bare 429 there fails the
-// whole job). RPD exhaustion won't clear inside our budget, so we cap attempts
-// and let the error surface rather than burning the worker's time on a doomed
-// retry. When the server includes a RetryInfo.retryDelay we honor it; otherwise
+// seconds, so a short bounded retry recovers the call in place. This is the
+// only in-call resilience the Gemini steps have — the pipeline is
+// single-provider (no cross-provider fallback), so a bare 429 would otherwise
+// fail the whole job. RPD exhaustion won't clear inside our budget, so we cap
+// attempts and let the error surface rather than burning the worker's time on a
+// doomed retry. When the server includes a RetryInfo.retryDelay we honor it; otherwise
 // we use exponential backoff with jitter. Each attempt is invoked via the
 // passed factory so it gets a *fresh* AbortSignal (a reused one would already
 // be aborted on retry).
@@ -1039,10 +1039,10 @@ export interface GeminiTextResult {
  * GoogleGenAI client singleton so this shares connection pooling and
  * the same GEMINI_API_KEY billing surface as extraction.
  *
- * The author step prefers this over OpenRouter because it skips a
- * routing hop (~50-200ms latency overhead, plus OpenRouter's small
- * fee). OpenRouter remains the fallback for the rare case where
- * Google's API has an outage or transient failure.
+ * The author step calls this directly with no provider fallback: one hop,
+ * the same GEMINI_API_KEY billing surface as extraction. Transient 429s are
+ * retried here via withGeminiRetry; the author worker's 290s watchdog is the
+ * backstop for a genuine hang.
  */
 export async function generateTextFromGemini(input: GeminiTextInput): Promise<GeminiTextResult> {
   const startedAt = Date.now();
@@ -1158,7 +1158,7 @@ export async function extractBrandNamesQuick(
 // quality. Clamp dimensions before sending — we keep the original full-page
 // version in Vercel Blob for the home gallery hover-scroll. The 2400px cap
 // keeps total vision-token budget low (hero + 2-3 sections) so the call
-// stays well under the 60s Vercel function timeout.
+// stays well under the scrape-and-extract worker's 300s budget.
 const MAX_EXTRACTION_WIDTH = 1600;
 const MAX_EXTRACTION_HEIGHT = 2400;
 const EXTRACTION_JPEG_QUALITY = 88;
@@ -1171,16 +1171,17 @@ const EXTRACTION_JPEG_QUALITY = 88;
 const MAX_EXTRACTION_MARKDOWN_CHARS = 12_000;
 
 // Per-request timeout for the Gemini generateContent call. MUST stay tighter
-// than the Vercel function maxDuration (120s for scrape-and-extract) so the
-// AbortSignal fires inside the worker's try/catch and failJob() runs before
-// the platform SIGKILLs us. A SIGKILL would leave the generation_jobs row
-// in `running` state and trigger a QStash retry storm. After input cuts a
-// normal call returns in 8-25s, so 90s is ~4x headroom for a healthy call
-// while reliably catching a true hang. Passed as config.abortSignal via
-// AbortSignal.timeout() — the @google/genai SDK aborts the fetch and rejects
-// the promise when the signal fires. Note: this is client-only; Google still
-// processes (and bills) the in-flight request.
-const GEMINI_TIMEOUT_MS = 90_000;
+// than the scrape-and-extract worker's 290s watchdog (Vercel Pro maxDuration
+// 300s) so the AbortSignal fires inside the worker's try/catch and failJob()
+// runs before the platform SIGKILLs us. A SIGKILL would leave the
+// generation_jobs row in `running` state and trigger a QStash retry storm.
+// Firecrawl already consumes ~38s of that budget; a normal extraction returns
+// in 8-25s, so 180s is a generous ceiling that lets a slow-but-valid call
+// finish (the goal: never cut a good generation short) while still catching a
+// true hang. Passed as config.abortSignal via AbortSignal.timeout() — the
+// @google/genai SDK aborts the fetch and rejects when the signal fires. Note:
+// client-only; Google still processes (and bills) the in-flight request.
+const GEMINI_TIMEOUT_MS = 180_000;
 
 async function fetchImageAsPart(url: string): Promise<Part | null> {
   const res = await fetch(url);

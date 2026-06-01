@@ -155,11 +155,13 @@ interface SpecInput {
 
 const MAX_OUTPUT_TOKENS = 1500;
 
-// Per-request timeout. Vercel kills the generate-companion function at 60s.
-// 45s gives the SDK time to throw inside the worker's try/catch and let
-// failJob() update the row to `failed` before the platform SIGKILLs us.
-// A normal companion call returns in 10-20s so this is ~3x healthy headroom.
-const SONNET_TIMEOUT_MS = 45_000;
+// Per-request timeout for ONE Sonnet attempt. The generate-companion worker is
+// Vercel Pro maxDuration=300s (no watchdog), and the Anthropic SDK retries
+// transient 429/5xx/timeout up to maxRetries (pinned to 2 in runCompanionSonnet).
+// Worst case is 3 attempts × 90s + backoff ≈ 276s, which stays under the 300s
+// SIGKILL so failJob() can mark the row `failed` first. A normal companion call
+// returns in 10-20s; 90s is the ceiling so a slow-but-valid call isn't cut short.
+const SONNET_TIMEOUT_MS = 90_000;
 
 // Guards against a pathological design.md blowing the context window. A real
 // design.md is a few KB; this cap (~10k tokens) never truncates a healthy spec.
@@ -273,7 +275,7 @@ async function runCompanionSonnet(userPrompt: string): Promise<string> {
       ],
       messages: [{ role: 'user', content: userPrompt }],
     },
-    { timeout: SONNET_TIMEOUT_MS },
+    { timeout: SONNET_TIMEOUT_MS, maxRetries: 2 },
   );
 
   const text = res.content

@@ -13,16 +13,16 @@
  * This is more reliable than asking it to emit YAML, and keeps the token
  * authority deterministic.
  *
- * Provider chain: Gemini 3.1 Flash-Lite direct (primary) -> OpenRouter (fallback).
- * Direct call is preferred — same model, fewer hops, same GEMINI_API_KEY
- * billing surface as extraction. OpenRouter is the safety net for the
- * rare case where Google's API has an outage; same Flash model on the
- * other side so output characteristics are equivalent. Companion-prompt
- * worker stays on Anthropic Sonnet because its task is shorter and
- * more voice-sensitive.
+ * Provider: Gemini 3.1 Flash-Lite direct — single provider, no fallback.
+ * Same GEMINI_API_KEY billing surface as extraction. The per-call timeout is
+ * sized to the author worker's full budget (see AUTHOR_TIMEOUT_MS) so a
+ * slow-but-valid generation runs to completion instead of being cut short;
+ * transient 429s are retried inside generateTextFromGemini (withGeminiRetry)
+ * and, at the job level, by QStash + the supervisor. Companion-prompt worker
+ * stays on Anthropic Sonnet because its task is shorter and more
+ * voice-sensitive.
  */
 import { dump as yamlDump } from 'js-yaml';
-import { chatCompletion, OPENROUTER_AUTHOR_MODEL } from './openrouter';
 import {
   generateTextFromGemini,
   type ExtractedBrand,
@@ -432,79 +432,33 @@ function logMissingHeadings(provider: string, text: string): void {
   }
 }
 
+// Author worker is Vercel Pro maxDuration=300s with a 290s watchdog; lint +
+// scoring + DB writes after this call need ~10s. 240s leaves comfortable margin
+// while letting a slow-but-valid Gemini generation finish — normal author
+// latency is ~8-15s, so this is the ceiling, not the target.
+const AUTHOR_TIMEOUT_MS = 240_000;
+
 /**
- * Author-model call with provider fallback chain:
+ * Author-model call: Gemini 3.1 Flash-Lite direct, single provider.
  *
- *   1. Gemini direct via @google/genai (primary)
- *   2. OpenRouter on Gemini 3.1 Flash-Lite (fallback on any error)
- *
- * Time budget is split so a slow primary doesn't starve the fallback:
- * 10s for the direct attempt, 30s for the fallback. Primary typically
- * completes in 8-12s when healthy — 10s cuts a failing/mis-routing primary
- * off quickly so the fallback gets a full 30s instead of waiting 30s for
- * a doomed attempt. Both fit inside the 290s worker watchdog.
+ * generateTextFromGemini applies AUTHOR_TIMEOUT_MS via AbortSignal and retries
+ * transient 429s internally (withGeminiRetry). A genuine hang aborts at the
+ * timeout and surfaces as a failure, which QStash + the supervisor re-run; the
+ * worker's 290s watchdog is the ultimate backstop.
  */
 async function callAuthorModel(userPrompt: string): Promise<string> {
-  const PRIMARY_TIMEOUT_MS = 10_000;
-  const FALLBACK_TIMEOUT_MS = 30_000;
-
-  // Primary: Gemini direct. The external race below is what actually enforces
-  // the budget: generateTextFromGemini's internal AbortSignal only covers the
-  // generateContent call, NOT the caches.create() preflight (now also bounded,
-  // but defensively), so a hung SDK path can't ride the worker to its 290s
-  // watchdog — we abandon it here and fail over to OpenRouter within budget.
-  try {
-    const primary = generateTextFromGemini({
-      systemPrompt: SYSTEM_PROMPT,
-      userPrompt,
-      timeoutMs: PRIMARY_TIMEOUT_MS,
-      maxOutputTokens: MAX_OUTPUT_TOKENS,
-      temperature: 0.4,
-    });
-    // If the primary loses the race it may still settle later; swallow any
-    // late rejection so it doesn't surface as an unhandled rejection.
-    primary.catch(() => {});
-    const res = await Promise.race([
-      primary,
-      new Promise<never>((_, reject) =>
-        setTimeout(
-          () => reject(new Error(`gemini-direct exceeded ${PRIMARY_TIMEOUT_MS}ms budget`)),
-          PRIMARY_TIMEOUT_MS,
-        ).unref(),
-      ),
-    ]);
-    console.log(
-      `[generate-design-md] primary=gemini-direct ${res.modelUsed} ${res.latencyMs}ms chars=${res.content.length}`,
-    );
-    const text = res.content.trim();
-    if (!text) throw new Error('Gemini direct returned empty markdown body');
-    logMissingHeadings('primary', text);
-    return text;
-  } catch (primaryErr) {
-    const msg = primaryErr instanceof Error ? primaryErr.message : String(primaryErr);
-    console.warn(`[generate-design-md] gemini-direct failed: ${msg} — falling back to OpenRouter`);
-  }
-
-  // Fallback: OpenRouter (same Gemini Flash model, different routing path).
-  const fallbackStart = Date.now();
-  const res = await chatCompletion({
-    model: OPENROUTER_AUTHOR_MODEL,
-    max_tokens: MAX_OUTPUT_TOKENS,
+  const res = await generateTextFromGemini({
+    systemPrompt: SYSTEM_PROMPT,
+    userPrompt,
+    timeoutMs: AUTHOR_TIMEOUT_MS,
+    maxOutputTokens: MAX_OUTPUT_TOKENS,
     temperature: 0.4,
-    messages: [
-      { role: 'system', content: SYSTEM_PROMPT },
-      { role: 'user', content: userPrompt },
-    ],
-    timeoutMs: FALLBACK_TIMEOUT_MS,
   });
   console.log(
-    `[generate-design-md] fallback=openrouter ${res.modelUsed} ${Date.now() - fallbackStart}ms finish=${res.finishReason} in=${res.usage.promptTokens} out=${res.usage.completionTokens}`,
+    `[generate-design-md] gemini-direct ${res.modelUsed} ${res.latencyMs}ms chars=${res.content.length}`,
   );
-  if (res.finishReason === 'length') {
-    console.warn('[generate-design-md] fallback hit max_tokens — output may be truncated');
-  }
   const text = res.content.trim();
-  if (!text) throw new Error('OpenRouter fallback returned empty markdown body');
-  logMissingHeadings('fallback', text);
+  if (!text) throw new Error('Gemini direct returned empty markdown body');
+  logMissingHeadings('gemini-direct', text);
   return text;
 }

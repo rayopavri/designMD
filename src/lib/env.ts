@@ -23,7 +23,6 @@ const EnvSchema = z.object({
   ANTHROPIC_API_KEY: z.string().min(1).optional(),
   GEMINI_API_KEY: z.string().min(1).optional(),
   FIRECRAWL_API_KEY: z.string().min(1).optional(),
-  OPENROUTER_API_KEY: z.string().optional(),
 
   // Email
   RESEND_API_KEY: z.string().min(1).optional(),

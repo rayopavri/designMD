@@ -34,7 +34,7 @@ Override only if the user explicitly asks for a branch + PR for a specific chang
 Three QStash workers chained in sequence:
 
 1. `POST /api/internal/scrape-and-extract` — Firecrawl scrapes the URL + screenshot; Gemini extracts brand tokens (palette, typography, components, design styles, category).
-2. `POST /api/internal/author-design-md` — Gemini 3.1 Flash-Lite writes the DESIGN.md (direct via Google, falling back to the same model through OpenRouter); `@google/design.md` lints it.
+2. `POST /api/internal/author-design-md` — Gemini 3.1 Flash-Lite writes the DESIGN.md (direct via Google, single provider — no fallback; per-call timeout sized to the 300s worker); `@google/design.md` lints it.
 3. `POST /api/internal/generate-companion` — Claude Sonnet 4.6 writes the companion system prompt.
 
 Workers are chained: each enqueues the next on success. `src/lib/queue/` handles dispatch. `INLINE_TASKS=true` bypasses QStash in local dev.

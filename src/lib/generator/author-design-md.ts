@@ -2,7 +2,7 @@
  * Phase 2 of the generation pipeline.
  *
  * Steps:
- *   writing-design-md     → Gemini Flash (or OpenRouter fallback): canonical body
+ *   writing-design-md     → Gemini Flash (direct, no fallback): canonical body
  *   persisting-design-md  → commit design.md (companion already running in parallel)
  *   linting               → @google/design.md linter parses & validates
  *   scoring               → coverage scorer derives 7 section scores

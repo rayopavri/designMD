@@ -270,15 +270,10 @@ The product works end-to-end. These items close gaps between what the UI *promis
   - Bundle rejected (with reason)
   - Weekly discovery summary (for editors — see P2-3)
 
-### B-6 · OpenRouter fallback
+### B-6 · OpenRouter fallback — ❌ cancelled 2026-06-01
 
-- **Priority:** UNSCHEDULED (Anthropic/Gemini have been stable)
-- **Effort:** ~3 hr
-- **Status:** `[ ]`
-- **Why:** Key in env, never wired. Insurance against Claude or Gemini 429s during a traffic spike.
-- **Acceptance criteria:**
-  - When Anthropic/Gemini call returns 429 or 5xx, retry via OpenRouter with equivalent model
-  - Logged so we can see how often it triggers
+- **Status:** `[-]` cancelled
+- **Resolution:** OpenRouter removed entirely. The pipeline is direct-provider only (Gemini 3.1 Flash-Lite + Anthropic Sonnet 4.6). Instead of a cross-provider fallback, each AI call uses a per-call timeout sized to its 300s Pro worker — **author 240s, extraction 180s, companion 90s** — so a slow-but-valid generation finishes rather than being cut off. Transient 429s are retried in-call (Gemini `withGeminiRetry`; Anthropic SDK `maxRetries: 2`) and at the job level (QStash retry + supervisor resume). Accepted tradeoff: a sustained provider outage fails the step rather than failing over.
 
 ---
 
