@@ -41,7 +41,7 @@
 - [x] **Removed unused `BLOB_READ_WRITE_TOKEN` env var** — confirmed absent from Vercel env (the screenshot path was ripped out 2026-05-21; the token was already cleaned up).
 - [x] **`CRON_SECRET` set + cron endpoints locked** — present in Vercel Production **and** as a GitHub Actions secret (~2026-05-29, values match). `/api/cron/warm-db` + `/api/cron/supervise-batches` now return **401** unauthenticated, and both cron workflows are green. Verified 2026-06-01.
 - [x] **Vercel project renamed** `design-md` → `uiuxskills` via `vercel project rename` (2026-06-01). Local `package.json` `name` renamed to match (`e4506e4`). Custom domain uiuxskills.com + all env/integration wiring unaffected.
-- [ ] *Optional leftover:* delete the orphaned `design-md-blob` store on the Vercel Storage tab — harmless if left (disconnected, no cost on Hobby).
+- [x] **Deleted the orphaned `design-md-blob` store** (2026-06-01, via `vercel blob delete-store` — store was empty/unlinked: 0 files, 0 connected projects). Housekeeping fully closed.
 
 ## ✅ Done 2026-05-22 — housekeeping reconciliation + workflow
 
