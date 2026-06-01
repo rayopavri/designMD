@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-06-01** (housekeeping closeout + Phase 2 ungated — 106 published bundles)
+> Last updated: **2026-06-01** (Phase 2 design reconciled with schema + platform patterns; P2-1 HN fetcher in progress)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -176,38 +176,49 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 **Gate:** ✅ **Cleared 2026-06-01.** Phase 1 closed (P1-4 voting live 2026-05-22) and the library now has **106 published bundles** — the >25 threshold is met ~4× (verified live via `/api/bundles`). Phase 2 is **actionable**; start with **P2-1** (it feeds P2-2 → P2-3).
 
-### P2-1 · Discovery candidate fetchers
+**Design reconciled 2026-06-01.** The original three bullets had drifted from what `discovery_candidates` actually models. The schema already encodes a richer pipeline: a **guardrails layer** (`is_safe` / `is_relevant` / `is_ai_generated` per candidate + `domain_blocklist` + `guardrail_rejections` keyed on `workflow='discovery'`), **multi-axis scoring** (`content_quality`, `specificity_score`, `composite_score`, `suggested_category`, `suggested_style[]`), and **inline auto-drafting** (`draft_design_md` / `draft_companion_prompt` → `promoted_to_bundle_id`). The `candidate_status` state machine is `unclassified → classified → auto_drafted → queued_for_review → approved │ rejected │ duplicate`. As of 2026-06-01 the discovery + guardrail tables are migrated but **entirely unwired** — no fetcher, classifier, query layer, or `/admin/discovery` page exist yet (the earlier "placeholders already exist" note was wrong; only the tables are real).
 
-- **Priority:** HIGH — ungated 2026-06-01 (entry point: feeds P2-2/P2-3)
-- **Effort:** ~6 hr
-- **Status:** `[ ]`
-- **Why:** Scaling beyond manual curation. `discovery_candidates` table + `/admin/discovery` page placeholders already exist.
+**Decisions:**
+
+- **Automation = classify-&-surface first.** Fetch → guardrail → Haiku score → rank into `/admin/discovery`; editor clicks "Generate" → the existing generation pipeline. No drafting/generation spend on an uncalibrated classifier, and no unreviewed rows in `bundles`. The schema's `auto_drafted` / draft columns stay ready: once the scores prove trustworthy, switch on a draft worker between `classified` and `queued_for_review` — additive, not a rewrite.
+- **Source order = Hacker News → GitHub → Reddit.** HN's Algolia API is keyless and "Show HN" links real product URLs with a maker inviting traffic (cleanest attribution + signal). GitHub second (no official trending API — scrape/search). Reddit last (needs OAuth).
+- **Cron = GitHub Actions + `CRON_SECRET`,** not Vercel cron (Hobby caps Vercel cron at once/day — the same reason `warm-db` and `supervise-batches` moved). Copy `supervise-batches.yml`.
+- **Reconciled supervisor, not a choreographed chain.** Mirror the generator's DB-as-truth model; `discovery_source_state` holds the per-source cursor/lease. Fan-out respects the 60s function cap: one worker per source/candidate, thin `{ candidateId }` messages hydrated from the DB.
+- **Don't re-scrape / dedup hard.** Fetchers store `raw_content` + `content_fingerprint` (sha256 of the normalized URL). Dedup against other candidates (fingerprint / `uq_candidates_source`) and active bundles (`source_url_normalized`, reusing `normalizeUrl`) **before** spending any tokens.
+
+### P2-1 · Source fetchers + pre-guardrail
+
+- **Priority:** HIGH — entry point (feeds P2-2/P2-3)
+- **Effort:** ~5 hr (HN slice ~2 hr; GitHub + Reddit adapters after)
+- **Status:** `[~]` — HN slice in progress 2026-06-01
 - **Acceptance criteria:**
-  - GitHub fetcher: trending repos with marketing sites, design-led READMEs
-  - Reddit fetcher: r/web_design, r/userexperience top posts
-  - Hacker News fetcher: Show HN with linked product URLs
-  - Each writes to `discovery_candidates` with source, url, raw_metadata, fetched_at
+  - `discover-fetch` worker (per source) writes `unclassified` candidates with `source`, `source_id`, `source_url`, `raw_content`, attribution (`author_*`), `content_fingerprint`
+  - Pre-guardrail before insert: `domain_blocklist` check + fingerprint/source dedup + dedup vs active bundles; skips logged to `guardrail_rejections` (`workflow='discovery'`)
+  - Per-source cursor / run state in `discovery_source_state`
+  - HN adapter first (keyless Algolia, `tags=show_hn`); GitHub + Reddit drop in behind the same worker
+  - `scripts/discover-once.ts` runs a source once and prints rows for eyeballing (no classifier yet)
 
 ### P2-2 · Haiku 4.5 classifier
 
-- **Priority:** MEDIUM — ungated 2026-06-01 (depends on P2-1)
+- **Priority:** MEDIUM (depends on P2-1)
 - **Effort:** ~3 hr
 - **Status:** `[ ]`
-- **Why:** Filter raw candidates down to ones worth generating bundles for. Haiku key is in env, never wired.
+- **Why:** Rank candidates worth generating. `claude-haiku-4-5` is already defined in `src/lib/ai/anthropic.ts` (its docblock literally names it "the discovery classifier") but is never called.
 - **Acceptance criteria:**
-  - Worker reads pending `discovery_candidates`, classifies each (skip / promising / strong)
-  - Strong candidates auto-queue a generation job
-  - Promising surface in `/admin/discovery` for human approve/skip
+  - Worker reads `unclassified` candidates; one Haiku call per candidate returns structured output — `is_safe` / `is_relevant` / `is_ai_generated` + `content_quality` / `specificity_score` / `composite_score` + `suggested_category` (enum-constrained to the 9 canonical slugs) + `suggested_style[]` + `classifier_notes`; status → `classified`
+  - Unsafe / irrelevant candidates → `rejected`, reason logged to `guardrail_rejections`
+  - Reconciled via the supervisor (re-derives pending classify work from `candidate_status`); respects the 60s cap with per-candidate fan-out
+  - *(Upgrade path, deferred)* strong candidates → draft worker → `auto_drafted` / `queued_for_review`
 
-### P2-3 · Weekly cron + admin review surface
+### P2-3 · Weekly cron + `/admin/discovery` review surface
 
-- **Priority:** MEDIUM — ungated 2026-06-01 (depends on P2-1 + P2-2)
+- **Priority:** MEDIUM (depends on P2-1 + P2-2)
 - **Effort:** ~3 hr
 - **Status:** `[ ]`
 - **Acceptance criteria:**
-  - Vercel cron (or QStash) fires weekly: fetchers → classifier → queue
-  - `/admin/discovery` shows new candidates with one-click "Generate" / "Skip"
-  - Email summary to editors via Resend (when templates land — see Beyond-5)
+  - GitHub Actions workflow fires weekly → `CRON_SECRET`-protected `/api/cron/discover` → enqueues per-source fetch → supervisor reconciles classify work (model on `supervise-batches.yml` + its route)
+  - `/admin/discovery` (modeled on `/admin/queue`) lists candidates by status with composite score, suggested category/style, source attribution, and one-click **Generate** (→ existing pipeline) / **Reject**
+  - Email summary to editors via Resend deferred to B-5
 
 ---
 
