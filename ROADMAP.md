@@ -286,6 +286,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-06-01** - P2-1 discovery fetch slice (HN): reconciled the Phase 2 design with the schema + platform patterns, then shipped the Hacker News source (keyless Algolia `tags=show_hn`), the pre-guardrail (third-party-chrome host denylist + fingerprint/active-bundle dedup), the `discover-fetch` worker, and the discovery query layer. Worker is inert pending the P2-3 cron. Eyeballed live (kept 13 product surfaces, filtered 16 repo/registry/store pages). tsc + eslint clean. (`898008f`)
 - [x] **2026-06-01** - Phase 2 ungated: verified 106 published bundles live via /api/bundles (>25 gate cleared ~4×); flipped P2-1/2/3 from GATED to actionable
 - [x] **2026-06-01** - Housekeeping closeout: renamed Vercel project + package `design-md` → `uiuxskills`; verified CRON_SECRET lock is live (cron endpoints 401) and BLOB_READ_WRITE_TOKEN already removed (e4506e4)
 - [x] **2026-05-30** - generate: handle source-URL dedup gracefully at the app layer (b9ecf6c)
