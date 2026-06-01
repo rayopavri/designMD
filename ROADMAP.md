@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-05-30** (Roadmap auto-update via PostToolUse hook)
+> Last updated: **2026-06-01** (housekeeping closeout: project rename + CRON_SECRET/blob verification)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -36,11 +36,12 @@
 - [x] **Cron moved Vercel → GitHub Actions** because Vercel Hobby tightened cron to once-per-day. `.github/workflows/warm-db.yml` runs every 5 min, hits `/api/cron/warm-db` (which now also runs a watchdog that marks stuck `running` jobs older than 5 min as failed). (`45e4188`, `09a3272`)
 - [x] **Firecrawl tuned for animated sites.** `screenshot@fullPage` + wait/scroll actions (~6s of actions) so lazy-loaded images and JS-animated content render before capture. `sharp` clamps to 1600×4000 JPEG before Gemini to prevent vision downscaling.
 
-## 🔁 Remaining housekeeping
+## ✅ Done 2026-06-01 — housekeeping closeout
 
-- [ ] **Remove unused `BLOB_READ_WRITE_TOKEN` env var** in Vercel + delete the `design-md-blob` store on the Storage tab (we ripped out the screenshot path).
-- [ ] **Set `CRON_SECRET` env var in Vercel** (optional). Locks `/api/cron/warm-db` to authenticated callers. Generate a random 32-char string, add to both Vercel env and `.github/workflows/warm-db.yml` as `secrets.CRON_SECRET`.
-- [ ] **Vercel project rename** (optional cosmetic): `design-md` → `uiuxskills` in Project Settings → General.
+- [x] **Removed unused `BLOB_READ_WRITE_TOKEN` env var** — confirmed absent from Vercel env (the screenshot path was ripped out 2026-05-21; the token was already cleaned up).
+- [x] **`CRON_SECRET` set + cron endpoints locked** — present in Vercel Production **and** as a GitHub Actions secret (~2026-05-29, values match). `/api/cron/warm-db` + `/api/cron/supervise-batches` now return **401** unauthenticated, and both cron workflows are green. Verified 2026-06-01.
+- [x] **Vercel project renamed** `design-md` → `uiuxskills` via `vercel project rename` (2026-06-01). Local `package.json` `name` renamed to match (`e4506e4`). Custom domain uiuxskills.com + all env/integration wiring unaffected.
+- [ ] *Optional leftover:* delete the orphaned `design-md-blob` store on the Vercel Storage tab — harmless if left (disconnected, no cost on Hobby).
 
 ## ✅ Done 2026-05-22 — housekeeping reconciliation + workflow
 
@@ -274,6 +275,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-06-01** - Housekeeping closeout: renamed Vercel project + package `design-md` → `uiuxskills`; verified CRON_SECRET lock is live (cron endpoints 401) and BLOB_READ_WRITE_TOKEN already removed (e4506e4)
 - [x] **2026-05-30** - generate: handle source-URL dedup gracefully at the app layer (b9ecf6c)
 - [x] **2026-05-30** - db: add partial unique index guarding active bundles per source URL (83b6736)
 - [x] **2026-05-30** - Admin bundles: show/edit brand logo, reorder actions, fix approve icon (108aa21)
