@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-06-01** (Phase 2 design reconciled with schema + platform patterns; P2-1 HN fetcher in progress)
+> Last updated: **2026-06-01** (removed skills/agents/MCP/CLI surfaces — product is now DESIGN.md + companion only)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -226,38 +226,13 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 ⚠️ **Always confirm with user before starting any item in this section.** All are 6-12hr or more.
 
-### B-1 · Skill generator pipeline
+### B-1 · Skill generator pipeline — ❌ cancelled 2026-06-01
+### B-2 · Agent generator pipeline — ❌ cancelled 2026-06-01
+### B-3 · MCP generator pipeline — ❌ cancelled 2026-06-01
+### B-4 · `npx uiuxskills` CLI — ❌ cancelled 2026-06-01
 
-- **Priority:** UNSCHEDULED
-- **Effort:** ~8 hr
-- **Status:** `[ ]`
-- **Why:** `/generate` shows "Skill" as a preview-only mock. Real pipeline would produce a Claude Skill (frontmatter + SKILL.md + assets) from a URL.
-
-### B-2 · Agent generator pipeline
-
-- **Priority:** UNSCHEDULED
-- **Effort:** ~10 hr
-- **Status:** `[ ]`
-- **Why:** Same — mocked. Would produce a subagent definition with persona, tools, system prompt.
-
-### B-3 · MCP generator pipeline
-
-- **Priority:** UNSCHEDULED
-- **Effort:** ~12 hr
-- **Status:** `[ ]`
-- **Why:** Same — mocked. Would scaffold an MCP server with tools defined from the source product's API.
-
-### B-4 · `npx uiuxskills` CLI
-
-- **Priority:** UNSCHEDULED (docs already advertise it)
-- **Effort:** ~6 hr
-- **Status:** `[ ]`
-- **Why:** Post-rebrand the library page and docs advertise `npx uiuxskills add <id>`. The package doesn't exist on npm.
-- **Acceptance criteria:**
-  - Publish `uiuxskills` package
-  - `add <id>` downloads bundle ZIP + writes to per-tool path (Cursor, Claude Code, Windsurf, etc.)
-  - `list` prints catalog
-  - `verify` checks installed bundle integrity
+- **Status:** `[-]` cancelled
+- **Resolution:** The skills / agents / MCP / CLI surfaces were removed from the product on 2026-06-01 (`1354b22`). UIUXskills is now exclusively a DESIGN.md + companion-prompt generator and a library of design-system bundles, so these generator pipelines and the CLI are no longer planned. The `/generate` mocks, shelf UI, and `/docs/cli` page are gone. Re-open only if the multi-artifact direction is revived.
 
 ### B-5 · Resend email templates
 
@@ -281,6 +256,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-06-01** - Removed the skills / agents / MCP / CLI surfaces — UIUXskills is now exclusively a DESIGN.md + companion-prompt generator plus a design-system bundle library. Deleted the `PHASE_2_SHELVES_ENABLED` flag and every branch, the `SkillItem`/`AgentItem`/`McpItem` types + their seed data in `items.ts`, the shelf system in `libraryFilters.ts`, the `/docs/cli` page, `nonBundleInstall.ts`, `WorksWellWith`, and `featureFlags.ts`. `/generate` lost its type dropdown / URL type-detection / mock skill-agent-mcp pipelines / "preview only" banner — it's now URL + screenshot → design.md + companion. The library is bundles-only (category filter, no shelves). The generation pipeline (scrape-and-extract → author-design-md → generate-companion), the bundles table, and BundleView are untouched. B-1/B-2/B-3/B-4 cancelled. (`1354b22`) · **Verified:** `tsc` clean (0 errors); `next build` compiled + types valid (DB data-collection step fails locally only — Sensitive env empty); dev-server smoke test of `/`, `/library`, `/generate` shows the bundle-only UI with no CLI/shelf/type surfaces (only expected DB/Firebase env errors from dummy local secrets). Prod build runs with real env on push.
 - [x] **2026-06-01** - Removed OpenRouter entirely — pipeline is now direct Gemini + Claude only. Deleted `openrouter.ts` + the OpenRouter-only comparison script and raised per-call timeouts to use the 300s Pro workers (author 10s→240s, extraction 90s→180s, companion 45s→90s + pinned Anthropic `maxRetries:2`) so slow-but-valid generations finish instead of being cut off. Transient 429s still retried in-call (`withGeminiRetry` / SDK) + at the job level (QStash + supervisor). B-6 marked cancelled. (`3c265f6`) · **Verified:** `tsc` clean · 0 OpenRouter refs · author path reaches `generateTextFromGemini` direct (no OpenRouter in the call chain) · prod deploy **Ready** (build passed). Confirmed **live in production**: generated `dub.co` end-to-end in ~46s (scrape → Gemini extract → direct-Gemini author → Sonnet companion → `ready_for_review`), no OpenRouter, no errors. (A local run isn't possible — Vercel stores the keys Sensitive, so `vercel env pull` returns them empty.)
 - [x] **2026-06-01** - P2-1 discovery fetch slice (HN): reconciled the Phase 2 design with the schema + platform patterns, then shipped the Hacker News source (keyless Algolia `tags=show_hn`), the pre-guardrail (third-party-chrome host denylist + fingerprint/active-bundle dedup), the `discover-fetch` worker, and the discovery query layer. Worker is inert pending the P2-3 cron. Eyeballed live (kept 13 product surfaces, filtered 16 repo/registry/store pages). tsc + eslint clean. (`898008f`)
 - [x] **2026-06-01** - Phase 2 ungated: verified 106 published bundles live via /api/bundles (>25 gate cleared ~4×); flipped P2-1/2/3 from GATED to actionable
