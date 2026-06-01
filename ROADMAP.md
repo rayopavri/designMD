@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-06-01** (housekeeping closeout: project rename + CRON_SECRET/blob verification)
+> Last updated: **2026-06-01** (housekeeping closeout + Phase 2 ungated — 106 published bundles)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -174,11 +174,11 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 ## Phase 2 — Discovery pipeline
 
-**Gate:** ✅ Phase 1 closed (P1-4 voting live as of 2026-05-22). Remaining gate: library has >25 published bundles.
+**Gate:** ✅ **Cleared 2026-06-01.** Phase 1 closed (P1-4 voting live 2026-05-22) and the library now has **106 published bundles** — the >25 threshold is met ~4× (verified live via `/api/bundles`). Phase 2 is **actionable**; start with **P2-1** (it feeds P2-2 → P2-3).
 
 ### P2-1 · Discovery candidate fetchers
 
-- **Priority:** GATED
+- **Priority:** HIGH — ungated 2026-06-01 (entry point: feeds P2-2/P2-3)
 - **Effort:** ~6 hr
 - **Status:** `[ ]`
 - **Why:** Scaling beyond manual curation. `discovery_candidates` table + `/admin/discovery` page placeholders already exist.
@@ -190,7 +190,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 ### P2-2 · Haiku 4.5 classifier
 
-- **Priority:** GATED
+- **Priority:** MEDIUM — ungated 2026-06-01 (depends on P2-1)
 - **Effort:** ~3 hr
 - **Status:** `[ ]`
 - **Why:** Filter raw candidates down to ones worth generating bundles for. Haiku key is in env, never wired.
@@ -201,7 +201,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 ### P2-3 · Weekly cron + admin review surface
 
-- **Priority:** GATED
+- **Priority:** MEDIUM — ungated 2026-06-01 (depends on P2-1 + P2-2)
 - **Effort:** ~3 hr
 - **Status:** `[ ]`
 - **Acceptance criteria:**
@@ -275,6 +275,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-06-01** - Phase 2 ungated: verified 106 published bundles live via /api/bundles (>25 gate cleared ~4×); flipped P2-1/2/3 from GATED to actionable
 - [x] **2026-06-01** - Housekeeping closeout: renamed Vercel project + package `design-md` → `uiuxskills`; verified CRON_SECRET lock is live (cron endpoints 401) and BLOB_READ_WRITE_TOKEN already removed (e4506e4)
 - [x] **2026-05-30** - generate: handle source-URL dedup gracefully at the app layer (b9ecf6c)
 - [x] **2026-05-30** - db: add partial unique index guarding active bundles per source URL (83b6736)
