@@ -23,7 +23,6 @@ import {
   VIOLET,
 } from "@/lib/ui-data/tokens";
 import { openAuthModal, useAuth, useAuthStorageSync } from "@/lib/ui-data/mockAuth";
-import { PHASE_2_SHELVES_ENABLED } from "@/lib/ui-data/featureFlags";
 import { AdminNav } from "./AdminNav";
 import { AuthModal } from "./AuthModal";
 import { UserMenu } from "./UserMenu";
@@ -38,9 +37,6 @@ function basePath(p: string): string {
 const NAV: NavItem[] = [
   { label: "Library", href: "/library", matches: (p) => basePath(p).startsWith("/library") },
   { label: "Generate", href: "/generate", matches: (p) => basePath(p).startsWith("/generate") },
-  ...(PHASE_2_SHELVES_ENABLED
-    ? [{ label: "CLI", href: "/docs/cli", matches: (p: string) => basePath(p).startsWith("/docs/cli") }]
-    : []),
 ];
 
 const STEP_LABELS: Record<string, string> = {
@@ -220,7 +216,6 @@ export function Footer() {
         <div className="flex items-center gap-5 flex-wrap">
           <Link href="/library">library</Link>
           <Link href="/generate">generate</Link>
-          {PHASE_2_SHELVES_ENABLED ? <Link href="/docs/cli">cli</Link> : null}
           <Link href="/legal/terms">terms</Link>
           <Link href="/legal/privacy">privacy</Link>
           <Link href="/legal/attribution">attribution</Link>

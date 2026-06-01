@@ -5,11 +5,7 @@ import { useSearchParams } from "next/navigation";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { LibraryFilterPanel } from "@/components/ui/LibraryFilterPanel";
-import {
-  matchesCategory,
-  matchesShelf,
-  useLibraryFilters,
-} from "@/lib/ui-data/libraryFilters";
+import { matchesCategory, useLibraryFilters } from "@/lib/ui-data/libraryFilters";
 import { ArrowUpRight } from "lucide-react";
 import { ItemCard } from "@/components/ui/ItemCard";
 import {
@@ -24,36 +20,10 @@ import {
   VIOLET,
 } from "@/lib/ui-data/tokens";
 
-import {
-  ITEMS,
-  TYPE_META,
-  type Item,
-} from "@/lib/ui-data/items";
+import { type Item } from "@/lib/ui-data/items";
 import { useBundleItems } from "@/hooks/useBundleItems";
-import { PHASE_2_SHELVES_ENABLED } from "@/lib/ui-data/featureFlags";
 
 type Sort = "popular" | "coverage" | "recent" | "alpha";
-
-const SHELF_BLURBS: Record<"bundle" | "skill" | "agent" | "mcp", string> = {
-  bundle: "design.md files for real brands and design systems — drop one in and your AI tool ships on-brand UI.",
-  skill: "Single-purpose instruction files for designers — research, critique, token enforcement, UX writing.",
-  agent: "Personas with a charter — UI engineer, design critic, component architect.",
-  mcp: "Connections that let your tool see Figma, Mobbin, and more.",
-};
-
-const TYPE_PATH: Record<"bundle" | "skill" | "agent" | "mcp", string> = {
-  bundle: "/library?type=design-systems",
-  skill: "/library/skills",
-  agent: "/library/agents",
-  mcp: "/library/mcps",
-};
-
-const HEADLINE_SHELVES: Array<"bundle" | "skill" | "agent" | "mcp"> = [
-  "bundle",
-  "skill",
-  "agent",
-  "mcp",
-];
 
 function recentRank(ago: string): number {
   const m = ago.match(/^(\d+)\s*(h|d|w|mo|y)/);
@@ -72,16 +42,7 @@ function Library() {
   const initialQ = useMemo(() => new URLSearchParams(search).get("q") ?? "", [search]);
   const [query, setQuery] = useState(initialQ);
   const [sort, setSort] = useState<Sort>("popular");
-  const { filters, setType, reset, activeCount } = useLibraryFilters();
-
-  // Phase 1: pin the library to the design-systems shelf so skill/agent/mcp
-  // mock items don't leak into the grid while the other shelves are hidden.
-  useEffect(() => {
-    if (!PHASE_2_SHELVES_ENABLED && filters.type !== "design-systems") {
-      setType("design-systems");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const { filters, reset, activeCount } = useLibraryFilters();
 
   // Keep the query in sync if the URL ?q= changes (e.g. arriving from 404).
   useEffect(() => {
@@ -114,15 +75,10 @@ function Library() {
     return () => { clearTimeout(timer); ctrl.abort(); };
   }, [query]);
 
-  const allItems = useMemo<Item[]>(() => {
-    // DB-backed bundles + the (still-hardcoded) skills/agents/mcps.
-    const nonBundle = ITEMS.filter((it) => it.type !== "bundle");
-    return [...dbBundleItems, ...nonBundle];
-  }, [dbBundleItems]);
+  const allItems = dbBundleItems;
 
   const filtered = useMemo(() => {
     let list: Item[] = allItems.filter((it) => {
-      if (!matchesShelf(it, filters.type)) return false;
       if (!matchesCategory(it, filters.category)) return false;
       if (query.trim()) {
         // DB bundles use the Orama slug-set when available; non-bundle items
@@ -160,43 +116,14 @@ function Library() {
       list.sort((a, b) => recentRank(a.updatedAgo) - recentRank(b.updatedAgo));
     }
     return list;
-  }, [allItems, query, filters.type, filters.category, sort]);
+  }, [allItems, query, filters.category, sort]);
 
-  const headingNoun =
-    filters.type === "all"
-      ? filtered.length === 1
-        ? "item"
-        : "items"
-      : filters.type === "design-systems"
-      ? filtered.length === 1
-        ? "design system"
-        : "design systems"
-      : filters.type === "skills"
-      ? filtered.length === 1
-        ? "skill"
-        : "skills"
-      : filters.type === "agents"
-      ? filtered.length === 1
-        ? "agent"
-        : "agents"
-      : filtered.length === 1
-      ? "MCP"
-      : "MCPs";
+  const headingNoun = filtered.length === 1 ? "design system" : "design systems";
 
-  const requestKind: { label: string; href: string } = (() => {
-    switch (filters.type) {
-      case "skills":
-        return { label: "Skill", href: "/generate?type=skill" };
-      case "agents":
-        return { label: "Agent", href: "/generate?type=agent" };
-      case "mcps":
-        return { label: "MCP", href: "/generate?type=mcp" };
-      case "design-systems":
-        return { label: "Design system", href: "/generate?type=bundle" };
-      default:
-        return { label: "Design system", href: "/generate?type=bundle" };
-    }
-  })();
+  const requestKind: { label: string; href: string } = {
+    label: "Design system",
+    href: "/generate",
+  };
 
   return (
     <>
@@ -212,24 +139,12 @@ function Library() {
                 The library
               </div>
               <h1 className="text-[44px] sm:text-[54px] leading-[1.02] font-medium tracking-[-0.022em]">
-                {PHASE_2_SHELVES_ENABLED ? (
-                  <>
-                    Pick your shelf.
-                    <br />
-                    <span style={{ color: SUB }}>Install what fits. Ship.</span>
-                  </>
-                ) : (
-                  <>
-                    Design systems.
-                    <br />
-                    <span style={{ color: SUB }}>Drop one in. Ship on-brand.</span>
-                  </>
-                )}
+                Design systems.
+                <br />
+                <span style={{ color: SUB }}>Drop one in. Ship on-brand.</span>
               </h1>
               <p className="mt-5 max-w-[36rem] text-[14.5px] leading-[1.6]" style={{ color: SUB }}>
-                {PHASE_2_SHELVES_ENABLED
-                  ? "Four shelves: Design systems, Skills, Agents, and MCPs. Each one slots into Claude, Cursor, Lovable, or Figma Make. Open a shelf to see what's inside — or use the grid below to search across everything."
-                  : "design.md files for real brands and design systems — drop one in and your AI tool ships on-brand UI. Use the grid below to search across the library."}
+                design.md files for real brands and design systems — drop one in and your AI tool ships on-brand UI. Use the grid below to search across the library.
               </p>
             </div>
             <div className="col-span-12 lg:col-span-5">
@@ -243,58 +158,16 @@ function Library() {
                 >
                   New here?
                 </div>
-                Each shelf has a short &quot;how to use one&quot; walkthrough at the top — three steps, no
-                jargon. Start with{" "}
-                <Link href="/library?type=design-systems" style={{ color: VIOLET }}>
-                  Design systems
-                </Link>{" "}
-                if you want fast on-brand UI.
+                Every entry pairs a design.md spec with a companion prompt. Copy both into
+                Claude, Cursor, Lovable, or Figma Make and your AI ships on-brand. Need a brand
+                that isn&apos;t here yet?{" "}
+                <Link href="/generate" style={{ color: VIOLET }}>
+                  Generate one from a URL
+                </Link>
+                .
               </div>
             </div>
           </div>
-
-          {PHASE_2_SHELVES_ENABLED ? (
-          <div
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-px rounded-lg overflow-hidden"
-            style={{ background: BORDER }}
-          >
-            {HEADLINE_SHELVES.map((t) => {
-              const m = TYPE_META[t];
-              // Count by raw item.type so Skills excludes bundles
-              // (design systems get their own peer shelf above).
-              const count = ITEMS.filter((i) => i.type === t).length;
-              return (
-                <Link
-                  key={t}
-                  href={TYPE_PATH[t]}
-                  className="p-6 block transition-colors hover:bg-[#101013] group"
-                  style={{ background: BG }}
-                >
-                  <div className="flex items-center justify-between mb-4">
-                    <span
-                      className="inline-flex items-center gap-1.5 text-[10.5px] uppercase tracking-[0.22em]"
-                      style={{ fontFamily: MONO, color: MUTED }}
-                    >
-                      <span className="h-1.5 w-1.5 rounded-full" style={{ background: m.accent }} />
-                      <span style={{ color: m.accent }}>{m.icon}</span>
-                      {m.plural}
-                    </span>
-                    <ArrowUpRight
-                      className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
-                      style={{ color: SUB }}
-                    />
-                  </div>
-                  <div className="text-[24px] leading-[1] font-medium tracking-[-0.018em] mb-3" style={{ color: INK }}>
-                    {count}
-                  </div>
-                  <div className="text-[12.5px] leading-[1.55]" style={{ color: SUB }}>
-                    {SHELF_BLURBS[t]}
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-          ) : null}
         </div>
       </section>
 

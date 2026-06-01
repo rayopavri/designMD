@@ -40,8 +40,7 @@ export function HomeLibrary() {
   const [match, setMatch] = useState<string>(ALL);
   const [query, setQuery] = useState('');
 
-  // Only design-system bundles on the home grid — skills/agents/mcps stay
-  // accessible from /library.
+  // The library is design-system bundles only.
   const bundles = useMemo(
     () => items.filter((i) => i.type === 'bundle'),
     [items],

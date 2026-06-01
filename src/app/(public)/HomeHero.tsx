@@ -19,7 +19,6 @@ import {
   VIOLET,
 } from "@/lib/ui-data/tokens";
 import { useAuth } from "@/lib/ui-data/mockAuth";
-import { PHASE_2_SHELVES_ENABLED } from "@/lib/ui-data/featureFlags";
 
 /**
  * Split hero for the public landing page.
@@ -117,18 +116,6 @@ export function HomeHero() {
                 </Link>
                 <span style={{ color: SUB }}>{" "}— anonymous works, sign in for higher limits.</span>
               </li>
-              {PHASE_2_SHELVES_ENABLED ? (
-                <li>
-                  <Link
-                    href="/docs/cli"
-                    className="inline-flex items-center gap-1.5 hover:underline underline-offset-4"
-                    style={{ color: INK }}
-                  >
-                    Install via CLI
-                  </Link>
-                  <span style={{ color: SUB }}>{" "}— npx uiuxskills add &lt;id&gt;.</span>
-                </li>
-              ) : null}
             </ul>
           </div>
 

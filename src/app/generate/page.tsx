@@ -21,7 +21,7 @@ import {
   SURFACE_2,
   VIOLET,
 } from "@/lib/ui-data/tokens";
-import { TYPE_META, type ItemType } from "@/lib/ui-data/items";
+import { TYPE_META } from "@/lib/ui-data/items";
 
 type Status = "idle" | "running" | "done" | "failed";
 interface JobPollResult {
@@ -41,21 +41,11 @@ type PipelineStep = {
   detail: string;
   durationMs: number;
   /**
-   * For bundle phases: backend `currentStep` values that mark this phase
-   * as active. A phase is `active` when the polled `currentStep` is in
-   * this list, `done` when stepIdx has advanced past it. Undefined for
-   * non-bundle mock pipelines (skill/agent/mcp), which use timer-based
-   * progression and don't talk to the real worker.
+   * Backend `currentStep` values that mark this phase as active. A phase
+   * is `active` when the polled `currentStep` is in this list, `done`
+   * when stepIdx has advanced past it.
    */
   steps?: string[];
-};
-
-const COMPLIANCE_STEP: PipelineStep = {
-  id: "compliance",
-  label: "Compliance check",
-  tool: "robots.txt + ToS",
-  detail: "Verifying source allows curation · attribution preserved",
-  durationMs: 900,
 };
 
 /**
@@ -136,201 +126,6 @@ const BUNDLE_STEPS_UPLOAD: PipelineStep[] = [
   },
 ];
 
-
-const SKILL_STEPS: PipelineStep[] = [
-  COMPLIANCE_STEP,
-  { id: "fetch", label: "Source fetch", tool: "GitHub API", detail: "README + skill.md", durationMs: 1000 },
-  { id: "parse", label: "Frontmatter parse", tool: "AST walker", detail: "Trigger, role, tools", durationMs: 800 },
-  { id: "summary", label: "Editorial summary", tool: "Claude Sonnet", detail: "1-line tagline · 3-tag taxonomy", durationMs: 1100 },
-  { id: "install", label: "Install path detection", tool: "Heuristic match", detail: "~/.claude/skills/* · .cursor/rules/*", durationMs: 800 },
-  { id: "verify", label: "Drift check vs upstream", tool: "Gemini Flash", detail: "Cross-checked against source repo", durationMs: 900 },
-];
-
-const AGENT_STEPS: PipelineStep[] = [
-  COMPLIANCE_STEP,
-  { id: "fetch", label: "Source fetch", tool: "GitHub API", detail: "Agent manifest + tools", durationMs: 1000 },
-  { id: "charter", label: "Charter extraction", tool: "Claude Sonnet", detail: "Role · workflow · constraints", durationMs: 1200 },
-  { id: "tooling", label: "Tool surface mapping", tool: "Gemini Flash", detail: "Framework: Claude Code", durationMs: 900 },
-  { id: "summary", label: "Editorial summary", tool: "Claude Sonnet", detail: "Tagline + taxonomy", durationMs: 1000 },
-  { id: "verify", label: "Drift check vs upstream", tool: "Gemini Flash", detail: "Manifest matches commit hash", durationMs: 900 },
-];
-
-const MCP_STEPS: PipelineStep[] = [
-  COMPLIANCE_STEP,
-  { id: "fetch", label: "Registry lookup", tool: "MCP registry", detail: "Transport · package · auth model", durationMs: 1000 },
-  { id: "schema", label: "Schema introspection", tool: "MCP probe", detail: "Tools · resources · prompts", durationMs: 1100 },
-  { id: "config", label: "mcp.json synthesis", tool: "Claude Sonnet", detail: "Per-tool install block", durationMs: 1000 },
-  { id: "summary", label: "Editorial summary", tool: "Claude Sonnet", detail: "Tagline + taxonomy + license", durationMs: 1000 },
-  { id: "verify", label: "Health probe", tool: "Replit sandbox", detail: "Boot + handshake confirmed", durationMs: 900 },
-];
-
-const STEPS_FOR: Record<ItemType, PipelineStep[]> = {
-  bundle: BUNDLE_STEPS_URL,
-  skill: SKILL_STEPS,
-  agent: AGENT_STEPS,
-  mcp: MCP_STEPS,
-};
-
-function detectType(raw: string): { type: ItemType; reason: string } | null {
-  const url = raw.trim();
-  if (!url) return null;
-  let host = "";
-  let path = "";
-  try {
-    const u = new URL(url.startsWith("http") ? url : `https://${url}`);
-    host = u.hostname.replace(/^www\./, "");
-    path = u.pathname;
-  } catch {
-    return null;
-  }
-  if (!host.includes(".")) return null;
-
-  // MCP detection
-  if (host === "figma.com" && path.includes("/mcp")) return { type: "mcp", reason: "Figma MCP endpoint" };
-  if (path.endsWith("/mcp") || path.includes("/mcp/") || path.includes("mcp-catalog")) {
-    return { type: "mcp", reason: "MCP registry path" };
-  }
-  if (host.includes("mobbin.com") && path.includes("mcp")) return { type: "mcp", reason: "Mobbin MCP" };
-  if (host.includes("refero.design") && path.includes("mcp")) return { type: "mcp", reason: "Refero MCP" };
-
-  // Skill / Agent detection (GitHub repos default to designer Skill;
-  // "agent" or ".claude/agents" in the path → designer Agent)
-  if (host === "github.com") {
-    const lower = (path + " " + url).toLowerCase();
-    if (lower.includes("agent") || lower.includes(".claude/agents")) {
-      return { type: "agent", reason: "GitHub repo → designer agent" };
-    }
-    return { type: "skill", reason: "GitHub repo → designer skill" };
-  }
-  if (host.includes("skills.sh") || host.includes("aitmpl.com")) {
-    return { type: "skill", reason: `${host} → designer skill` };
-  }
-
-  // Brand / product host → design.md (single-label TLDs)
-  const parts = host.split(".");
-  const tld = parts[parts.length - 1];
-  const KNOWN_TLDS = new Set([
-    // existing
-    "com", "io", "co", "app", "dev", "ai", "design", "studio", "shop",
-    "org", "net", "xyz", "sh", "so", "to", "cloud", "page", "site", "tech",
-    // modern brand TLDs
-    "fyi", "me", "new", "build", "agency", "pro", "fund", "fashion",
-    "world", "global", "club",
-  ]);
-  if (parts.length >= 2 && KNOWN_TLDS.has(tld)) {
-    return { type: "bundle", reason: "Brand site → design.md" };
-  }
-  // Unknown / unusual pattern — let the user override explicitly.
-  return null;
-}
-
-function presetBundleSpec(host: string, palette: string[]): string {
-  return `---
-brand: ${host}
-version: 0.1.0-draft
-source: https://${host}
-extracted_at: ${new Date().toISOString()}
-license: review-required
----
-
-# DETECTED PALETTE
-- primary:    ${palette[0]}
-- surface:    ${palette[1]}
-- text_main:  ${palette[2]}
-- text_muted: ${palette[3]}
-- accent:     ${palette[4]}
-
-# TYPOGRAPHY
-- family: Inter
-- scale:  [12, 14, 16, 18, 24, 32, 48]
-- weight: { body: 400, medium: 510, bold: 600 }
-- tracking: -0.012em
-
-# SPACING
-- scale: [4, 8, 12, 16, 24, 32, 48, 64]
-
-# COMPONENT ANATOMY
-## Button (primary)
-- height: 36px
-- padding-x: 16px
-- radius: 8px
-- bg: accent
-- fg: surface
-
-## Card
-- bg: surface
-- border: 1px solid ${palette[3]}33
-- radius: 12px
-- padding: 24px
-
-# FORBIDDEN
-- Pure black on surface chrome
-- Decorative shadows on document blocks
-`;
-}
-
-function presetSkillDraft(host: string): string {
-  return `---
-name: ${host.split(".")[0]}-skill
-description: Draft skill extracted from ${host}.
-trigger: When the user pastes a URL or asks about ${host}.
-license: review-required
-source: https://${host}
----
-
-# ROLE
-You are an editorial assistant operating on content from ${host}. Treat the upstream README as the source of truth.
-
-# STEPS
-1. Read the upstream README before generating any output.
-2. Map the user request to a known capability in the source.
-3. Return a structured response with citation links back to the source.
-
-# FORBIDDEN
-- Inventing capabilities not declared in the source.
-- Rewriting upstream content as if it were yours.
-`;
-}
-
-function presetAgentDraft(host: string): string {
-  return `---
-name: ${host.split(".")[0]}-agent
-role: domain-assistant
-model: claude-sonnet
-tools: [read, write, bash]
-source: https://${host}
-license: review-required
----
-
-# CHARTER
-You are a draft agent generated from ${host}. Edit before shipping.
-
-# WORKFLOW
-1. Inspect the user request.
-2. Use only the tools declared above.
-3. Return a structured plan, then ask before executing.
-
-# CONSTRAINTS
-- Do not add new dependencies without asking.
-- Surface attribution to ${host} on every artifact you produce.
-`;
-}
-
-function presetMcpDraft(host: string): string {
-  return `{
-  "mcpServers": {
-    "${host.split(".")[0]}": {
-      "command": "npx",
-      "args": ["-y", "@${host.split(".")[0]}/mcp@latest"],
-      "env": {}
-    }
-  },
-  "_source": "https://${host}",
-  "_license": "review-required",
-  "_status": "draft"
-}`;
-}
-
 /** Anyone can run the generator and see metadata for the resulting draft;
  * the draft body itself is blurred until they sign in. Keeping a single
  * component (no signed-out branch with different hook count) means hook
@@ -347,10 +142,6 @@ function GenerateContent() {
   const _router = useRouter();
   const navigate = (path: string) => _router.push(path);
   const search = useSearchParams().toString();
-  const prefillType = useMemo(() => {
-    const v = new URLSearchParams(search).get("type");
-    return v && (["bundle", "skill", "agent", "mcp"] as string[]).includes(v) ? (v as ItemType) : null;
-  }, [search]);
   const prefillUrl = useMemo(() => {
     const raw = new URLSearchParams(search).get("url");
     if (!raw) return "";
@@ -360,9 +151,6 @@ function GenerateContent() {
     return raw;
   }, [search]);
   const [url, setUrl] = useState(prefillUrl);
-  const [override, setOverride] = useState<ItemType | null>(prefillType);
-  const [overrideTouched, setOverrideTouched] = useState<boolean>(!!prefillType);
-  const [overrideOpen, setOverrideOpen] = useState(false);
   const [status, setStatus] = useState<Status>("idle");
   const [stepIdx, setStepIdx] = useState(-1);
   const [palette, setPalette] = useState<string[]>([]);
@@ -380,8 +168,7 @@ function GenerateContent() {
   // Force re-render every 250ms while pipeline runs so the active step's
   // live timer ticks up smoothly without spamming setState.
   const [, setTick] = useState(0);
-  // Bundle source mode — only meaningful when activeType === "bundle".
-  // 'url' uses the existing scrape pipeline; 'upload' takes a screenshot.
+  // Source mode: 'url' uses the scrape pipeline; 'upload' takes a screenshot.
   const [bundleMode, setBundleMode] = useState<"url" | "upload">("url");
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadPreview, setUploadPreview] = useState<string | null>(null);
@@ -400,16 +187,13 @@ function GenerateContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const detection = useMemo(() => detectType(url), [url]);
-  const typeResolved: boolean = !!override || !!detection;
-  const activeType: ItemType = override ?? detection?.type ?? "bundle";
-  // Steps for the visual pipeline. Bundle picks URL vs upload variant.
-  const steps = useMemo(() => {
-    if (activeType !== "bundle") return STEPS_FOR[activeType];
-    return bundleMode === "upload" ? BUNDLE_STEPS_UPLOAD : BUNDLE_STEPS_URL;
-  }, [activeType, bundleMode]);
-  const meta = TYPE_META[activeType];
-  const bundleSteps = bundleMode === "upload" ? BUNDLE_STEPS_UPLOAD : BUNDLE_STEPS_URL;
+  // Steps for the visual pipeline — URL vs upload variant.
+  const steps = useMemo(
+    () => (bundleMode === "upload" ? BUNDLE_STEPS_UPLOAD : BUNDLE_STEPS_URL),
+    [bundleMode],
+  );
+  const meta = TYPE_META.bundle;
+  const bundleSteps = steps;
 
   const host = (() => {
     try {
@@ -428,8 +212,8 @@ function GenerateContent() {
     // upsell for upcoming history/favorites features, surfaced in the
     // header rather than blocking the generator.
 
-    // ─── Upload mode (bundle only) ────────────────────────
-    if (activeType === "bundle" && bundleMode === "upload") {
+    // ─── Upload mode ──────────────────────────────────────
+    if (bundleMode === "upload") {
       if (!uploadFile) {
         setValidation("Pick a screenshot to upload.");
         return;
@@ -467,11 +251,6 @@ function GenerateContent() {
       setValidation("URL needs a real host (e.g. https://linear.app).");
       return;
     }
-    if (!detection && !override) {
-      setValidation("That URL pattern isn't recognised — pick a type below to submit anyway.");
-      setOverrideOpen(true);
-      return;
-    }
 
     clearTimers();
     stopPolling();
@@ -481,25 +260,7 @@ function GenerateContent() {
     setExistingSlug(null);
     setErrorMsg(null);
 
-    if (activeType === "bundle") {
-      void startBundleJob(parsedUrl.toString());
-      return;
-    }
-
-    // Mock pipeline for skill/agent/mcp (real pipelines not yet built).
-    const seed = host || "demo";
-    const next = generatePalette(seed);
-    let acc = 0;
-    steps.forEach((s, i) => {
-      acc += s.durationMs;
-      const t = window.setTimeout(() => {
-        setStepIdx(i + 1);
-        if (i === steps.length - 1) setStatus("done");
-      }, acc);
-      timersRef.current.push(t);
-    });
-    // Non-bundle types still use the seeded mock palette.
-    void next;
+    void startBundleJob(parsedUrl.toString());
   }
 
   async function startBundleJob(submitUrl: string) {
@@ -717,7 +478,6 @@ function GenerateContent() {
       (status === "running" ? Date.now() : stepTimes[stepTimes.length - 1]?.startedAt ?? first);
     return Math.max(0, lastEnd - first);
   })();
-  const total = steps.reduce((s, x) => s + x.durationMs, 0);
 
   return (
     <>
@@ -727,15 +487,15 @@ function GenerateContent() {
           <h1 className="mt-5 text-[44px] sm:text-[56px] leading-[1.02] font-medium tracking-[-0.022em]">
             Paste any URL —
             <br />
-            <span style={{ color: SUB }}>we&apos;ll figure out the type.</span>
+            <span style={{ color: SUB }}>get a design.md in seconds.</span>
           </h1>
           <p className="mt-6 text-[15px] leading-[1.65] max-w-[34rem] mx-auto" style={{ color: SUB }}>
-            Brand site, GitHub repo, MCP registry link — we detect what it is, run a compliance
-            check first, and produce a draft you can use or submit for editor review.
+            Point us at a brand site, or upload a screenshot. We extract the palette, type, and
+            components, write a canonical design.md spec, and pair it with a companion prompt your
+            AI tool can follow.
           </p>
 
-          {activeType === "bundle" ? (
-            <div className="mt-10 mx-auto inline-flex items-center gap-1 rounded-full border p-1" style={{ borderColor: BORDER, background: SURFACE_2 }}>
+          <div className="mt-10 mx-auto inline-flex items-center gap-1 rounded-full border p-1" style={{ borderColor: BORDER, background: SURFACE_2 }}>
               {(["url", "upload"] as const).map((m) => {
                 const active = bundleMode === m;
                 return (
@@ -760,17 +520,16 @@ function GenerateContent() {
                   </button>
                 );
               })}
-            </div>
-          ) : null}
+          </div>
 
           <form
             className={
-              activeType === "bundle" && bundleMode === "upload"
+              bundleMode === "upload"
                 ? "mt-5 mx-auto max-w-2xl flex flex-col gap-3"
                 : "mt-10 mx-auto max-w-2xl flex items-center gap-2 rounded-full border p-1.5"
             }
             style={
-              activeType === "bundle" && bundleMode === "upload"
+              bundleMode === "upload"
                 ? undefined
                 : { borderColor: BORDER, background: SURFACE }
             }
@@ -779,7 +538,7 @@ function GenerateContent() {
               start();
             }}
           >
-            {activeType === "bundle" && bundleMode === "upload" ? (
+            {bundleMode === "upload" ? (
               <UploadFields
                 file={uploadFile}
                 preview={uploadPreview}
@@ -839,10 +598,9 @@ function GenerateContent() {
                   value={url}
                   onChange={(e) => {
                     setUrl(e.target.value);
-                    if (!overrideTouched) setOverride(null);
                     setValidation(null);
                   }}
-                  placeholder="linear.app  ·  github.com/owner/skill  ·  figma.com/mcp"
+                  placeholder="linear.app  ·  stripe.com  ·  vercel.com"
                   className="flex-1 h-9 bg-transparent text-[13.5px] px-1 min-w-0"
                   style={{ color: INK, fontFamily: MONO }}
                   disabled={status === "running"}
@@ -891,105 +649,12 @@ function GenerateContent() {
             )}
           </form>
 
-          {/* Detection / override row — only meaningful in URL mode (uploads
-              are always bundle-type and have no URL pattern to inspect). */}
-          {activeType === "bundle" && bundleMode === "upload" ? null : (
-          <div className="mt-5 flex items-center justify-center gap-3 flex-wrap">
-            <span className="text-[11px]" style={{ fontFamily: MONO, color: MUTED }}>
-              submitting as
-            </span>
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setOverrideOpen((v) => !v)}
-                disabled={status === "running"}
-                className="inline-flex items-center gap-2 h-7 rounded-full border px-3 text-[12px] disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{
-                  borderColor: typeResolved ? meta.accent : BORDER,
-                  background: typeResolved ? `${meta.accent}14` : SURFACE,
-                  color: typeResolved ? INK : SUB,
-                }}
-              >
-                {typeResolved ? (
-                  <>
-                    <span className="h-1.5 w-1.5 rounded-full" style={{ background: meta.accent }} />
-                    <span style={{ color: meta.accent, fontSize: 12, lineHeight: 1 }}>{meta.icon}</span>
-                    {meta.label}
-                  </>
-                ) : (
-                  <>
-                    <span className="h-1.5 w-1.5 rounded-full" style={{ background: MUTED }} />
-                    <span style={{ color: MUTED }}>Pick a type</span>
-                  </>
-                )}
-                <ChevronDown className="h-3 w-3" style={{ color: SUB }} />
-              </button>
-              {overrideOpen ? (
-                <div
-                  className="absolute z-20 mt-1.5 left-1/2 -translate-x-1/2 min-w-[180px] rounded-lg border p-1.5 shadow-xl"
-                  style={{ borderColor: BORDER, background: SURFACE }}
-                >
-                  {(["bundle", "skill", "agent", "mcp"] as ItemType[]).map((t) => {
-                    const m = TYPE_META[t];
-                    const isActive = activeType === t;
-                    return (
-                      <button
-                        key={t}
-                        type="button"
-                        onClick={() => {
-                          setOverride(t);
-                          setOverrideTouched(true);
-                          setOverrideOpen(false);
-                        }}
-                        className="w-full inline-flex items-center gap-2 h-8 rounded-md px-2 text-[12px] text-left"
-                        style={{
-                          background: isActive ? `${m.accent}1A` : "transparent",
-                          color: INK,
-                        }}
-                      >
-                        <span className="h-1.5 w-1.5 rounded-full" style={{ background: m.accent }} />
-                        <span style={{ color: m.accent }}>{m.icon}</span>
-                        <span className="flex-1">{m.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : null}
-            </div>
-            {detection ? (
-              <span className="text-[11px]" style={{ fontFamily: MONO, color: SUB }}>
-                · detected: {detection.reason}
-              </span>
-            ) : url.trim() ? (
-              <span className="text-[11px]" style={{ fontFamily: MONO, color: PEACH }}>
-                · pattern not recognised — pick a type
-              </span>
-            ) : null}
-          </div>
-          )}
-
-          {detection?.type === "skill" && host && host.includes("github.com") && !override ? (
-            <div className="mt-3 text-[11px]" style={{ fontFamily: MONO, color: MUTED }}>
-              heads up — Skills are for repos that help designers (research, critique,
-              token enforcement). Confirm before submitting.
-            </div>
-          ) : null}
-
           {validation ? (
             <div
               className="mt-4 inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-[11.5px]"
               style={{ borderColor: PEACH, background: `${PEACH}10`, color: INK, fontFamily: MONO }}
             >
               {validation}
-            </div>
-          ) : null}
-
-          {activeType === "bundle" && !typeResolved ? null : activeType !== "bundle" ? (
-            <div
-              className="mt-4 inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-[11px]"
-              style={{ borderColor: BORDER, background: SURFACE_2, color: SUB, fontFamily: MONO }}
-            >
-              preview-only · {activeType} pipeline not yet wired to the real generator
             </div>
           ) : null}
 
@@ -1018,13 +683,9 @@ function GenerateContent() {
 
           <div className="mt-4 text-[11px]" style={{ fontFamily: MONO, color: MUTED }}>
             {status === "idle"
-              ? activeType === "bundle"
-                ? "real pipeline · free · review-required"
-                : "preview only · free · MDN-style public reference"
+              ? "real pipeline · free · review-required"
               : status === "running"
-              ? activeType === "bundle"
-                ? `${(elapsedMs / 1000).toFixed(1)}s · step ${stepIdx + 1} of ${steps.length} · ${steps[Math.max(0, Math.min(stepIdx, steps.length - 1))]?.label ?? "starting"}`
-                : `${(elapsedMs / 1000).toFixed(1)}s elapsed of ~${(total / 1000).toFixed(0)}s`
+              ? `${(elapsedMs / 1000).toFixed(1)}s · step ${stepIdx + 1} of ${steps.length} · ${steps[Math.max(0, Math.min(stepIdx, steps.length - 1))]?.label ?? "starting"}`
               : status === "failed"
               ? "pipeline failed — try another URL or refresh"
               : `done · ${(elapsedMs / 1000).toFixed(1)}s · opening bundle…`}
@@ -1131,39 +792,27 @@ function GenerateContent() {
                 className="text-[11px] uppercase tracking-[0.22em] mb-4"
                 style={{ fontFamily: MONO, color: MUTED }}
               >
-                {activeType === "bundle" ? "detected palette" : `${meta.label.toLowerCase()} signals`}
+                detected palette
               </div>
-              {activeType === "bundle" ? (
-                palette.length === 0 ? (
-                  <div
-                    className="h-12 rounded border-dashed border flex items-center justify-center text-[12px]"
-                    style={{ borderColor: BORDER, color: MUTED, fontFamily: MONO }}
-                  >
-                    waiting for extraction…
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-2">
-                    <div className="flex h-8 rounded overflow-hidden">
-                      {palette.map((c) => (
-                        <span key={c} className="flex-1" style={{ background: c }} />
-                      ))}
-                    </div>
-                    <div className="grid grid-cols-5 gap-2 text-[10.5px]" style={{ fontFamily: MONO, color: SUB }}>
-                      {palette.map((c) => (
-                        <span key={c}>{c.toUpperCase()}</span>
-                      ))}
-                    </div>
-                  </div>
-                )
-              ) : (
+              {palette.length === 0 ? (
                 <div
-                  className="h-12 rounded flex items-center justify-center text-[11.5px] gap-2"
-                  style={{ background: SURFACE_2, color: SUB, fontFamily: MONO }}
+                  className="h-12 rounded border-dashed border flex items-center justify-center text-[12px]"
+                  style={{ borderColor: BORDER, color: MUTED, fontFamily: MONO }}
                 >
-                  <span className="h-1.5 w-1.5 rounded-full" style={{ background: meta.accent }} />
-                  {status === "done"
-                    ? `${meta.label.toLowerCase()} draft ready · review the preview below`
-                    : "waiting for pipeline…"}
+                  waiting for extraction…
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  <div className="flex h-8 rounded overflow-hidden">
+                    {palette.map((c) => (
+                      <span key={c} className="flex-1" style={{ background: c }} />
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-5 gap-2 text-[10.5px]" style={{ fontFamily: MONO, color: SUB }}>
+                    {palette.map((c) => (
+                      <span key={c}>{c.toUpperCase()}</span>
+                    ))}
+                  </div>
                 </div>
               )}
               <div
@@ -1337,43 +986,6 @@ function formatStepElapsed(
   const end = entry.endedAt ?? Date.now();
   const seconds = (end - entry.startedAt) / 1000;
   return `${seconds.toFixed(1)}s`;
-}
-
-function generatePalette(seed: string): string[] {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
-  const hue = h % 360;
-  const accent = `hsl(${hue}, 78%, 60%)`;
-  const surface = `hsl(${hue}, 18%, 8%)`;
-  const muted = `hsl(${hue}, 14%, 45%)`;
-  const text = `hsl(${hue}, 20%, 96%)`;
-  const warm = `hsl(${(hue + 32) % 360}, 70%, 65%)`;
-  return [accent, surface, muted, text, warm].map(hslToHex);
-}
-
-function hslToHex(hsl: string): string {
-  const m = hsl.match(/hsl\((\d+),\s*(\d+)%?,\s*(\d+)%?\)/);
-  if (!m) return hsl;
-  const h = +m[1],
-    s = +m[2] / 100,
-    l = +m[3] / 100;
-  const c = (1 - Math.abs(2 * l - 1)) * s;
-  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
-  const m2 = l - c / 2;
-  let r = 0,
-    g = 0,
-    b = 0;
-  if (h < 60) [r, g, b] = [c, x, 0];
-  else if (h < 120) [r, g, b] = [x, c, 0];
-  else if (h < 180) [r, g, b] = [0, c, x];
-  else if (h < 240) [r, g, b] = [0, x, c];
-  else if (h < 300) [r, g, b] = [x, 0, c];
-  else [r, g, b] = [c, 0, x];
-  const toHex = (v: number) => {
-    const n = Math.round((v + m2) * 255);
-    return n.toString(16).padStart(2, "0");
-  };
-  return `#${toHex(r)}${toHex(g)}${toHex(b)}`.toUpperCase();
 }
 
 export default Generate;

@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { ArrowUpRight } from "lucide-react";
 import {
   BG,
   BORDER,
@@ -9,11 +8,7 @@ import {
   SUB,
   SURFACE_2,
 } from "@/lib/ui-data/tokens";
-import {
-  TYPE_META,
-  type BundleItem,
-  type Item,
-} from "@/lib/ui-data/items";
+import { TYPE_META, type Item } from "@/lib/ui-data/items";
 import { BrandLogo } from "./BrandLogo";
 
 function hostnameFromUrl(maybeUrl: string | undefined): string | null {
@@ -33,24 +28,15 @@ export function ItemCard({ item }: { item: Item }) {
       className="p-5 group transition-colors hover:bg-[#101013] block"
       style={{ background: BG }}
     >
-      {item.type === "bundle" ? (
-        <div className="flex h-1.5 mb-5">
-          {(item as BundleItem).bundle.palette.map((c, i) => (
-            <span
-              key={i}
-              className="flex-1 first:rounded-l-sm last:rounded-r-sm"
-              style={{ background: c }}
-            />
-          ))}
-        </div>
-      ) : (
-        <div className="flex items-center gap-2 h-1.5 mb-5">
+      <div className="flex h-1.5 mb-5">
+        {item.bundle.palette.map((c, i) => (
           <span
-            className="h-1.5 flex-1 rounded-sm"
-            style={{ background: meta.accent }}
+            key={i}
+            className="flex-1 first:rounded-l-sm last:rounded-r-sm"
+            style={{ background: c }}
           />
-        </div>
-      )}
+        ))}
+      </div>
 
       <div className="flex items-start justify-between gap-3 mb-4">
         <div className="min-w-0 flex-1">
@@ -61,10 +47,10 @@ export function ItemCard({ item }: { item: Item }) {
             {item.tagline}
           </div>
         </div>
-        {item.type === "bundle" && (item as BundleItem).bundle.brandLogoUrl && (
+        {item.bundle.brandLogoUrl && (
           <BrandLogo
-            src={(item as BundleItem).bundle.brandLogoUrl as string}
-            fallbackDomain={hostnameFromUrl((item as BundleItem).bundle.brandLogoUrl)}
+            src={item.bundle.brandLogoUrl as string}
+            fallbackDomain={hostnameFromUrl(item.bundle.brandLogoUrl)}
           />
         )}
       </div>
@@ -78,18 +64,6 @@ export function ItemCard({ item }: { item: Item }) {
           <span style={{ color: meta.accent, fontSize: 11, lineHeight: 1 }}>{meta.icon}</span>
           {meta.label}
         </span>
-        {item.type === "bundle" ? null : (
-          <span
-            className="text-[10.5px]"
-            style={{ fontFamily: MONO, color: SUB }}
-          >
-            {item.attribution.discoveryMethod === "Community"
-              ? "community"
-              : item.attribution.discoveryMethod === "Auto-discovered"
-              ? "auto"
-              : "editorial"}
-          </span>
-        )}
       </div>
 
       <div className="flex items-center justify-between">
@@ -106,26 +80,16 @@ export function ItemCard({ item }: { item: Item }) {
             {item.category.toLowerCase()}
           </span>
         </div>
-        {item.type === "bundle" ? (
-          <span
-            className="inline-flex items-center gap-1 text-[10.5px]"
-            style={{ fontFamily: MONO, color: MUTED }}
-          >
-            <span className="whitespace-nowrap">
-              {item.tools.length} {item.tools.length === 1 ? "tool" : "tools"}
-            </span>
-            <span className="mx-1.5" aria-hidden>·</span>
-            <span className="whitespace-nowrap">{item.updatedAgo}</span>
+        <span
+          className="inline-flex items-center gap-1 text-[10.5px]"
+          style={{ fontFamily: MONO, color: MUTED }}
+        >
+          <span className="whitespace-nowrap">
+            {item.tools.length} {item.tools.length === 1 ? "tool" : "tools"}
           </span>
-        ) : (
-          <span
-            className="inline-flex items-center gap-1 text-[10.5px]"
-            style={{ fontFamily: MONO, color: MUTED }}
-          >
-            <ArrowUpRight className="h-3 w-3" style={{ color: SUB }} />
-            <span>{item.updatedAgo}</span>
-          </span>
-        )}
+          <span className="mx-1.5" aria-hidden>·</span>
+          <span className="whitespace-nowrap">{item.updatedAgo}</span>
+        </span>
       </div>
     </Link>
   );

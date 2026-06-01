@@ -1,29 +1,14 @@
 import { Search } from "lucide-react";
 import { BORDER, INK, MONO, MUTED, SUB, SURFACE, VIOLET } from "@/lib/ui-data/tokens";
-import {
-  CATEGORIES,
-  SHELF_LABEL,
-  SHELF_TYPES,
-  useLibraryFilters,
-  type ShelfType,
-} from "@/lib/ui-data/libraryFilters";
-import { PHASE_2_SHELVES_ENABLED } from "@/lib/ui-data/featureFlags";
+import { CATEGORIES, useLibraryFilters } from "@/lib/ui-data/libraryFilters";
 
 type Props = {
   query: string;
   onQueryChange: (v: string) => void;
-  /**
-   * Optional preselected shelf type when the page itself implies one (e.g.
-   * /library/skills). The Type section is always rendered; this just
-   * overrides the active row for display so the user sees the correct
-   * shelf highlighted regardless of URL state.
-   */
-  presetType?: ShelfType;
 };
 
-export function LibraryFilterPanel({ query, onQueryChange, presetType }: Props) {
-  const { filters, setType, setCategory } = useLibraryFilters();
-  const activeType: ShelfType = presetType ?? filters.type;
+export function LibraryFilterPanel({ query, onQueryChange }: Props) {
+  const { filters, setCategory } = useLibraryFilters();
 
   return (
     <div className="space-y-8">
@@ -37,25 +22,12 @@ export function LibraryFilterPanel({ query, onQueryChange, presetType }: Props) 
             type="search"
             value={query}
             onChange={(e) => onQueryChange(e.target.value)}
-            placeholder="Linear, Figma, agent…"
+            placeholder="Linear, Figma, Stripe…"
             className="w-full h-9 rounded-md border pl-9 pr-3 text-[12.5px]"
             style={{ borderColor: BORDER, background: SURFACE, color: INK }}
           />
         </div>
       </Section>
-
-      {PHASE_2_SHELVES_ENABLED ? (
-        <Section label="Type">
-          {SHELF_TYPES.map((t) => (
-            <Row
-              key={t}
-              label={SHELF_LABEL[t]}
-              checked={activeType === t}
-              onChange={() => setType(t)}
-            />
-          ))}
-        </Section>
-      ) : null}
 
       <Section label="Category">
         {CATEGORIES.map((c) => (
