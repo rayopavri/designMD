@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-06-02** (show nav links for logged-out users at small breakpoint)
+> Last updated: **2026-06-02** (show Library and Generate links on all mobile sizes for logged-out users)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -315,6 +315,7 @@ Most-recent first.
 - [x] **2026-05-25** - chore: roadmap auto-update (4fe1356)
 - [x] **2026-05-25** - chore: roadmap auto-update (c47236e)
 - [x] **2026-05-25** - Cache Sonnet system prompt to cut DESIGN.md authoring TTFT (142ee76)
+- [x] **2026-06-02** - show Library and Generate links on all mobile sizes for logged-out users (751c90c)
 - [x] **2026-05-25** - chore: roadmap auto-update (0003d94)
 - [x] **2026-05-26** - Speed up DESIGN.md authoring to fit Vercel's 60s function cap (0cc82d7)
 - [x] **2026-05-25** - chore: roadmap auto-update (169787d)
