@@ -25,6 +25,21 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     .filter(Boolean)
     .join(' ');
 
+  const paletteParam = bundle.paletteColors
+    .slice(0, 6)
+    .map(c => c.replace('#', ''))
+    .join(',');
+  const brandHexParam = (bundle.brandColor ?? '8B7BFF').replace('#', '');
+  const initialParam = bundle.brandInitial ?? bundle.title.charAt(0).toUpperCase();
+  const categoryParam = bundle.primaryCategoryName ?? '';
+  const ogImageUrl =
+    `https://uiuxskills.com/api/og` +
+    `?t=${encodeURIComponent(bundle.title)}` +
+    `&c=${paletteParam}` +
+    `&i=${encodeURIComponent(initialParam)}` +
+    `&b=${brandHexParam}` +
+    `&cat=${encodeURIComponent(categoryParam)}`;
+
   return {
     title,
     description,
@@ -32,11 +47,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title,
       description,
       url: `https://uiuxskills.com/library/${slug}`,
+      images: [{ url: ogImageUrl, width: 1200, height: 630 }],
     },
     twitter: {
-      card: 'summary',
+      card: 'summary_large_image',
       title,
       description,
+      images: [ogImageUrl],
     },
     alternates: {
       canonical: `https://uiuxskills.com/library/${slug}`,
