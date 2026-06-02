@@ -176,15 +176,31 @@ export function Header() {
               <UserMenu />
             </>
           ) : (
-            <button
-              type="button"
-              onClick={() => openAuthModal(null)}
-              title="Sign in to track URLs you've generated and save favorites"
-              className="h-8 rounded-full px-4 text-[12.5px] font-medium inline-flex items-center gap-1.5"
-              style={{ background: INK, color: INK_ON_LIGHT }}
-            >
-              Sign in
-            </button>
+            <>
+              <Link
+                href="/library"
+                className="text-[12.5px] hidden sm:inline md:hidden"
+                style={{ color: SUB }}
+              >
+                Library
+              </Link>
+              <Link
+                href="/generate"
+                className="text-[12.5px] hidden sm:inline md:hidden"
+                style={{ color: SUB }}
+              >
+                Generate
+              </Link>
+              <button
+                type="button"
+                onClick={() => openAuthModal(null)}
+                title="Sign in to track URLs you've generated and save favorites"
+                className="h-8 rounded-full px-4 text-[12.5px] font-medium inline-flex items-center gap-1.5"
+                style={{ background: INK, color: INK_ON_LIGHT }}
+              >
+                Sign in
+              </button>
+            </>
           )}
         </div>
       </div>
