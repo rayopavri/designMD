@@ -20,6 +20,7 @@ import { db } from '@/lib/db/client';
 import { bundles, generationJobs } from '@/lib/db/schema';
 import { generateCompanionPrompt } from '@/lib/ai/generate-companion-prompt';
 import { parseAuthorPhasePayload, type AuthorPhasePayload } from '@/lib/generator/phase-payload';
+import { perf } from '@/lib/generator/perf-log';
 
 export interface GenerateCompanionPayload {
   jobId: string;
@@ -27,6 +28,7 @@ export interface GenerateCompanionPayload {
 
 export async function runGenerateCompanion(payload: GenerateCompanionPayload): Promise<void> {
   const { jobId } = payload;
+  const t0 = Date.now();
 
   const [jobRow] = await db
     .select({ phasePayload: generationJobs.phasePayload })
@@ -35,6 +37,7 @@ export async function runGenerateCompanion(payload: GenerateCompanionPayload): P
     .limit(1);
   if (!jobRow) {
     console.error(`[generate-companion] job ${jobId} not found`);
+    perf('companion.hydrate', 'skip', Date.now() - t0, { jobId, reason: 'job-not-found' });
     return;
   }
 
@@ -44,6 +47,13 @@ export async function runGenerateCompanion(payload: GenerateCompanionPayload): P
   } catch (err) {
     // phase_payload already consumed (author completed first) or malformed.
     // Companion is best-effort — leave the placeholder prompt in place.
+    // A burst of these means the companion is losing the race to the author
+    // clearing phase_payload, NOT a slow Sonnet call — the bundle is left at
+    // companionStatus='pending' with no Sonnet attempt ever made.
+    perf('companion.hydrate', 'skip', Date.now() - t0, {
+      jobId,
+      reason: 'payload-consumed-or-malformed',
+    });
     console.warn(
       `[generate-companion] cannot hydrate phase_payload for job ${jobId}; skipping:`,
       err instanceof Error ? err.message : err,

@@ -17,6 +17,7 @@ import Firecrawl, {
 import { env } from '@/lib/env';
 
 import { extractBrandLogoUrl } from './logo-extract';
+import { perf } from '@/lib/generator/perf-log';
 
 /**
  * Re-export the SDK's BrandingProfile under the legacy name so downstream
@@ -180,8 +181,17 @@ export async function scrapeUrlSmart(
   const start = Date.now();
 
   // Step 1: Full primary scrape (screenshot + html + branding).
-  const primary = await scrapeUrl(url);
+  let primary: ScrapeResult;
+  try {
+    primary = await scrapeUrl(url);
+  } catch (err) {
+    perf('scrape.primary', 'err', Date.now() - start, {
+      error: err instanceof Error ? err.message.slice(0, 80) : String(err).slice(0, 80),
+    });
+    throw err;
+  }
   const afterPrimary = Date.now() - start;
+  perf('scrape.primary', 'ok', afterPrimary);
 
   // Skip map() if the primary ate enough of our budget that adding
   // map (8s) + batch (14s) would overrun. -12s = map wrapper +
@@ -199,6 +209,7 @@ export async function scrapeUrlSmart(
   // own 3s server timeout) don't get cut off as if they hung. Warn-log
   // when we DO trip the wrapper so a regression in this path is visible.
   let rankedUrls: string[] = [];
+  const mapStart = Date.now();
   try {
     const mapped = await withClientTimeout(
       () =>
@@ -218,7 +229,14 @@ export async function scrapeUrlSmart(
         url,
       );
     }
+    perf('scrape.map', 'ok', Date.now() - mapStart, {
+      links: mapped.links?.length ?? 0,
+      ranked: rankedUrls.length,
+    });
   } catch (err) {
+    perf('scrape.map', 'err', Date.now() - mapStart, {
+      error: err instanceof Error ? err.message.slice(0, 80) : String(err).slice(0, 80),
+    });
     console.warn(
       `[firecrawl] map enrichment skipped for ${url}: ${err instanceof Error ? err.message : err}`,
     );
@@ -243,6 +261,7 @@ export async function scrapeUrlSmart(
   // leaves headroom. Per-page server timeout is 8s; the 14s wrapper
   // covers polling + transport overhead.
   let extraMarkdown = '';
+  const batchStart = Date.now();
   try {
     const batch = await withClientTimeout(
       () =>
@@ -266,7 +285,11 @@ export async function scrapeUrlSmart(
         )
         .join('');
     }
+    perf('scrape.batch', 'ok', Date.now() - batchStart, { pages: batch.data?.length ?? 0 });
   } catch (err) {
+    perf('scrape.batch', 'err', Date.now() - batchStart, {
+      error: err instanceof Error ? err.message.slice(0, 80) : String(err).slice(0, 80),
+    });
     console.warn(
       `[firecrawl] batchScrape enrichment skipped for ${url}: ${err instanceof Error ? err.message : err}`,
     );

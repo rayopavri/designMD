@@ -13,6 +13,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { assertTaskAuth } from '@/lib/queue';
 import { runGenerateCompanion } from '@/lib/generator/generate-companion-task';
+import { perf } from '@/lib/generator/perf-log';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
@@ -40,10 +41,13 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const t0 = Date.now();
   try {
     await runGenerateCompanion({ jobId: parsed.jobId });
+    perf('worker.companion', 'done', Date.now() - t0, { jobId: parsed.jobId });
     return NextResponse.json({ ok: true });
   } catch (err) {
+    perf('worker.companion', 'err', Date.now() - t0, { jobId: parsed.jobId });
     console.error('[task:generate-companion] uncaught:', err);
     return NextResponse.json(
       { error: err instanceof Error ? err.message : 'Unknown error' },

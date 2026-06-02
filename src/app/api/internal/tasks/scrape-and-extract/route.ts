@@ -12,6 +12,7 @@ import { runScrapeAndExtract } from '@/lib/generator/scrape-and-extract';
 import { db } from '@/lib/db/client';
 import { generationJobs } from '@/lib/db/schema';
 import { dispatchReady } from '@/lib/generator/batch';
+import { perf } from '@/lib/generator/perf-log';
 
 // This route makes outbound HTTP calls (Firecrawl, Gemini) and writes
 // to Postgres. It must run on the Node runtime, not edge.
@@ -58,11 +59,16 @@ export async function POST(req: NextRequest) {
     }, WATCHDOG_MS).unref(),
   );
 
+  const t0 = Date.now();
   try {
     await Promise.race([runScrapeAndExtract(parsed), watchdog]);
+    perf('worker.scrape-and-extract', 'done', Date.now() - t0, { jobId: parsed.jobId });
     return NextResponse.json({ ok: true });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
+    perf('worker.scrape-and-extract', watchdogFired ? 'watchdog' : 'err', Date.now() - t0, {
+      jobId: parsed.jobId,
+    });
     console.error('[task:scrape-and-extract] uncaught:', message);
     // If the watchdog fired, runScrapeAndExtract never reached failJob —
     // mark the row failed AND refill the batch slot via dispatchReady

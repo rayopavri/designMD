@@ -30,6 +30,7 @@ import {
   inferElevationScale,
   inferredElevationNote,
 } from '@/lib/generator/infer-elevation';
+import { perf } from '@/lib/generator/perf-log';
 
 let _client: GoogleGenAI | null = null;
 
@@ -872,7 +873,10 @@ export async function extractBrandFromMarkdown(
     }
   }
 
+  const cacheStartedAt = Date.now();
   const cachedName = await getCachedSystemInstruction(MODEL, SYSTEM_PROMPT);
+  const cacheMs = Date.now() - cacheStartedAt;
+  const genStartedAt = Date.now();
   const result = await withGeminiRetry('extract', () =>
     client().models.generateContent({
       model: MODEL,
@@ -887,7 +891,25 @@ export async function extractBrandFromMarkdown(
         abortSignal: AbortSignal.timeout(GEMINI_TIMEOUT_MS),
       },
     }),
-  );
+  ).catch((err: unknown) => {
+    perf('extract.gemini', 'err', Date.now() - genStartedAt, {
+      cacheMs,
+      cached: Boolean(cachedName),
+      timeoutMs: GEMINI_TIMEOUT_MS,
+      error: err instanceof Error ? err.message.slice(0, 80) : String(err).slice(0, 80),
+    });
+    throw err;
+  });
+  // Extraction sets no thinkingConfig, so it runs at Gemini 3's default (high)
+  // thinking — thoughts here reveals whether extraction is silently slow too.
+  const u = result.usageMetadata;
+  perf('extract.gemini', 'ok', Date.now() - genStartedAt, {
+    cacheMs,
+    cached: Boolean(cachedName),
+    prompt: u?.promptTokenCount,
+    thoughts: u?.thoughtsTokenCount,
+    output: u?.candidatesTokenCount,
+  });
 
   const text = result.text ?? '';
   let parsed: ExtractedBrand;
@@ -982,7 +1004,10 @@ export async function extractBrandFromImage(
     { text: textPrompt },
   ];
 
+  const cacheStartedAt = Date.now();
   const cachedName = await getCachedSystemInstruction(MODEL, IMAGE_SYSTEM_PROMPT);
+  const cacheMs = Date.now() - cacheStartedAt;
+  const genStartedAt = Date.now();
   const result = await withGeminiRetry('extract-image', () =>
     client().models.generateContent({
       model: MODEL,
@@ -997,7 +1022,23 @@ export async function extractBrandFromImage(
         abortSignal: AbortSignal.timeout(GEMINI_TIMEOUT_MS),
       },
     }),
-  );
+  ).catch((err: unknown) => {
+    perf('extract-image.gemini', 'err', Date.now() - genStartedAt, {
+      cacheMs,
+      cached: Boolean(cachedName),
+      timeoutMs: GEMINI_TIMEOUT_MS,
+      error: err instanceof Error ? err.message.slice(0, 80) : String(err).slice(0, 80),
+    });
+    throw err;
+  });
+  const u = result.usageMetadata;
+  perf('extract-image.gemini', 'ok', Date.now() - genStartedAt, {
+    cacheMs,
+    cached: Boolean(cachedName),
+    prompt: u?.promptTokenCount,
+    thoughts: u?.thoughtsTokenCount,
+    output: u?.candidatesTokenCount,
+  });
 
   const text = result.text ?? '';
   let parsed: ExtractedBrand;
@@ -1048,6 +1089,8 @@ export interface GeminiTextResult {
 export async function generateTextFromGemini(input: GeminiTextInput): Promise<GeminiTextResult> {
   const startedAt = Date.now();
   const cachedName = await getCachedSystemInstruction(MODEL, input.systemPrompt);
+  const cacheMs = Date.now() - startedAt;
+  const genStartedAt = Date.now();
   const result = await withGeminiRetry('author-text', () =>
     client().models.generateContent({
       model: MODEL,
@@ -1066,7 +1109,29 @@ export async function generateTextFromGemini(input: GeminiTextInput): Promise<Ge
         abortSignal: AbortSignal.timeout(input.timeoutMs),
       },
     }),
-  );
+  ).catch((err: unknown) => {
+    // Log how long we ran before the abort. A genuine 240s author timeout
+    // surfaces as genMs≈timeoutMs; a fast reject (auth/quota/cold-start hang)
+    // surfaces as a small genMs — the two need different fixes.
+    perf('author.gemini', 'err', Date.now() - genStartedAt, {
+      cacheMs,
+      cached: Boolean(cachedName),
+      timeoutMs: input.timeoutMs,
+      error: err instanceof Error ? err.message.slice(0, 80) : String(err).slice(0, 80),
+    });
+    throw err;
+  });
+  // thoughts=high here means MEDIUM thinking still isn't enough for this page —
+  // the lever is thinkingLevel, not the timeout. output near maxOutputTokens
+  // means a runaway/verbose spec instead.
+  const u = result.usageMetadata;
+  perf('author.gemini', 'ok', Date.now() - genStartedAt, {
+    cacheMs,
+    cached: Boolean(cachedName),
+    prompt: u?.promptTokenCount,
+    thoughts: u?.thoughtsTokenCount,
+    output: u?.candidatesTokenCount,
+  });
   const content = result.text ?? '';
   if (!content.trim()) {
     throw new Error(`Gemini direct returned empty content (model=${MODEL})`);

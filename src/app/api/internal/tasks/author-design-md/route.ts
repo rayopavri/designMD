@@ -17,6 +17,7 @@ import { runAuthorDesignMd } from '@/lib/generator/author-design-md';
 import { db } from '@/lib/db/client';
 import { generationJobs } from '@/lib/db/schema';
 import { dispatchReady } from '@/lib/generator/batch';
+import { perf } from '@/lib/generator/perf-log';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
@@ -58,11 +59,16 @@ export async function POST(req: NextRequest) {
     }, WATCHDOG_MS).unref(),
   );
 
+  const t0 = Date.now();
   try {
     await Promise.race([runAuthorDesignMd({ jobId: parsed.jobId }), watchdog]);
+    perf('worker.author', 'done', Date.now() - t0, { jobId: parsed.jobId });
     return NextResponse.json({ ok: true });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
+    perf('worker.author', watchdogFired ? 'watchdog' : 'err', Date.now() - t0, {
+      jobId: parsed.jobId,
+    });
     console.error('[task:author-design-md] uncaught:', message);
     // If the watchdog fired, runAuthorDesignMd never reached its own failJob
     // path — mark the row failed AND refill the batch slot via dispatchReady

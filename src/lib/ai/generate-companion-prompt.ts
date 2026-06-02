@@ -14,6 +14,7 @@
  */
 import { anthropic, ANTHROPIC_MODELS } from './anthropic';
 import type { ExtractedBrand } from './gemini';
+import { perf } from '@/lib/generator/perf-log';
 
 export const SYSTEM_PROMPT = `You write companion prompts for design system specs.
 
@@ -262,21 +263,44 @@ export function buildSpecUserPrompt(input: SpecInput): string {
  * this but is out of scope.
  */
 async function runCompanionSonnet(userPrompt: string): Promise<string> {
-  const res = await anthropic().beta.messages.create(
-    {
-      model: ANTHROPIC_MODELS.sonnet,
-      max_tokens: MAX_OUTPUT_TOKENS,
-      system: [
-        {
-          type: 'text',
-          text: SYSTEM_PROMPT,
-          cache_control: { type: 'ephemeral' },
-        },
-      ],
-      messages: [{ role: 'user', content: userPrompt }],
-    },
-    { timeout: SONNET_TIMEOUT_MS, maxRetries: 2 },
-  );
+  const startedAt = Date.now();
+  const res = await anthropic()
+    .beta.messages.create(
+      {
+        model: ANTHROPIC_MODELS.sonnet,
+        max_tokens: MAX_OUTPUT_TOKENS,
+        system: [
+          {
+            type: 'text',
+            text: SYSTEM_PROMPT,
+            cache_control: { type: 'ephemeral' },
+          },
+        ],
+        messages: [{ role: 'user', content: userPrompt }],
+      },
+      { timeout: SONNET_TIMEOUT_MS, maxRetries: 2 },
+    )
+    .catch((err: unknown) => {
+      // The SDK retries transient failures up to maxRetries internally, so this
+      // elapsed spans all attempts: ~270000ms ≈ 3 × 90s means the companion
+      // exhausted its retries on timeouts — that's the "companion times out".
+      perf('companion.sonnet', 'err', Date.now() - startedAt, {
+        timeoutMs: SONNET_TIMEOUT_MS,
+        error: err instanceof Error ? err.message.slice(0, 80) : String(err).slice(0, 80),
+      });
+      throw err;
+    });
+
+  // cacheRead=0 on a warm process means the ephemeral system-prompt cache isn't
+  // hitting (each generation re-pays full input); out near MAX_OUTPUT_TOKENS
+  // means the model ran long writing an oversized companion.
+  const u = res.usage;
+  perf('companion.sonnet', 'ok', Date.now() - startedAt, {
+    in: u?.input_tokens,
+    out: u?.output_tokens,
+    cacheRead: u?.cache_read_input_tokens,
+    cacheWrite: u?.cache_creation_input_tokens,
+  });
 
   const text = res.content
     .filter((c): c is { type: 'text'; text: string } => c.type === 'text')
