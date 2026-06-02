@@ -44,6 +44,40 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default function Page() {
-  return <BundleDetailClient />;
+export default async function Page({ params }: Props) {
+  const { slug } = await params;
+  const bundle = await getVisibleBundleBySlug(slug);
+
+  const jsonLd = bundle
+    ? {
+        '@context': 'https://schema.org',
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          {
+            '@type': 'ListItem',
+            position: 1,
+            name: 'Library',
+            item: 'https://uiuxskills.com/library',
+          },
+          {
+            '@type': 'ListItem',
+            position: 2,
+            name: bundle.title,
+            item: `https://uiuxskills.com/library/${slug}`,
+          },
+        ],
+      }
+    : null;
+
+  return (
+    <>
+      {jsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+      )}
+      <BundleDetailClient />
+    </>
+  );
 }
