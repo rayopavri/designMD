@@ -1535,6 +1535,11 @@ export default function AdminBundlesPage() {
               onRegenerateCompanion={onRegenerateCompanion}
               onRerunPipeline={onRerunPipeline}
               onDelete={onDelete}
+              onCategoryCreated={(cat) =>
+                setCategories((prev) =>
+                  [...prev, cat].sort((a, b) => a.name.localeCompare(b.name))
+                )
+              }
             />
           )}
         </div>
@@ -1578,6 +1583,7 @@ interface DetailEditorProps {
   onRegenerateCompanion: () => void | Promise<void>;
   onRerunPipeline: (feedback?: string) => Promise<boolean>;
   onDelete: () => void | Promise<void>;
+  onCategoryCreated: (cat: Category) => void;
 }
 
 function fmtElapsed(ms: number): string {
@@ -1718,12 +1724,50 @@ function RerunProgress({
 }
 
 function DetailEditor(props: DetailEditorProps) {
-  const { detail, form, setForm, editing, onEnterEdit, onCancelEdit, categories, isDirty, actionState, actionError, rerunStep, rerunStatus, latestJob } = props;
-  // `categories` is reserved for the (still-scaffolded) category picker; the
-  // current manual-edit surface covers title, URL, description, design.md,
-  // and the companion prompt.
-  void categories;
+  const { detail, form, setForm, editing, onEnterEdit, onCancelEdit, categories, isDirty, actionState, actionError, rerunStep, rerunStatus, latestJob, onCategoryCreated } = props;
   const status = detail.status as BundleStatus;
+
+  const [newCatName, setNewCatName] = useState("");
+  const [newCatState, setNewCatState] = useState<"idle" | "saving" | "error">("idle");
+  const [newCatError, setNewCatError] = useState<string | null>(null);
+  const [showNewCat, setShowNewCat] = useState(false);
+
+  useEffect(() => {
+    setShowNewCat(false);
+    setNewCatName("");
+    setNewCatState("idle");
+    setNewCatError(null);
+  }, [detail.slug]);
+
+  async function createCategory() {
+    const name = newCatName.trim();
+    if (!name) return;
+    setNewCatState("saving");
+    setNewCatError(null);
+    try {
+      const res = await fetch("/api/admin/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      const body = (await res.json()) as { data?: Category; error?: string };
+      if (!res.ok) {
+        setNewCatError(body.error ?? `Error ${res.status}`);
+        setNewCatState("error");
+        return;
+      }
+      if (body.data) {
+        onCategoryCreated(body.data);
+        setForm({ ...form, primaryCategoryId: body.data.id });
+      }
+      setNewCatName("");
+      setShowNewCat(false);
+      setNewCatState("idle");
+    } catch (err) {
+      setNewCatError(err instanceof Error ? err.message : "Network error");
+      setNewCatState("error");
+    }
+  }
   const busy = actionState !== "idle";
 
   // Effective progress source: click-driven state takes priority while a
@@ -1809,6 +1853,74 @@ function DetailEditor(props: DetailEditorProps) {
                     style={{ color: INK, background: SURFACE_2, borderColor: BORDER, fontFamily: MONO }}
                   />
                 </div>
+              </FieldGroup>
+              <FieldGroup label="category">
+                <select
+                  value={form.primaryCategoryId ?? ""}
+                  onChange={(e) =>
+                    setForm({ ...form, primaryCategoryId: e.target.value || null })
+                  }
+                  className="w-full rounded-md border px-2.5 py-2 text-[13px] outline-none"
+                  style={{ color: INK, background: SURFACE_2, borderColor: BORDER }}
+                >
+                  <option value="">(none)</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+                {!showNewCat ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowNewCat(true)}
+                    className="self-start text-[11px] underline underline-offset-2"
+                    style={{ color: VIOLET, fontFamily: MONO }}
+                  >
+                    + new category
+                  </button>
+                ) : (
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={newCatName}
+                        maxLength={100}
+                        placeholder="Category name"
+                        onChange={(e) => setNewCatName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") void createCategory();
+                          if (e.key === "Escape") { setShowNewCat(false); setNewCatName(""); }
+                        }}
+                        autoFocus
+                        className="flex-1 rounded-md border px-2.5 py-1.5 text-[12px] outline-none"
+                        style={{ color: INK, background: SURFACE_2, borderColor: BORDER }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => void createCategory()}
+                        disabled={newCatState === "saving" || !newCatName.trim()}
+                        className="h-7 rounded-md border px-3 text-[11px] disabled:opacity-40"
+                        style={{ borderColor: `${VIOLET}66`, color: VIOLET, fontFamily: MONO }}
+                      >
+                        {newCatState === "saving" ? "saving…" : "create"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setShowNewCat(false); setNewCatName(""); setNewCatError(null); }}
+                        className="h-7 w-7 flex items-center justify-center rounded-md opacity-50 hover:opacity-100"
+                        style={{ color: MUTED }}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                    {newCatError && (
+                      <p className="text-[11px]" style={{ color: PEACH, fontFamily: MONO }}>
+                        {newCatError}
+                      </p>
+                    )}
+                  </div>
+                )}
               </FieldGroup>
             </div>
           ) : (
