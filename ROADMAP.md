@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-06-02** ([perf] latency+token tracing across the generation pipeline to diagnose author/companion timeouts)
+> Last updated: **2026-06-02** (fix: size generation workers to the Vercel Hobby 60s cap)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -256,6 +256,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-06-02** - Fixed pipeline timeouts: scaled all 3 generation workers (scrape-and-extract, author-design-md, generate-companion) + Gemini/Sonnet calls to fit the actual Vercel Hobby 60s cap. Author now uses MEDIUM thinking instead of HIGH, timeouts are 42-54s, input trimmed to 10k chars. Companion: 90s×3 → 24s×2 retries. UI/endpoint "stuck" thresholds reduced from 10-15min to 4min. reapStale() now recovers single-generate jobs (not just batches) so SIGKILLed generations self-heal. (51f7438)
 - [x] **2026-06-02** - Added Vercel OG image route (`/api/og`) rendering palette swatches + brand name as a 1200×630 card; `twitter:card` upgraded to `summary_large_image` on all bundle pages (`74aafc4`)
 - [x] **2026-06-02** - Added BreadcrumbList JSON-LD to every /library/[slug] bundle page so Google can render the breadcrumb trail in search results (`fc58b0f`)
 - [x] **2026-06-02** - Added `[perf]` latency + token-usage tracing across the generation pipeline to diagnose the author (Gemini, 240s abort) and companion (Sonnet, 90s × retries) timeouts the user reported — we can't repro locally (Sensitive env empty), so the trace has to live in prod logs. New `src/lib/generator/perf-log.ts` emits one greppable `[perf] <stage> <outcome> <ms>ms <fields>` line per expensive call: `author.gemini` / `extract.gemini` / `extract-image.gemini` log cache-preflight ms + generation ms + `usageMetadata` (prompt/thoughts/output tokens) — a 240s author abort now logs `err 240000ms thoughts=…`, separating a genuinely slow generation (MEDIUM thinking still too high) from a fast failure (auth/quota/cold-start). `companion.sonnet` logs elapsed across all SDK retries + in/out/cacheRead/cacheWrite tokens (reveals whether the ephemeral prompt cache hits). `companion.hydrate skip` fires when the companion loses the race to the author clearing `phase_payload` — the silent "stuck at `companionStatus=pending`" path, NOT a slow Sonnet call. `scrape.primary/map/batch` give the Firecrawl per-step breakdown, and `worker.{scrape-and-extract,author,companion}` totals expose cold-start + QStash + DB overhead (gap vs inner AI time). Logging only, no behavior change. `tsc` + `eslint` clean. Next step: grep `[perf]` in Vercel logs after a few prod generations to localize the timeout. (`e6e7557`)
