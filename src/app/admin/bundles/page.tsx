@@ -1956,6 +1956,17 @@ function DetailEditor(props: DetailEditorProps) {
                   <ExternalLink className="h-3 w-3" />
                 </a>
               ) : null}
+              <div className="mt-3 flex items-center gap-1.5">
+                <span className="text-[10px] uppercase tracking-[0.22em]" style={{ color: MUTED, fontFamily: MONO }}>
+                  category
+                </span>
+                <span
+                  className="rounded-full border px-2 py-0.5 text-[11px]"
+                  style={{ borderColor: BORDER, color: detail.primaryCategoryName ? INK : MUTED, fontFamily: MONO }}
+                >
+                  {detail.primaryCategoryName ?? "uncategorised"}
+                </span>
+              </div>
             </>
           )}
         </div>
