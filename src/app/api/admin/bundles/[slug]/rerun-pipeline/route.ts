@@ -96,10 +96,11 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
     .limit(1);
 
   if (inFlight) {
-    // A running job with no DB update for 15+ min is considered stuck (the
-    // QStash worker timed out but never wrote a terminal status). Allow the
+    // A running job with no DB update for 4+ min is considered stuck (the QStash
+    // worker was SIGKILLed at the 60s Hobby cap but never wrote a terminal
+    // status, and the supervisor's 3-min reaper hasn't caught it yet). Allow the
     // replacement by marking it failed first; queued jobs are always live.
-    const STUCK_THRESHOLD_MS = 15 * 60 * 1000;
+    const STUCK_THRESHOLD_MS = 4 * 60 * 1000;
     const isStuck =
       inFlight.status === 'running' &&
       Date.now() - new Date(inFlight.updatedAt).getTime() > STUCK_THRESHOLD_MS;
@@ -117,7 +118,7 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
       .set({
         status: 'failed',
         errorStep: 'watchdog-superseded',
-        errorMessage: 'Superseded by manual re-run — no DB update for 15+ min.',
+        errorMessage: 'Superseded by manual re-run — no DB update for 4+ min.',
         updatedAt: new Date(),
       })
       .where(eq(generationJobs.id, inFlight.id));

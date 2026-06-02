@@ -170,14 +170,14 @@ export async function scrapeUrlSmart(
   url: string,
   opts?: { searchQuery?: string },
 ): Promise<ScrapeResult> {
-  // Total Firecrawl budget. Vercel function maxDuration is 120s for this
-  // worker; Phase 1 also runs Gemini brand extraction (~10-15s), orphan
-  // resolution (~50ms), DB writes (~200ms), and QStash enqueue (~500ms),
-  // so we keep Firecrawl under 40s. The pre-step budget checks below
-  // assume the worst-case per-step wrapper budgets and subtract them
-  // from this number — slow primaries cause enrichment to skip rather
-  // than risk pushing the worker past the watchdog.
-  const FIRECRAWL_BUDGET_MS = 45_000;
+  // Total Firecrawl budget. The scrape-and-extract worker runs on Vercel Hobby
+  // (60s function cap — see TECH-STACK.md) with a 54s watchdog; Phase 1 also
+  // runs Gemini brand extraction (~8-25s), orphan resolution (~50ms), DB writes
+  // (~200ms), and QStash enqueue (~500ms), so we keep Firecrawl under 35s. The
+  // pre-step budget checks below assume the worst-case per-step wrapper budgets
+  // and subtract them from this number — slow primaries cause enrichment to
+  // skip rather than risk pushing the worker past the watchdog.
+  const FIRECRAWL_BUDGET_MS = 35_000;
   const start = Date.now();
 
   // Step 1: Full primary scrape (screenshot + html + branding).

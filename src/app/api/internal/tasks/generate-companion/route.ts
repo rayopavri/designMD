@@ -16,7 +16,9 @@ import { runGenerateCompanion } from '@/lib/generator/generate-companion-task';
 import { perf } from '@/lib/generator/perf-log';
 
 export const runtime = 'nodejs';
-export const maxDuration = 300;
+// Vercel Hobby plan: 60s function cap (see TECH-STACK.md). The Sonnet call is
+// bounded below this by SONNET_TIMEOUT_MS + maxRetries in generate-companion-prompt.ts.
+export const maxDuration = 60;
 
 const PayloadSchema = z.object({
   jobId: z.string().uuid(),

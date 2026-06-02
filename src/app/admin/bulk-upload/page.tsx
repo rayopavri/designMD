@@ -676,9 +676,10 @@ function BatchStatusView({
   }, [batchStatus.running]);
 
   // Show "unstick" affordance only when at least one running job has gone
-  // stale (>12min since last update). Workers now have a 290s watchdog on
-  // Vercel Pro, so anything under 12 min could still be a healthy run.
-  const STALE_THRESHOLD_MS = 12 * 60 * 1000;
+  // stale (>4min since last update). Workers run on Vercel Hobby (60s cap) with
+  // a 54s watchdog and the supervisor reaps stalled rows at 3 min, so anything
+  // older than 4 min is dead rather than a healthy run.
+  const STALE_THRESHOLD_MS = 4 * 60 * 1000;
   const now = Date.now();
   const hasStuckRunning = batchStatus.jobs.some(
     (j) =>

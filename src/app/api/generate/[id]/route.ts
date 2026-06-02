@@ -13,11 +13,12 @@ import { bundles, generationJobs } from '@/lib/db/schema';
 
 export const runtime = 'nodejs';
 
-// A running job whose updatedAt hasn't changed in 10 minutes is permanently
-// stuck (Vercel SIGKILL'd before the watchdog could mark it failed). Treat
-// it as failed in the response so the client stops polling and clears the
-// entry — the DB row stays as-is but no UI will ever show it again.
-const STALE_JOB_MS = 10 * 60 * 1000;
+// A running job whose updatedAt hasn't changed in 4 minutes is permanently
+// stuck (Vercel SIGKILL'd at the 60s Hobby cap before the watchdog could mark
+// it failed, and the 3-min supervisor reaper hasn't caught it yet). Treat it as
+// failed in the response so the client stops polling and clears the entry — the
+// DB row stays as-is but no UI will ever show it again.
+const STALE_JOB_MS = 4 * 60 * 1000;
 
 interface RouteContext {
   params: Promise<{ id: string }>;

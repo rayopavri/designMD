@@ -13,11 +13,12 @@ import { bundles, generationJobs } from '@/lib/db/schema';
 
 export const runtime = 'nodejs';
 
-// A running job whose updatedAt hasn't changed in 10 minutes is permanently
-// stuck (worker SIGKILLed before cleanup). Surface it as failed so the UI
-// shows the real state. Queued jobs are excluded — they may be legitimately
-// waiting their turn in a sequential batch and should not be falsely failed.
-const STALE_JOB_MS = 10 * 60 * 1000;
+// A running job whose updatedAt hasn't changed in 4 minutes is permanently
+// stuck (worker SIGKILLed at the 60s Hobby cap before cleanup, past the 3-min
+// reaper). Surface it as failed so the UI shows the real state. Queued jobs are
+// excluded — they may be legitimately waiting their turn in a sequential batch
+// and should not be falsely failed.
+const STALE_JOB_MS = 4 * 60 * 1000;
 
 export async function GET(req: NextRequest) {
   try {

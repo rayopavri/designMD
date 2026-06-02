@@ -169,9 +169,9 @@ export async function POST(req: NextRequest) {
   // meant that a URL sitting queued in another batch — or from another user's
   // single-generate — would block re-submission here even though it has no
   // relation to this batch.
-  // Exclude stuck jobs (updatedAt unchanged >10 min) so a SIGKILL-stranded
+  // Exclude stuck jobs (updatedAt unchanged >4 min) so a SIGKILL-stranded
   // row doesn't permanently block the same URL from re-submission.
-  const STALE_JOB_MS = 10 * 60 * 1000;
+  const STALE_JOB_MS = 4 * 60 * 1000;
   const staleCutoff = new Date(Date.now() - STALE_JOB_MS);
   const inFlightJobs = await db
     .select({ normalizedUrl: generationJobs.normalizedUrl, updatedAt: generationJobs.updatedAt })

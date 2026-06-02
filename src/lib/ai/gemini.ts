@@ -1083,7 +1083,7 @@ export interface GeminiTextResult {
  *
  * The author step calls this directly with no provider fallback: one hop,
  * the same GEMINI_API_KEY billing surface as extraction. Transient 429s are
- * retried here via withGeminiRetry; the author worker's 290s watchdog is the
+ * retried here via withGeminiRetry; the author worker's 54s watchdog is the
  * backstop for a genuine hang.
  */
 export async function generateTextFromGemini(input: GeminiTextInput): Promise<GeminiTextResult> {
@@ -1103,9 +1103,12 @@ export async function generateTextFromGemini(input: GeminiTextInput): Promise<Ge
         maxOutputTokens: input.maxOutputTokens ?? 6144,
         // Author-step latency control. Gemini 3.x Flash-Lite thinks at a high
         // level by default when unset, which on heavy pages can run 180s+ (vs
-        // the ~8-15s typical). MEDIUM caps thinking (~5s) while preserving spec
-        // quality — see generate-design-md.ts callAuthorModel.
-        thinkingConfig: { thinkingLevel: ThinkingLevel.MEDIUM },
+        // the ~8-15s typical). We run on Vercel Hobby (60s function cap), so the
+        // author call must reliably finish in ~40s — LOW caps thinking hardest
+        // while still preserving spec quality. (MEDIUM still over-ran the cap on
+        // content-heavy pages like athome.starbucks.com.) See
+        // generate-design-md.ts callAuthorModel.
+        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
         abortSignal: AbortSignal.timeout(input.timeoutMs),
       },
     }),
@@ -1229,7 +1232,7 @@ export async function extractBrandNamesQuick(
 // quality. Clamp dimensions before sending — we keep the original full-page
 // version in Vercel Blob for the home gallery hover-scroll. The 2400px cap
 // keeps total vision-token budget low (hero + 2-3 sections) so the call
-// stays well under the scrape-and-extract worker's 300s budget.
+// stays well under the scrape-and-extract worker's 60s Hobby budget.
 const MAX_EXTRACTION_WIDTH = 1600;
 const MAX_EXTRACTION_HEIGHT = 2400;
 const EXTRACTION_JPEG_QUALITY = 88;
@@ -1241,18 +1244,19 @@ const EXTRACTION_JPEG_QUALITY = 88;
 // voice, and component naming without inflating TTFT.
 const MAX_EXTRACTION_MARKDOWN_CHARS = 12_000;
 
-// Per-request timeout for the Gemini generateContent call. MUST stay tighter
-// than the scrape-and-extract worker's 290s watchdog (Vercel Pro maxDuration
-// 300s) so the AbortSignal fires inside the worker's try/catch and failJob()
-// runs before the platform SIGKILLs us. A SIGKILL would leave the
-// generation_jobs row in `running` state and trigger a QStash retry storm.
-// Firecrawl already consumes ~38s of that budget; a normal extraction returns
-// in 8-25s, so 180s is a generous ceiling that lets a slow-but-valid call
-// finish (the goal: never cut a good generation short) while still catching a
-// true hang. Passed as config.abortSignal via AbortSignal.timeout() — the
-// @google/genai SDK aborts the fetch and rejects when the signal fires. Note:
-// client-only; Google still processes (and bills) the in-flight request.
-const GEMINI_TIMEOUT_MS = 180_000;
+// Per-request timeout for the Gemini brand-EXTRACTION call (scrape-and-extract
+// worker, Phase 1). MUST stay tighter than that worker's 54s watchdog (Vercel
+// Hobby 60s function cap — see TECH-STACK.md) so the AbortSignal fires inside
+// the worker's try/catch and failJob() runs before the platform SIGKILLs us. A
+// SIGKILL would leave the generation_jobs row in `running` state and trigger a
+// QStash retry storm. Firecrawl already consumes ~27-35s of the 60s budget and
+// a normal extraction returns in 8-25s, so 30s is the ceiling that still lets a
+// slow-but-valid call finish while keeping the worker inside its budget. Passed
+// as config.abortSignal via AbortSignal.timeout() — the @google/genai SDK
+// aborts the fetch and rejects when the signal fires. Note: client-only; Google
+// still processes (and bills) the in-flight request. (The author call uses its
+// own AUTHOR_TIMEOUT_MS, not this constant.)
+const GEMINI_TIMEOUT_MS = 30_000;
 
 async function fetchImageAsPart(url: string): Promise<Part | null> {
   const res = await fetch(url);

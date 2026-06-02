@@ -4,11 +4,12 @@ import { useEffect, useState } from "react";
 
 const STORAGE_KEY = "gen_job";
 const POLL_MS = 3000;
-// Pipeline can take up to ~10 min on Vercel Pro (290s per phase × 2).
+// On Vercel Hobby each phase caps at 60s; with QStash hops plus one retry per
+// phase a healthy run still finishes well under ~5 min.
 // MAX_AGE_MS gates cold page-load recovery from localStorage.
 // MAX_POLL_MS stops an in-progress polling loop so it never runs forever.
-const MAX_AGE_MS = 15 * 60 * 1000;
-const MAX_POLL_MS = 12 * 60 * 1000;
+const MAX_AGE_MS = 10 * 60 * 1000;
+const MAX_POLL_MS = 8 * 60 * 1000;
 
 export interface ActiveGenJob {
   jobId: string;

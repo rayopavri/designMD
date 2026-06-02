@@ -30,9 +30,12 @@ import { env } from '@/lib/env';
 const DISPATCH_LOCK_KEY = 4_727_001;
 
 // A running job that hasn't bumped updated_at within this window is presumed
-// dead. Must exceed the Vercel function timeout (maxDuration 300s) so we never
-// reap a worker that is legitimately still executing a slow substage.
-const LEASE_MS = 360_000; // 6 minutes
+// dead. Must exceed the Vercel function timeout (60s Hobby cap) plus QStash's
+// single-retry window so we never reap a worker that is legitimately still
+// executing a slow substage or about to be retried by QStash. Each worker
+// invocation bumps updated_at at its first step, so this is measured from the
+// last sign of progress, not from job creation.
+const LEASE_MS = 180_000; // 3 minutes
 
 // Total dispatch attempts (initial + reaper resumes) before a stuck job is
 // failed. attempts starts at 1, so this permits exactly one reaper resume:
@@ -121,13 +124,17 @@ export async function dispatchReady(): Promise<{ claimed: number }> {
 }
 
 /**
- * Recover batch jobs that are 'running' but have stopped making progress
- * (updated_at older than the lease). For each:
+ * Recover jobs that are 'running' but have stopped making progress (updated_at
+ * older than the lease). Covers BOTH bulk-upload batch jobs and single-generate
+ * jobs (batchId null) — a single generation whose worker was SIGKILLed mid-phase
+ * (e.g. the author call overran the 60s Hobby cap before the in-process timeout
+ * could abort it) would otherwise sit in `running` forever, since the happy-path
+ * failJob never ran and dispatchReady only manages batch slots. For each:
  *   - attempts < REAP_MAX_ATTEMPTS  → resume: renew the lease, bump attempts,
  *     re-enqueue the worker for the job's CURRENT phase (a resume, using the
  *     persisted phase_payload — not a re-scrape).
- *   - otherwise                     → fail: free the slot so the batch can
- *     progress; the admin can retry-failed manually.
+ *   - otherwise                     → fail: surface the failure in the UI (and,
+ *     for batch jobs, free the slot); the admin or user can retry manually.
  *
  * Every state change is CAS-guarded on (status='running' AND still stale) so we
  * never fight a worker that came back to life and renewed its own lease.
@@ -145,7 +152,9 @@ export async function reapStale(): Promise<{ resumed: number; failed: number }> 
     .where(
       and(
         eq(generationJobs.status, 'running'),
-        isNotNull(generationJobs.batchId),
+        // No batchId filter: single-generate jobs (batchId null) must be reaped
+        // too, otherwise a SIGKILLed single generation hangs in `running`
+        // forever (dispatchReady only refills batch slots, never single jobs).
         lt(generationJobs.updatedAt, cutoff),
       ),
     )

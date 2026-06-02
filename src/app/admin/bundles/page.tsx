@@ -576,7 +576,8 @@ export default function AdminBundlesPage() {
 
   // Auto-poll job status while the latest job is still in flight. Stops as
   // soon as the server reports `completed` or `failed`, or the job has been
-  // stuck (no updatedAt change) for more than 12 minutes.
+  // stuck (no updatedAt change) for more than 4 minutes — workers cap at 60s on
+  // Hobby and the supervisor reaps stalled rows at 3 min, so older = dead.
   // loadDetail is NOT called here — see the completion effect below.
   useEffect(() => {
     if (!selectedSlug) return;
@@ -584,7 +585,7 @@ export default function AdminBundlesPage() {
     if (latestJob.status !== "queued" && latestJob.status !== "running") return;
     if (latestJob.status === "running") {
       const ageMs = Date.now() - new Date(latestJob.updatedAt).getTime();
-      if (ageMs > 12 * 60 * 1000) return;
+      if (ageMs > 4 * 60 * 1000) return;
     }
 
     const handle = window.setInterval(() => {
@@ -2084,7 +2085,7 @@ function DetailEditor(props: DetailEditorProps) {
             className="rounded-md border px-3 py-2 text-[11.5px]"
             style={{ borderColor: PEACH, background: `${PEACH}10`, color: INK, fontFamily: MONO }}
           >
-            Job appears stuck — no update in over 12 min. You can re-run again to replace it.
+            Job appears stuck — no update in over 4 min. You can re-run again to replace it.
           </div>
         ) : null}
         {showFailureBanner && latestJob ? (

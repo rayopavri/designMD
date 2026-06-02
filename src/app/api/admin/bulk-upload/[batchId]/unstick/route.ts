@@ -6,7 +6,7 @@
  * errorStep='manual-unstick', then calls dispatchReady() to refill the
  * freed concurrency slots so the batch keeps moving.
  *
- * Use when a Firecrawl / Gemini / Sonnet call hung past Vercel's
+ * Use when a Firecrawl / Gemini / Sonnet call hung past Vercel's 60s
  * maxDuration in production — the SIGKILL would have prevented
  * failJob() AND slot-refill from running, stranding the row AND
  * tying up a concurrency slot. The worker watchdogs and the
@@ -23,13 +23,13 @@ import { dispatchReady } from '@/lib/generator/batch';
 export const runtime = 'nodejs';
 export const maxDuration = 30;
 
-// A healthy job hits one of:
-//   scrape:   maxDuration 300s + at most 1 QStash retry = ~610s worst case
-//   author:   maxDuration 300s + at most 1 QStash retry = ~610s worst case
-//   companion:maxDuration 300s + at most 1 QStash retry = ~610s worst case
-// 12 minutes is comfortably past all of these, so anything older is
-// definitively stuck — not a slow but legitimate run.
-const UNSTUCK_THRESHOLD_MS = 12 * 60 * 1000;
+// A healthy job hits one of (Vercel Hobby 60s function cap — see TECH-STACK.md):
+//   scrape:   maxDuration 60s + at most 1 QStash retry = ~130s worst case
+//   author:   maxDuration 60s + at most 1 QStash retry = ~130s worst case
+//   companion:maxDuration 60s + at most 1 QStash retry = ~130s worst case
+// 4 minutes is comfortably past all of these (and past the 3-min supervisor
+// reaper), so anything older is definitively stuck — not a slow legitimate run.
+const UNSTUCK_THRESHOLD_MS = 4 * 60 * 1000;
 
 export async function POST(
   _req: NextRequest,

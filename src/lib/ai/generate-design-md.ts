@@ -14,9 +14,9 @@
  * authority deterministic.
  *
  * Provider: Gemini 3.1 Flash-Lite direct — single provider, no fallback.
- * Same GEMINI_API_KEY billing surface as extraction. The per-call timeout is
- * sized to the author worker's full budget (see AUTHOR_TIMEOUT_MS) so a
- * slow-but-valid generation runs to completion instead of being cut short;
+ * Same GEMINI_API_KEY billing surface as extraction. The per-call timeout
+ * (AUTHOR_TIMEOUT_MS) is sized to fit inside the author worker's 60s Hobby
+ * budget so a hang aborts cleanly and failJob() can mark the row failed;
  * transient 429s are retried inside generateTextFromGemini (withGeminiRetry)
  * and, at the job level, by QStash + the supervisor. Companion-prompt worker
  * stays on Anthropic Sonnet because its task is shorter and more
@@ -348,7 +348,10 @@ async function generateMarkdownBody(input: Input, yaml: string): Promise<string>
     '',
     'Source page (scraped markdown, truncated):',
     '```',
-    input.scrapedMarkdown.slice(0, 15_000),
+    // Trimmed to keep author latency inside the 60s Hobby budget — ~10k chars
+    // (~2.5k tokens) is enough grounding for voice/structure without inflating
+    // time-to-first-token on content-heavy pages.
+    input.scrapedMarkdown.slice(0, 10_000),
     '```',
     '',
     'Produce the markdown body only — no YAML, no --- delimiters, no preamble. Start with `## Overview`.',
@@ -432,11 +435,13 @@ function logMissingHeadings(provider: string, text: string): void {
   }
 }
 
-// Author worker is Vercel Pro maxDuration=300s with a 290s watchdog; lint +
-// scoring + DB writes after this call need ~10s. 240s leaves comfortable margin
-// while letting a slow-but-valid Gemini generation finish — normal author
-// latency is ~8-15s, so this is the ceiling, not the target.
-const AUTHOR_TIMEOUT_MS = 240_000;
+// Author worker runs on Vercel Hobby (60s function cap) with a 54s watchdog;
+// lint + scoring + DB writes after this call need ~10s, so the Gemini call must
+// abort with margin to spare. 42s is the ceiling, not the target: with LOW
+// thinking (see gemini.ts) and the trimmed prompt below, normal author latency
+// is ~8-20s. A genuine hang aborts at 42s so failJob() runs in-process — well
+// before the 54s watchdog and the 60s SIGKILL.
+const AUTHOR_TIMEOUT_MS = 42_000;
 
 /**
  * Author-model call: Gemini 3.1 Flash-Lite direct, single provider.
@@ -444,7 +449,7 @@ const AUTHOR_TIMEOUT_MS = 240_000;
  * generateTextFromGemini applies AUTHOR_TIMEOUT_MS via AbortSignal and retries
  * transient 429s internally (withGeminiRetry). A genuine hang aborts at the
  * timeout and surfaces as a failure, which QStash + the supervisor re-run; the
- * worker's 290s watchdog is the ultimate backstop.
+ * worker's 54s watchdog is the ultimate backstop.
  */
 async function callAuthorModel(userPrompt: string): Promise<string> {
   const res = await generateTextFromGemini({

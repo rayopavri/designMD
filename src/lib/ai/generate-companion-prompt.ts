@@ -156,13 +156,14 @@ interface SpecInput {
 
 const MAX_OUTPUT_TOKENS = 1500;
 
-// Per-request timeout for ONE Sonnet attempt. The generate-companion worker is
-// Vercel Pro maxDuration=300s (no watchdog), and the Anthropic SDK retries
-// transient 429/5xx/timeout up to maxRetries (pinned to 2 in runCompanionSonnet).
-// Worst case is 3 attempts × 90s + backoff ≈ 276s, which stays under the 300s
-// SIGKILL so failJob() can mark the row `failed` first. A normal companion call
-// returns in 10-20s; 90s is the ceiling so a slow-but-valid call isn't cut short.
-const SONNET_TIMEOUT_MS = 90_000;
+// Per-request timeout for ONE Sonnet attempt. The generate-companion worker
+// runs on Vercel Hobby (60s function cap — see TECH-STACK.md). The Anthropic
+// SDK retries transient 429/5xx/timeout up to maxRetries (pinned to 1 in
+// runCompanionSonnet), so worst case is 2 attempts × 24s + backoff ≈ 53s, which
+// stays under the 60s SIGKILL so failJob() can mark the row `failed` first. A
+// normal companion call returns in 10-20s; 24s is the ceiling so a typical call
+// isn't cut short while a hang still aborts inside the function budget.
+const SONNET_TIMEOUT_MS = 24_000;
 
 // Guards against a pathological design.md blowing the context window. A real
 // design.md is a few KB; this cap (~10k tokens) never truncates a healthy spec.
@@ -278,11 +279,11 @@ async function runCompanionSonnet(userPrompt: string): Promise<string> {
         ],
         messages: [{ role: 'user', content: userPrompt }],
       },
-      { timeout: SONNET_TIMEOUT_MS, maxRetries: 2 },
+      { timeout: SONNET_TIMEOUT_MS, maxRetries: 1 },
     )
     .catch((err: unknown) => {
       // The SDK retries transient failures up to maxRetries internally, so this
-      // elapsed spans all attempts: ~270000ms ≈ 3 × 90s means the companion
+      // elapsed spans all attempts: ~48000ms ≈ 2 × 24s means the companion
       // exhausted its retries on timeouts — that's the "companion times out".
       perf('companion.sonnet', 'err', Date.now() - startedAt, {
         timeoutMs: SONNET_TIMEOUT_MS,

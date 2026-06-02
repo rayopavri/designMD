@@ -151,9 +151,10 @@ async function handleUrl(req: NextRequest, userId: string | null, anonToken: str
   // Existing in-flight job for this user/url? Only applies to signed-in
   // users — anonymous gets a fresh job each time. (Rate limiting will
   // be the abuse gate; we don't try to dedupe by IP here.)
-  // Skip jobs whose updatedAt hasn't moved in 10 min — those are stuck
-  // (worker was SIGKILLed before cleanup) and should not block a fresh run.
-  const STALE_JOB_MS = 10 * 60 * 1000;
+  // Skip jobs whose updatedAt hasn't moved in 4 min — those are stuck (worker
+  // was SIGKILLed at the 60s Hobby cap before cleanup, past the 3-min reaper)
+  // and should not block a fresh run.
+  const STALE_JOB_MS = 4 * 60 * 1000;
   if (userId) {
     try {
       const [inflight] = await db
