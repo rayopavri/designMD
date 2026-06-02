@@ -179,14 +179,14 @@ export function Header() {
             <>
               <Link
                 href="/library"
-                className="text-[12.5px] hidden sm:inline md:hidden"
+                className="text-[12.5px] md:hidden"
                 style={{ color: SUB }}
               >
                 Library
               </Link>
               <Link
                 href="/generate"
-                className="text-[12.5px] hidden sm:inline md:hidden"
+                className="text-[12.5px] md:hidden"
                 style={{ color: SUB }}
               >
                 Generate
