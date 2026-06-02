@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-06-02** (feat: admin bundles left-column pagination with A→Z sort)
+> Last updated: **2026-06-02** (feat: admin category picker + create-new in bundle edit)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -256,6 +256,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-06-02** - Admin edit mode now shows a Category field with dropdown bound to primaryCategoryId and inline "+ new category" form that POSTs to /api/admin/categories; new route creates top-level categories with auto-slug generation. (c80a92a)
 - [x] **2026-06-02** - Admin bundles now paginate all results in the left column until nextCursor is null (was capping at 60); added alpha sort option (title A→Z) via DB query + API route + UI dropdown. (2e91aae)
 - [x] **2026-06-02** - Fixed bundle pagination in useBundleItems hook: was fetching only a single page (60 items, the API max), so bundles 61–115 never appeared. Now loops through all pages until nextCursor exhausted. (215223f)
 - [x] **2026-06-02** - Fixed Gemini billing-exhaustion error handling: detect 429/RESOURCE_EXHAUSTED for depleted prepaid credits with narrow patterns (not transient Quota exceeded), throw immediately with "top up billing in AI Studio" message instead of retrying 3× with backoff and wasting budget. Covers both extraction and author calls. (42f4376)
