@@ -46,3 +46,6 @@ package-lock.json
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# agent skills config — internal marketing strategy, keep out of this public repo
+.agents/
