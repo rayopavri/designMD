@@ -17,6 +17,7 @@
 import { createHash } from 'node:crypto';
 import {
   GoogleGenAI,
+  ThinkingLevel,
   Type,
   type Schema,
   type Part,
@@ -1057,6 +1058,11 @@ export async function generateTextFromGemini(input: GeminiTextInput): Promise<Ge
           : { systemInstruction: input.systemPrompt }),
         temperature: input.temperature ?? 0.4,
         maxOutputTokens: input.maxOutputTokens ?? 6144,
+        // Author-step latency control. Gemini 3.x Flash-Lite thinks at a high
+        // level by default when unset, which on heavy pages can run 180s+ (vs
+        // the ~8-15s typical). MEDIUM caps thinking (~5s) while preserving spec
+        // quality — see generate-design-md.ts callAuthorModel.
+        thinkingConfig: { thinkingLevel: ThinkingLevel.MEDIUM },
         abortSignal: AbortSignal.timeout(input.timeoutMs),
       },
     }),
