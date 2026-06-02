@@ -22,6 +22,12 @@ import {
   VIOLET,
 } from "@/lib/ui-data/tokens";
 import { TYPE_META } from "@/lib/ui-data/items";
+import {
+  compressImageForUpload,
+  formatBytes,
+  MAX_RAW_BYTES,
+  MAX_UPLOAD_BYTES,
+} from "@/lib/image/compress";
 
 type Status = "idle" | "running" | "done" | "failed";
 interface JobPollResult {
@@ -173,6 +179,10 @@ function GenerateContent() {
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadPreview, setUploadPreview] = useState<string | null>(null);
   const [brandName, setBrandName] = useState("");
+  // Browser-side image prep: we downscale + re-encode large screenshots
+  // before upload so they clear Vercel's ~4.5 MB request-body cap.
+  const [preparing, setPreparing] = useState(false);
+  const [origBytes, setOrigBytes] = useState<number | null>(null);
 
   // On mount, check if there's an active generation job from a previous
   // page visit and reconnect to it so the user doesn't lose progress.
@@ -205,6 +215,51 @@ function GenerateContent() {
     }
   })();
 
+  // Handle a picked/dropped file: validate, then downscale + re-encode in
+  // the browser so big screenshots clear the platform body-size cap. Falls
+  // back to the raw file if compression isn't possible; the server guard is
+  // the backstop. Async, with a "preparing" state to gate submit.
+  async function handlePickFile(raw: File | null) {
+    setValidation(null);
+    if (uploadPreview) URL.revokeObjectURL(uploadPreview);
+    if (!raw) {
+      setUploadFile(null);
+      setUploadPreview(null);
+      setOrigBytes(null);
+      return;
+    }
+    if (!raw.type.startsWith("image/")) {
+      setValidation("That file isn't an image. Use a PNG, JPEG, or WebP screenshot.");
+      return;
+    }
+    if (raw.size > MAX_RAW_BYTES) {
+      setValidation(
+        `That image is ${formatBytes(raw.size)} — please use one under ${formatBytes(MAX_RAW_BYTES)}.`,
+      );
+      return;
+    }
+
+    setPreparing(true);
+    setOrigBytes(raw.size);
+    setUploadFile(null);
+    setUploadPreview(null);
+    try {
+      const result = await compressImageForUpload(raw);
+      setUploadFile(result.file);
+      setUploadPreview(URL.createObjectURL(result.file));
+      if (result.file.size > MAX_UPLOAD_BYTES) {
+        setValidation(
+          "This screenshot is still too large after optimizing. Try cropping it or uploading a smaller capture.",
+        );
+      }
+    } catch {
+      setUploadFile(raw);
+      setUploadPreview(URL.createObjectURL(raw));
+    } finally {
+      setPreparing(false);
+    }
+  }
+
   function start() {
     setValidation(null);
 
@@ -214,6 +269,10 @@ function GenerateContent() {
 
     // ─── Upload mode ──────────────────────────────────────
     if (bundleMode === "upload") {
+      if (preparing) {
+        setValidation("Hang on — still optimizing the image.");
+        return;
+      }
       if (!uploadFile) {
         setValidation("Pick a screenshot to upload.");
         return;
@@ -542,12 +601,9 @@ function GenerateContent() {
               <UploadFields
                 file={uploadFile}
                 preview={uploadPreview}
-                onFile={(f) => {
-                  setUploadFile(f);
-                  setValidation(null);
-                  if (uploadPreview) URL.revokeObjectURL(uploadPreview);
-                  setUploadPreview(f ? URL.createObjectURL(f) : null);
-                }}
+                onFile={handlePickFile}
+                preparing={preparing}
+                originalBytes={origBytes}
                 brandName={brandName}
                 onBrandName={(v) => {
                   setBrandName(v);
@@ -558,7 +614,7 @@ function GenerateContent() {
                   status === "idle" ? (
                     <button
                       type="submit"
-                      disabled={!uploadFile || !brandName.trim()}
+                      disabled={!uploadFile || !brandName.trim() || preparing}
                       className="h-10 rounded-full px-5 text-[12.5px] font-medium inline-flex items-center justify-center gap-2 disabled:opacity-50"
                       style={{ background: INK, color: INK_ON_LIGHT }}
                     >
@@ -838,6 +894,8 @@ function UploadFields(props: {
   file: File | null;
   preview: string | null;
   onFile: (f: File | null) => void;
+  preparing: boolean;
+  originalBytes: number | null;
   brandName: string;
   onBrandName: (v: string) => void;
   status: "idle" | "running" | "done" | "failed";
@@ -845,9 +903,17 @@ function UploadFields(props: {
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [dragOver, setDragOver] = useState(false);
-  const disabled = props.status === "running";
+  const disabled = props.status === "running" || props.preparing;
 
   const accept = "image/png,image/jpeg,image/webp";
+
+  // Show "12.4 MB → 0.8 MB" when we shrank the file, else just the size.
+  const sizeLabel =
+    props.file && props.originalBytes && props.originalBytes !== props.file.size
+      ? `${formatBytes(props.originalBytes)} → ${formatBytes(props.file.size)}`
+      : props.file
+        ? formatBytes(props.file.size)
+        : "";
 
   return (
     <div className="flex flex-col gap-3">
@@ -894,7 +960,12 @@ function UploadFields(props: {
           }}
           disabled={disabled}
         />
-        {props.file && props.preview ? (
+        {props.preparing ? (
+          <div className="flex items-center gap-3 py-2" style={{ color: SUB }}>
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span className="text-[12.5px]">Optimizing screenshot…</span>
+          </div>
+        ) : props.file && props.preview ? (
           <div className="flex items-center gap-4 w-full">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -908,7 +979,7 @@ function UploadFields(props: {
                 {props.file.name}
               </div>
               <div className="text-[10.5px]" style={{ color: MUTED, fontFamily: MONO }}>
-                {(props.file.size / 1024).toFixed(0)} KB · {props.file.type}
+                {sizeLabel} · {props.file.type}
               </div>
             </div>
             <button
@@ -937,7 +1008,7 @@ function UploadFields(props: {
               Drop a screenshot or click to browse
             </div>
             <div className="text-[11px]" style={{ color: MUTED, fontFamily: MONO }}>
-              PNG, JPEG, WebP · up to 6 MB
+              PNG, JPEG, WebP — big screenshots are auto-optimized
             </div>
           </>
         )}
