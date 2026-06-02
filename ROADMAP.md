@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-06-02** (fix: fail fast with a clear message on billing-exhaustion 429s)
+> Last updated: **2026-06-02** (fix: load all bundles by paginating until nextCursor is null)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -256,6 +256,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-06-02** - Fixed bundle pagination in useBundleItems hook: was fetching only a single page (60 items, the API max), so bundles 61–115 never appeared. Now loops through all pages until nextCursor exhausted. (215223f)
 - [x] **2026-06-02** - Fixed Gemini billing-exhaustion error handling: detect 429/RESOURCE_EXHAUSTED for depleted prepaid credits with narrow patterns (not transient Quota exceeded), throw immediately with "top up billing in AI Studio" message instead of retrying 3× with backoff and wasting budget. Covers both extraction and author calls. (42f4376)
 - [x] **2026-06-02** - Fixed pipeline timeouts: scaled all 3 generation workers (scrape-and-extract, author-design-md, generate-companion) + Gemini/Sonnet calls to fit the actual Vercel Hobby 60s cap. Author now uses MEDIUM thinking instead of HIGH, timeouts are 42-54s, input trimmed to 10k chars. Companion: 90s×3 → 24s×2 retries. UI/endpoint "stuck" thresholds reduced from 10-15min to 4min. reapStale() now recovers single-generate jobs (not just batches) so SIGKILLed generations self-heal. (51f7438)
 - [x] **2026-06-02** - Added Vercel OG image route (`/api/og`) rendering palette swatches + brand name as a 1200×630 card; `twitter:card` upgraded to `summary_large_image` on all bundle pages (`74aafc4`)
