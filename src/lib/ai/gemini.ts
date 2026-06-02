@@ -70,6 +70,20 @@ function isRateLimitError(err: unknown): boolean {
   return /\b429\b|RESOURCE_EXHAUSTED|rate.?limit|quota exceeded/i.test(msg);
 }
 
+// A 429/RESOURCE_EXHAUSTED that reports depleted prepaid credits (or disabled
+// billing) is NOT transient — it won't clear without a human topping up the
+// GEMINI_API_KEY's billing in Google AI Studio. Retrying it just burns the
+// worker's budget on doomed (still-metered) calls and buries the actionable
+// message under a generic failure, so we detect it and fail fast instead of
+// treating it like an RPM/RPD spike. Narrow patterns only — transient "Quota
+// exceeded" messages must still fall through to the retry path above.
+function isBillingExhaustedError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return /prepayment credit|credits are depleted|enable billing|billing.*(disabled|not enabled)/i.test(
+    msg,
+  );
+}
+
 /** Best-effort parse of the server's RetryInfo.retryDelay (e.g. "12s"), in ms. */
 function serverRetryDelayMs(err: unknown): number | null {
   const msg = err instanceof Error ? err.message : String(err);
@@ -82,6 +96,15 @@ async function withGeminiRetry<T>(label: string, fn: () => Promise<T>): Promise<
     try {
       return await fn();
     } catch (err) {
+      // Billing exhaustion is permanent until a human acts — surface it loudly
+      // and don't waste the worker's budget retrying a doomed call.
+      if (isBillingExhaustedError(err)) {
+        throw new Error(
+          'Gemini API credits depleted — top up the GEMINI_API_KEY billing in ' +
+            'Google AI Studio (https://aistudio.google.com) before generating again. ' +
+            `Upstream: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
       if (!isRateLimitError(err) || attempt >= MAX_RATE_LIMIT_RETRIES) throw err;
       const backoff = Math.min(
         RATE_LIMIT_BASE_DELAY_MS * 2 ** attempt,
