@@ -4,7 +4,7 @@
  * Centralised so route handlers stay slim and we can reuse the same
  * filter/sort logic from the upcoming search index build and admin views.
  */
-import { and, desc, eq, ilike, inArray, ne, or, sql, type SQL } from 'drizzle-orm';
+import { and, asc, desc, eq, ilike, inArray, ne, or, sql, type SQL } from 'drizzle-orm';
 import { db } from '@/lib/db/client';
 import { bundles, categories } from '@/lib/db/schema';
 
@@ -14,7 +14,7 @@ export interface BundleListFilters {
   designStyle?: string[]; // ['dark-mode', 'minimal', ...]
   tools?: string[]; // ['claude', 'cursor', ...]
   q?: string; // search query (matches title, description)
-  sort?: 'recent' | 'top' | 'trending';
+  sort?: 'recent' | 'top' | 'trending' | 'alpha';
   limit?: number;
   cursor?: string; // bundle id of the last item from previous page
 }
@@ -197,7 +197,7 @@ export async function listAdminBundles(
     if (qCond) conditions.push(qCond);
   }
   // Admin sort modes: 'recent' = updatedAt desc, 'submitted' = submittedAt desc,
-  // 'score' = coverageScore desc.
+  // 'score' = coverageScore desc, 'alpha' = title asc.
   let orderBy: SQL[];
   switch (filters.sort) {
     case 'top':
@@ -205,6 +205,9 @@ export async function listAdminBundles(
       break;
     case 'trending':
       orderBy = [desc(bundles.submittedAt), desc(bundles.updatedAt), desc(bundles.id)];
+      break;
+    case 'alpha':
+      orderBy = [asc(bundles.title), asc(bundles.id)];
       break;
     case 'recent':
     default:

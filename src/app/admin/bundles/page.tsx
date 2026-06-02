@@ -260,7 +260,6 @@ function StatusPill({ status }: { status: BundleStatus }) {
 export default function AdminBundlesPage() {
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [rows, setRows] = useState<ListRow[]>([]);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
 
@@ -269,7 +268,7 @@ export default function AdminBundlesPage() {
   const [searchInput, setSearchInput] = useState("");
   const [activeQuery, setActiveQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("");
-  const [sort, setSort] = useState<"recent" | "top" | "trending">("recent");
+  const [sort, setSort] = useState<"recent" | "top" | "trending" | "alpha">("recent");
 
   // Detail + edit
   const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
@@ -360,6 +359,7 @@ export default function AdminBundlesPage() {
       if (activeQuery.trim()) sp.set("q", activeQuery.trim());
       if (categoryFilter) sp.set("category", categoryFilter);
       if (sort && sort !== "recent") sp.set("sort", sort);
+      sp.set("limit", "60");
       if (cursor) sp.set("cursor", cursor);
       return `/api/admin/bundles?${sp.toString()}`;
     },
@@ -370,45 +370,32 @@ export default function AdminBundlesPage() {
     setLoadState("loading");
     setErrorMsg(null);
     try {
-      const res = await fetch(buildListUrl());
-      if (res.status === 401 || res.status === 403) {
-        setLoadState("forbidden");
-        return;
-      }
-      if (!res.ok) {
-        setErrorMsg(`Failed to load (${res.status})`);
-        setLoadState("error");
-        return;
-      }
-      const body = (await res.json()) as { items: ListRow[]; nextCursor: string | null };
-      setRows(body.items);
-      setNextCursor(body.nextCursor);
+      const all: ListRow[] = [];
+      let cursor: string | null = null;
+      do {
+        const res = await fetch(buildListUrl(cursor));
+        if (res.status === 401 || res.status === 403) {
+          setLoadState("forbidden");
+          return;
+        }
+        if (!res.ok) {
+          setErrorMsg(`Failed to load (${res.status})`);
+          setLoadState("error");
+          return;
+        }
+        const body = (await res.json()) as { items: ListRow[]; nextCursor: string | null };
+        const seen = new Set(all.map((r) => r.id));
+        all.push(...body.items.filter((r) => !seen.has(r.id)));
+        cursor = body.nextCursor;
+      } while (cursor);
+      setRows(all);
       setLoadState("ready");
-      if (selectedSlug && !body.items.find((r) => r.slug === selectedSlug)) {
-        // Selected bundle no longer in the visible list. Keep the detail
-        // pane open — user may have just filtered it out.
-      }
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : "Network error");
       setLoadState("error");
     }
-  }, [buildListUrl, selectedSlug]);
+  }, [buildListUrl]);
 
-  const loadMore = useCallback(async () => {
-    if (!nextCursor) return;
-    try {
-      const res = await fetch(buildListUrl(nextCursor));
-      if (!res.ok) return;
-      const body = (await res.json()) as { items: ListRow[]; nextCursor: string | null };
-      setRows((prev) => {
-        const seen = new Set(prev.map((r) => r.id));
-        return [...prev, ...body.items.filter((r) => !seen.has(r.id))];
-      });
-      setNextCursor(body.nextCursor);
-    } catch {
-      // ignore — user can retry
-    }
-  }, [buildListUrl, nextCursor]);
 
   // Load categories once.
   useEffect(() => {
@@ -1149,7 +1136,6 @@ export default function AdminBundlesPage() {
           <SectionLabel t="Library management" />
           <h1 className="mt-3 text-[28px] font-medium tracking-[-0.018em]">
             Bundles · {rows.length}
-            {nextCursor ? "+" : ""}
           </h1>
           <p className="mt-2 text-[12.5px]" style={{ color: SUB }}>
             All bundles across every status. Edit metadata, archive, restore, or jump to the reviewer queue for pending items.
@@ -1369,13 +1355,14 @@ export default function AdminBundlesPage() {
               </select>
               <select
                 value={sort}
-                onChange={(e) => setSort(e.target.value as "recent" | "top" | "trending")}
+                onChange={(e) => setSort(e.target.value as "recent" | "top" | "trending" | "alpha")}
                 className="h-7 rounded-full border bg-transparent text-[11px] px-2"
                 style={{ borderColor: BORDER, color: INK, fontFamily: MONO }}
               >
                 <option value="recent">recent</option>
                 <option value="top">top (coverage)</option>
                 <option value="trending">submitted</option>
+                <option value="alpha">A → Z</option>
               </select>
             </div>
             {rows.length > 0 && (
@@ -1509,16 +1496,6 @@ export default function AdminBundlesPage() {
                 })}
               </ul>
             )}
-            {nextCursor ? (
-              <button
-                type="button"
-                onClick={() => void loadMore()}
-                className="w-full mt-2 h-9 rounded-md border text-[11.5px]"
-                style={{ borderColor: BORDER, color: SUB, fontFamily: MONO }}
-              >
-                load more
-              </button>
-            ) : null}
           </div>
         </div>
 

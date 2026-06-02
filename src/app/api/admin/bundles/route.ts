@@ -34,7 +34,7 @@ const VALID_STATUSES = new Set([
 ]);
 
 const VALID_TYPES = new Set(['design_md', 'skill', 'agent']);
-const VALID_SORTS = new Set(['recent', 'top', 'trending']);
+const VALID_SORTS = new Set(['recent', 'top', 'trending', 'alpha']);
 
 function parseCsv(raw: string | null): string[] | undefined {
   if (!raw) return undefined;
@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
   const type = typeParam && VALID_TYPES.has(typeParam) ? (typeParam as 'design_md' | 'skill' | 'agent') : undefined;
 
   const sortParam = sp.get('sort');
-  const sort = sortParam && VALID_SORTS.has(sortParam) ? (sortParam as 'recent' | 'top' | 'trending') : 'recent';
+  const sort = sortParam && VALID_SORTS.has(sortParam) ? (sortParam as 'recent' | 'top' | 'trending' | 'alpha') : 'recent';
 
   const limitRaw = Number(sp.get('limit'));
   const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(60, Math.floor(limitRaw)) : 30;
