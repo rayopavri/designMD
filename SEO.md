@@ -37,7 +37,9 @@ _Last updated: 2026-06-02_
 
 ---
 
-### 2. Open Graph image (`og:image`) on bundle pages
+- [x] Vercel OG image route (`/api/og`) — palette swatches + brand name card, 1200×630; `twitter:card` upgraded to `summary_large_image` on all bundle pages (`74aafc4`, 2026-06-02)
+
+### 2. ~~Open Graph image (`og:image`) on bundle pages~~ ✅ Done
 **What:** Generate or serve a per-bundle OG image (palette strip + bundle name) used when links are shared on X, LinkedIn, Slack, iMessage.  
 **Why:** Text-only OG cards get ignored in feeds. A palette-based card with the bundle name is immediately recognisable and shareable — each share becomes a free impression.  
 **Options (pick one):**
