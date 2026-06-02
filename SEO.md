@@ -12,12 +12,13 @@ _Last updated: 2026-06-02_
 - [x] `/library` page metadata — keyword-optimised static title + OG + canonical
 - [x] Root `layout.tsx` — `metadataBase`, title template (`%s — UIUXskills`), site-wide OG + Twitter defaults
 - [x] Google Search Console — domain property verified, sitemap submitted
+- [x] BreadcrumbList JSON-LD on every `/library/[slug]` page — breadcrumb trail (`uiuxskills.com › Library › {title}`) in Google results (`fc58b0f`, 2026-06-02)
 
 ---
 
 ## 🔴 High priority
 
-### 1. BreadcrumbList JSON-LD on bundle pages
+### 1. ~~BreadcrumbList JSON-LD on bundle pages~~ ✅ Done
 **What:** Add `<script type="application/ld+json">` with `BreadcrumbList` schema to each `/library/[slug]` page.  
 **Why:** Google renders the trail (`uiuxskills.com › Library › Linear`) directly in search results — improves click-through rate without any ranking change needed.  
 **Where:** `src/app/(public)/library/[slug]/page.tsx` — add JSON-LD alongside `generateMetadata`.  
