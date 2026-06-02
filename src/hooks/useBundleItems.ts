@@ -235,15 +235,18 @@ export function useBundleItems(): UseBundleItemsResult {
     let cancelled = false;
     async function load() {
       try {
-        // Request a generous limit so the whole catalogue lands in one call;
-        // pagination will be reintroduced when the catalogue grows.
-        const res = await fetch('/api/bundles?limit=60&sort=recent', {
-          credentials: 'include',
-        });
-        if (!res.ok) throw new Error(`API ${res.status}`);
-        const json = (await res.json()) as { data: ApiBundleListItem[] };
-        if (cancelled) return;
-        setItems(json.data.map(apiToBundleItem));
+        const all: ApiBundleListItem[] = [];
+        let cursor: string | undefined;
+        do {
+          const url = `/api/bundles?limit=60&sort=recent${cursor ? `&cursor=${cursor}` : ''}`;
+          const res = await fetch(url, { credentials: 'include' });
+          if (!res.ok) throw new Error(`API ${res.status}`);
+          const json = (await res.json()) as { data: ApiBundleListItem[]; meta: { nextCursor: string | null } };
+          if (cancelled) return;
+          all.push(...json.data);
+          cursor = json.meta.nextCursor ?? undefined;
+        } while (cursor);
+        if (!cancelled) setItems(all.map(apiToBundleItem));
       } catch (err) {
         if (cancelled) return;
         setError(err instanceof Error ? err : new Error('Failed to load bundles'));
