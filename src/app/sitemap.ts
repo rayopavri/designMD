@@ -20,6 +20,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: 'https://uiuxskills.com', changeFrequency: 'daily', priority: 1.0 },
     { url: 'https://uiuxskills.com/library', changeFrequency: 'daily', priority: 0.9 },
     { url: 'https://uiuxskills.com/generate', changeFrequency: 'monthly', priority: 0.5 },
+    { url: 'https://uiuxskills.com/legal/privacy', changeFrequency: 'yearly', priority: 0.2 },
+    { url: 'https://uiuxskills.com/legal/terms', changeFrequency: 'yearly', priority: 0.2 },
+    { url: 'https://uiuxskills.com/legal/attribution', changeFrequency: 'yearly', priority: 0.1 },
     ...bundleUrls,
   ];
 }
