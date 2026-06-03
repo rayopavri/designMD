@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-06-03** (seo: add metadata export to home page)
+> Last updated: **2026-06-03** (seo: add legal pages to sitemap)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -256,6 +256,8 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-06-03** - SEO: add metadata exports to legal pages for improved search engine discoverability. (ed8aa6d)
+- [x] **2026-06-03** - SEO: split copy page into server wrapper + client component for better code organization. (e922170)
 - [x] **2026-06-03** - SEO metadata export added to home page for improved search engine discoverability. (7580424)
 - [x] **2026-06-02** - Admin read-only bundle detail view now shows the current category as a label + pill below the source URL. Previously category was only visible in edit mode. (7a6e611)
 - [x] **2026-06-02** - Admin edit mode now shows a Category field with dropdown bound to primaryCategoryId and inline "+ new category" form that POSTs to /api/admin/categories; new route creates top-level categories with auto-slug generation. (c80a92a)
