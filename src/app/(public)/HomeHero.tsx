@@ -13,7 +13,6 @@ import {
   MONO,
   MUTED,
   SUB,
-  VIOLET,
 } from "@/lib/ui-data/tokens";
 
 const ROTATING_BRANDS = [
@@ -64,17 +63,6 @@ function RotatingBrand() {
   );
 }
 
-const BRANDS = [
-  { name: "Linear",  dot: "#5E6AD2" },
-  { name: "Stripe",  dot: "#635BFF" },
-  { name: "Vercel",  dot: "#F2F1EE" },
-  { name: "Apple",   dot: "#A2AAAD" },
-  { name: "Notion",  dot: "#FFFFFF" },
-  { name: "Arc",     dot: "#FF7C5C" },
-  { name: "Raycast", dot: "#FF6363" },
-  { name: "Figma",   dot: "#F24E1E" },
-];
-
 
 export function HomeHero() {
   return (
@@ -120,7 +108,7 @@ export function HomeHero() {
             <Link
               href="/library"
               className="h-12 rounded-full px-7 text-[13.5px] font-medium inline-flex items-center gap-2 transition-opacity hover:opacity-90"
-              style={{ background: VIOLET, color: INK_ON_LIGHT }}
+              style={{ background: "#fff", color: INK_ON_LIGHT }}
             >
               Browse design skills
               <ArrowRight className="h-3.5 w-3.5" />
@@ -134,25 +122,6 @@ export function HomeHero() {
             </Link>
           </div>
 
-          {/* Brand strip — authority transfer before the fold */}
-          <div
-            className="flex items-center justify-center gap-x-6 gap-y-3 flex-wrap"
-          >
-            {BRANDS.map(({ name, dot }) => (
-              <span
-                key={name}
-                className="inline-flex items-center gap-1.5 text-[11px]"
-                style={{ fontFamily: MONO, color: MUTED }}
-              >
-                <span
-                  className="h-1.5 w-1.5 rounded-full shrink-0"
-                  style={{ background: dot }}
-                  aria-hidden
-                />
-                {name}
-              </span>
-            ))}
-          </div>
         </div>
       </section>
 
