@@ -334,24 +334,25 @@ export function HomeHero() {
             <span aria-hidden style={{ color: BORDER }}>·</span>
             <span>Free to browse — no account required</span>
           </div>
-        </div>
-      </section>
 
-      {/* ── Sign-in surface — appears after user has seen the value ── */}
-      <section className="border-b" style={{ borderColor: BORDER_SOFT }}>
-        <div className="mx-auto max-w-6xl px-6 lg:px-8 py-16">
-          {signedIn ? (
-            <WelcomeBack />
-          ) : (
-            <div className="max-w-md">
-              <AuthCard
-                variant="compact"
-                title="Designers who contribute get credited."
-                intent="Submit a bundle under your name. Build a public profile in the library. 10 generations per hour instead of 3 — your work persists and is saved to your account."
-                onSuccess={() => router.refresh()}
-              />
-            </div>
-          )}
+          {/* Auth surface — merged into this section to avoid extra padding block */}
+          <div
+            className="pt-10 mt-10"
+            style={{ borderTop: `1px solid ${BORDER_SOFT}` }}
+          >
+            {signedIn ? (
+              <WelcomeBack />
+            ) : (
+              <div className="max-w-md">
+                <AuthCard
+                  variant="compact"
+                  title="Designers who contribute get credited."
+                  intent="Submit a bundle under your name. Build a public profile in the library. 10 generations per hour instead of 3 — your work persists and is saved to your account."
+                  onSuccess={() => router.refresh()}
+                />
+              </div>
+            )}
+          </div>
         </div>
       </section>
     </>

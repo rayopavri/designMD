@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { HomeHero } from "./HomeHero";
-import { HomeLibrary } from "./HomeLibrary";
+import { HomeFeaturedBundles } from "./HomeFeaturedBundles";
 
 export const metadata: Metadata = {
   title: 'Design Systems for AI Tools',
@@ -46,7 +46,7 @@ function Home() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <HomeHero />
-      <HomeLibrary />
+      <HomeFeaturedBundles />
     </>
   );
 }
