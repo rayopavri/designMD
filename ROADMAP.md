@@ -256,6 +256,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-06-03** - SEO: add legal pages to sitemap for improved search engine crawling. (d864afa)
 - [x] **2026-06-03** - SEO: add metadata exports to legal pages for improved search engine discoverability. (ed8aa6d)
 - [x] **2026-06-03** - SEO: split copy page into server wrapper + client component for better code organization. (e922170)
 - [x] **2026-06-03** - SEO metadata export added to home page for improved search engine discoverability. (7580424)
