@@ -1,3 +1,16 @@
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Terms of Service',
+  description: 'Terms governing your use of UIUXskills at uiuxskills.com.',
+  alternates: { canonical: 'https://uiuxskills.com/legal/terms' },
+  openGraph: {
+    title: 'Terms of Service',
+    description: 'Terms governing your use of UIUXskills at uiuxskills.com.',
+    url: 'https://uiuxskills.com/legal/terms',
+  },
+};
+
 import { SectionLabel } from "@/components/ui/Shell";
 import { BORDER_SOFT, INK, MUTED, MONO, SUB } from "@/lib/ui-data/tokens";
 

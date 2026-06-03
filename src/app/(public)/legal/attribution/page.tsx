@@ -1,3 +1,16 @@
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Attribution',
+  description: 'Open-source credits for the libraries and tools used in building UIUXskills.',
+  alternates: { canonical: 'https://uiuxskills.com/legal/attribution' },
+  openGraph: {
+    title: 'Attribution',
+    description: 'Open-source credits for the libraries and tools used in building UIUXskills.',
+    url: 'https://uiuxskills.com/legal/attribution',
+  },
+};
+
 import { SectionLabel } from "@/components/ui/Shell";
 import { BORDER_SOFT, INK, MUTED, MONO, SUB } from "@/lib/ui-data/tokens";
 

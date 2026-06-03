@@ -1,3 +1,16 @@
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Privacy Policy',
+  description: 'How UIUXskills collects, uses, and protects your data.',
+  alternates: { canonical: 'https://uiuxskills.com/legal/privacy' },
+  openGraph: {
+    title: 'Privacy Policy',
+    description: 'How UIUXskills collects, uses, and protects your data.',
+    url: 'https://uiuxskills.com/legal/privacy',
+  },
+};
+
 import { SectionLabel } from "@/components/ui/Shell";
 import { BORDER_SOFT, INK, MUTED, MONO, SUB } from "@/lib/ui-data/tokens";
 
