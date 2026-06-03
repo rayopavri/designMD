@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-06-03** (Rotating brand: 1300ms cycle, layout-animated width, tight word spacing)
+> Last updated: **2026-06-03** (Rotating brand: remove Shopify, fixed width locked to longest word)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -256,6 +256,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-06-03** - Rotating brand: remove Shopify, fixed width locked to longest word (99e12f3)
 - [x] **2026-06-03** - Rotating brand: 1300ms cycle, layout-animated width, tight word spacing (cd2d8b5)
 - [x] **2026-06-03** - Rotating brand: 1000ms cycle, 400ms easeIn transition (d9052db)
 - [x] **2026-06-03** - Rotating brand: lime text, 300ms easeIn, 500ms interval, updated brand list (dbde556)
