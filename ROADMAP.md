@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-06-03** (rename Library and Bundles to Design Skills across the site)
+> Last updated: **2026-06-03** (Rotate brand name in hero headline with vertical slide animation)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -256,6 +256,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-06-03** - Rotate brand name in hero headline with vertical slide animation: replaced static "Stripe" with RotatingBrand component cycling through Linear, Stripe, Vercel, Wise, Ramp, Nike, Airbnb, Spotify, Tesla every 2s using Framer Motion AnimatePresence with ease-in-out slide up/down in LIME brand color (#C5E96A). (95615df)
 - [x] **2026-06-03** - rename Library and Bundles to Design Skills across the site: replaced all user-facing "Library" → "Design Skills", "bundle(s)" → "design skill(s)" labels in navigation, footers, and copy across 25 files; URL paths (/library, /library/[slug]) unchanged for SEO; updated all metadata titles and descriptions on pages. (b61aa45)
 - [x] **2026-06-03** - Redesign sign-in as pre-footer split-layout CTA: removed sign-in section from HomeHero, created new HomeSignIn component with 2-column signed-out layout (editorial copy + bordered AuthCard with VIOLET glow) and slim horizontal strip for signed-in state, mounted before footer in page.tsx. (ec8bf0b)
 - [x] **2026-06-03** - Remove peek section — hero flows directly into sign-in then library grid: deleted the asymmetric editorial cards (Stripe design.md preview + Linear/Vercel insight cards), replaced with direct sign-in CTA + HomeFeaturedBundles grid below hero, reducing vertical scroll distance to content. (e999f87)
