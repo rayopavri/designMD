@@ -27,7 +27,7 @@ function RotatingBrand() {
   useEffect(() => {
     const t = setInterval(
       () => setIndex(i => (i + 1) % ROTATING_BRANDS.length),
-      2000,
+      1000,
     );
     return () => clearInterval(t);
   }, []);
