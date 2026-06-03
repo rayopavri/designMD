@@ -33,9 +33,6 @@ function RotatingBrand() {
   }, []);
 
   return (
-    /* inline-grid locks width to the widest word; all brand names sit in
-       cell [1,1] as invisible anchors so the box never resizes */
-    {/* perspective on the parent so all faces share the same vanishing point */}
     <span className="relative inline-grid" style={{ verticalAlign: "text-bottom", perspective: "400px" }}>
       {ROTATING_BRANDS.map(brand => (
         <span
