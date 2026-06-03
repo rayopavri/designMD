@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-06-03** (Rotating brand: lime text, 300ms easeIn, 500ms interval, updated brand list)
+> Last updated: **2026-06-03** (Rotating brand: 1000ms cycle, 400ms easeIn transition)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -256,6 +256,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-06-03** - Rotating brand: 1000ms cycle, 400ms easeIn transition (d9052db)
 - [x] **2026-06-03** - Rotating brand: lime text, 300ms easeIn, 500ms interval, updated brand list (dbde556)
 - [x] **2026-06-03** - Hero rotating brand: lime pill highlight sliding in shadcn style (ba5dd37)
 - [x] **2026-06-03** - Fix invalid JSX syntax in RotatingBrand (stray comment broke build) (6f8ce48)
