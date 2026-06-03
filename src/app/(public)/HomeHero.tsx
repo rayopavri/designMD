@@ -18,7 +18,7 @@ import {
 
 const ROTATING_BRANDS = [
   "Linear", "Stripe", "Vercel", "Airbnb",
-  "Spotify", "Ferrari", "Shopify", "Kraken",
+  "Spotify", "Ferrari", "Kraken",
 ];
 
 function RotatingBrand() {
@@ -33,18 +33,24 @@ function RotatingBrand() {
   }, []);
 
   return (
-    /* layout="size" smoothly animates the container to each word's exact
-       width — no fixed-width grid needed, surrounding text stays tight */
-    <motion.span
-      layout="size"
-      className="inline-block overflow-hidden"
+    <span
+      className="relative inline-grid overflow-hidden"
       style={{ verticalAlign: "text-bottom" }}
-      transition={{ layout: { duration: 0.3, ease: "easeIn" } }}
     >
+      {/* All brands stacked invisibly so the grid cell locks to the widest word */}
+      {ROTATING_BRANDS.map(brand => (
+        <span
+          key={brand}
+          className="col-start-1 row-start-1 invisible select-none pointer-events-none"
+          aria-hidden
+        >
+          {brand}
+        </span>
+      ))}
       <AnimatePresence mode="wait" initial={false}>
         <motion.span
           key={ROTATING_BRANDS[index]}
-          className="block whitespace-nowrap"
+          className="col-start-1 row-start-1 text-center"
           initial={{ y: "110%" }}
           animate={{ y: 0 }}
           exit={{ y: "-110%" }}
@@ -54,7 +60,7 @@ function RotatingBrand() {
           {ROTATING_BRANDS[index]}
         </motion.span>
       </AnimatePresence>
-    </motion.span>
+    </span>
   );
 }
 
