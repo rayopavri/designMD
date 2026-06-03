@@ -7,16 +7,12 @@ import { AuthCard } from "@/components/ui/AuthCard";
 import {
   BORDER,
   BORDER_SOFT,
-  CYAN,
   INK,
   INK_ON_LIGHT,
   LIME,
   MONO,
   MUTED,
-  PEACH,
   SUB,
-  SURFACE,
-  SURFACE_2,
   VIOLET,
 } from "@/lib/ui-data/tokens";
 import { useAuth } from "@/lib/ui-data/mockAuth";
@@ -32,11 +28,6 @@ const BRANDS = [
   { name: "Figma",   dot: "#F24E1E" },
 ];
 
-const STRIPE_COLORS = [
-  { label: "primary",    value: "#635BFF", swatch: "#635BFF" },
-  { label: "surface",    value: "#F6F9FC", swatch: "#F6F9FC" },
-  { label: "text",       value: "#0A2540", swatch: "#0A2540" },
-];
 
 export function HomeHero() {
   const router = useRouter();
@@ -123,236 +114,21 @@ export function HomeHero() {
         </div>
       </section>
 
-      {/* ── Palette bar — repurposed as section divider ── */}
-      <div className="h-px w-full flex" aria-hidden>
-        <span className="flex-1" style={{ background: VIOLET }} />
-        <span className="flex-1" style={{ background: LIME }} />
-        <span className="flex-1" style={{ background: PEACH }} />
-        <span className="flex-1" style={{ background: CYAN }} />
-        <span className="flex-1" style={{ background: "#EB5757" }} />
-      </div>
-
-      {/* ── Curiosity peek section ── */}
+      {/* ── Sign-in / welcome-back ── */}
       <section className="border-b" style={{ borderColor: BORDER_SOFT }}>
         <div className="mx-auto max-w-6xl px-6 lg:px-8 py-16">
-
-          <div
-            className="text-[10.5px] uppercase tracking-[0.22em] mb-10"
-            style={{ fontFamily: MONO, color: MUTED }}
-          >
-            What&apos;s inside a DESIGN.md?
-          </div>
-
-          {/* Asymmetric layout: featured document-preview card + two compact insight cards */}
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4 mb-12">
-
-            {/* ── Featured card: Stripe with DESIGN.md document preview ── */}
-            <div
-              className="rounded-xl border overflow-hidden flex flex-col"
-              style={{ borderColor: BORDER, background: SURFACE }}
-            >
-              {/* Card header */}
-              <div
-                className="flex items-center justify-between px-6 py-4"
-                style={{ borderBottom: `1px solid ${BORDER}` }}
-              >
-                <span className="text-[12.5px]" style={{ fontFamily: MONO, color: INK }}>
-                  stripe/design.md
-                </span>
-                <span className="text-[10.5px]" style={{ fontFamily: MONO, color: LIME }}>
-                  91% coverage
-                </span>
-              </div>
-
-              {/* Document preview — looks like the actual file */}
-              <div className="px-6 py-5 flex-1" style={{ background: SURFACE_2 }}>
-                {/* Colors */}
-                <div className="mb-5">
-                  <div
-                    className="text-[9.5px] uppercase tracking-[0.18em] mb-3"
-                    style={{ fontFamily: MONO, color: MUTED }}
-                  >
-                    ## Colors
-                  </div>
-                  <div className="space-y-2">
-                    {STRIPE_COLORS.map(({ label, value, swatch }) => (
-                      <div
-                        key={label}
-                        className="flex items-center gap-3 text-[11px]"
-                        style={{ fontFamily: MONO }}
-                      >
-                        <span className="w-16 shrink-0" style={{ color: MUTED }}>{label}</span>
-                        <span
-                          className="h-3 w-3 rounded-sm border shrink-0"
-                          style={{ background: swatch, borderColor: BORDER }}
-                          aria-hidden
-                        />
-                        <span style={{ color: LIME }}>{value}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Typography */}
-                <div className="mb-5">
-                  <div
-                    className="text-[9.5px] uppercase tracking-[0.18em] mb-3"
-                    style={{ fontFamily: MONO, color: MUTED }}
-                  >
-                    ## Typography
-                  </div>
-                  <div className="space-y-1.5 text-[11px]" style={{ fontFamily: MONO }}>
-                    <div className="flex gap-3">
-                      <span className="w-16 shrink-0" style={{ color: MUTED }}>font</span>
-                      <span style={{ color: SUB }}>-apple-system, &quot;SF Pro Text&quot;</span>
-                    </div>
-                    <div className="flex gap-3">
-                      <span className="w-16 shrink-0" style={{ color: MUTED }}>weights</span>
-                      <span style={{ color: SUB }}>400 · 600 only</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Spacing */}
-                <div>
-                  <div
-                    className="text-[9.5px] uppercase tracking-[0.18em] mb-3"
-                    style={{ fontFamily: MONO, color: MUTED }}
-                  >
-                    ## Spacing
-                  </div>
-                  <div className="space-y-1.5 text-[11px]" style={{ fontFamily: MONO }}>
-                    <div className="flex gap-3">
-                      <span className="w-16 shrink-0" style={{ color: MUTED }}>base</span>
-                      <span style={{ color: SUB }}>16px</span>
-                    </div>
-                    <div className="flex gap-3">
-                      <span className="w-16 shrink-0" style={{ color: MUTED }}>grid</span>
-                      <span style={{ color: SUB }}>8-column</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Editorial insight + link */}
-              <div className="px-6 py-5" style={{ borderTop: `1px solid ${BORDER}` }}>
-                <p className="text-[14px] leading-[1.6] mb-4" style={{ color: SUB }}>
-                  &ldquo;The spacing rhythm that made Stripe&apos;s layouts feel
-                  engineered, not eyeballed.&rdquo;
-                </p>
-                <Link
-                  href="/library"
-                  className="inline-flex items-center gap-1 text-[12px] hover:underline underline-offset-4"
-                  style={{ fontFamily: MONO, color: VIOLET }}
-                >
-                  Open bundle
-                  <ArrowRight className="h-3 w-3" />
-                </Link>
-              </div>
+          {signedIn ? (
+            <WelcomeBack />
+          ) : (
+            <div className="max-w-md">
+              <AuthCard
+                variant="compact"
+                title="Designers who contribute get credited."
+                intent="Submit a bundle under your name. Build a public profile in the library. 10 generations per hour instead of 3 — your work persists and is saved to your account."
+                onSuccess={() => router.refresh()}
+              />
             </div>
-
-            {/* ── Right column: two compact insight cards ── */}
-            <div className="flex flex-col gap-4">
-
-              {/* Linear */}
-              <div
-                className="rounded-xl border p-6 flex flex-col gap-4 flex-1"
-                style={{ borderColor: BORDER, background: SURFACE }}
-              >
-                <div className="flex items-center gap-2">
-                  <span
-                    className="h-2 w-2 rounded-full shrink-0"
-                    style={{ background: "#5E6AD2" }}
-                    aria-hidden
-                  />
-                  <span className="text-[12px]" style={{ fontFamily: MONO, color: INK }}>
-                    linear/design.md
-                  </span>
-                  <span className="ml-auto text-[10.5px]" style={{ fontFamily: MONO, color: LIME }}>
-                    94%
-                  </span>
-                </div>
-                <p className="text-[14px] leading-[1.55] flex-1" style={{ color: SUB }}>
-                  Two font weights. No exceptions. Every pixel made deliberate.
-                </p>
-                <Link
-                  href="/library"
-                  className="inline-flex items-center gap-1 text-[12px] hover:underline underline-offset-4"
-                  style={{ fontFamily: MONO, color: VIOLET }}
-                >
-                  Open bundle
-                  <ArrowRight className="h-3 w-3" />
-                </Link>
-              </div>
-
-              {/* Vercel */}
-              <div
-                className="rounded-xl border p-6 flex flex-col gap-4 flex-1"
-                style={{ borderColor: BORDER, background: SURFACE }}
-              >
-                <div className="flex items-center gap-2">
-                  <span
-                    className="h-2 w-2 rounded-full border shrink-0"
-                    style={{ background: "#F2F1EE", borderColor: "#3A3A40" }}
-                    aria-hidden
-                  />
-                  <span className="text-[12px]" style={{ fontFamily: MONO, color: INK }}>
-                    vercel/design.md
-                  </span>
-                  <span className="ml-auto text-[10.5px]" style={{ fontFamily: MONO, color: LIME }}>
-                    89%
-                  </span>
-                </div>
-                <p className="text-[14px] leading-[1.55] flex-1" style={{ color: SUB }}>
-                  Geist first. Dark always. Chrome at zero.
-                </p>
-                <Link
-                  href="/library"
-                  className="inline-flex items-center gap-1 text-[12px] hover:underline underline-offset-4"
-                  style={{ fontFamily: MONO, color: VIOLET }}
-                >
-                  Open bundle
-                  <ArrowRight className="h-3 w-3" />
-                </Link>
-              </div>
-
-            </div>
-          </div>
-
-          {/* Specificity bar — whispered authority */}
-          <div
-            className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-8 text-[11px]"
-            style={{
-              fontFamily: MONO,
-              color: MUTED,
-              borderTop: `1px solid ${BORDER_SOFT}`,
-            }}
-          >
-            <span>47 brand systems</span>
-            <span aria-hidden style={{ color: BORDER }}>·</span>
-            <span>Validated by @google/design.md</span>
-            <span aria-hidden style={{ color: BORDER }}>·</span>
-            <span>Free to browse — no account required</span>
-          </div>
-
-          {/* Auth surface — merged into this section to avoid extra padding block */}
-          <div
-            className="pt-10 mt-10"
-            style={{ borderTop: `1px solid ${BORDER_SOFT}` }}
-          >
-            {signedIn ? (
-              <WelcomeBack />
-            ) : (
-              <div className="max-w-md">
-                <AuthCard
-                  variant="compact"
-                  title="Designers who contribute get credited."
-                  intent="Submit a bundle under your name. Build a public profile in the library. 10 generations per hour instead of 3 — your work persists and is saved to your account."
-                  onSuccess={() => router.refresh()}
-                />
-              </div>
-            )}
-          </div>
+          )}
         </div>
       </section>
     </>
