@@ -1,7 +1,9 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   BORDER,
   BORDER_SOFT,
@@ -13,6 +15,44 @@ import {
   SUB,
   VIOLET,
 } from "@/lib/ui-data/tokens";
+
+const ROTATING_BRANDS = [
+  "Linear", "Stripe", "Vercel", "Wise",
+  "Ramp", "Nike", "Airbnb", "Spotify", "Tesla",
+];
+
+function RotatingBrand() {
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    const t = setInterval(
+      () => setIndex(i => (i + 1) % ROTATING_BRANDS.length),
+      2000,
+    );
+    return () => clearInterval(t);
+  }, []);
+
+  return (
+    <span
+      className="inline-block overflow-hidden"
+      style={{ verticalAlign: "text-bottom", height: "1.05em" }}
+    >
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.span
+          key={ROTATING_BRANDS[index]}
+          className="block"
+          initial={{ y: "105%" }}
+          animate={{ y: "0%" }}
+          exit={{ y: "-105%" }}
+          transition={{ duration: 0.4, ease: "easeInOut" }}
+          style={{ color: LIME, lineHeight: "1.05" }}
+        >
+          {ROTATING_BRANDS[index]}
+        </motion.span>
+      </AnimatePresence>
+    </span>
+  );
+}
 
 const BRANDS = [
   { name: "Linear",  dot: "#5E6AD2" },
@@ -52,7 +92,7 @@ export function HomeHero() {
             className="text-[46px] sm:text-[62px] lg:text-[76px] leading-[1.02] font-medium tracking-[-0.025em] mb-7"
             style={{ color: INK }}
           >
-            <span className="block lg:whitespace-nowrap">What does Stripe tell AI</span>
+            <span className="block lg:whitespace-nowrap">What does <RotatingBrand /> tell AI</span>
             <span className="block lg:whitespace-nowrap" style={{ color: SUB }}>about how to design?</span>
           </h1>
 
