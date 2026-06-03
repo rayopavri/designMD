@@ -19,8 +19,32 @@ export const metadata: Metadata = {
 };
 
 function Home() {
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'Organization',
+        '@id': 'https://uiuxskills.com/#organization',
+        name: 'UIUXskills',
+        url: 'https://uiuxskills.com',
+        logo: 'https://uiuxskills.com/icon.svg',
+      },
+      {
+        '@type': 'WebSite',
+        '@id': 'https://uiuxskills.com/#website',
+        url: 'https://uiuxskills.com',
+        name: 'UIUXskills',
+        publisher: { '@id': 'https://uiuxskills.com/#organization' },
+      },
+    ],
+  };
+
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <HomeHero />
       <HomeLibrary />
     </>
