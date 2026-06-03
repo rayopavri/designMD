@@ -68,19 +68,34 @@ export default async function Page({ params }: Props) {
   const jsonLd = bundle
     ? {
         '@context': 'https://schema.org',
-        '@type': 'BreadcrumbList',
-        itemListElement: [
+        '@graph': [
           {
-            '@type': 'ListItem',
-            position: 1,
-            name: 'Library',
-            item: 'https://uiuxskills.com/library',
+            '@type': 'BreadcrumbList',
+            itemListElement: [
+              {
+                '@type': 'ListItem',
+                position: 1,
+                name: 'Library',
+                item: 'https://uiuxskills.com/library',
+              },
+              {
+                '@type': 'ListItem',
+                position: 2,
+                name: bundle.title,
+                item: `https://uiuxskills.com/library/${slug}`,
+              },
+            ],
           },
           {
-            '@type': 'ListItem',
-            position: 2,
-            name: bundle.title,
-            item: `https://uiuxskills.com/library/${slug}`,
+            '@type': 'Dataset',
+            name: `${bundle.title} Design System`,
+            description: `DESIGN.md bundle for ${bundle.title}. Brand tokens, color palette, typography, and component specs for Claude, Cursor, and Lovable.`,
+            url: `https://uiuxskills.com/library/${slug}`,
+            creator: {
+              '@type': 'Organization',
+              name: 'UIUXskills',
+              url: 'https://uiuxskills.com',
+            },
           },
         ],
       }
