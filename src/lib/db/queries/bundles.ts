@@ -4,6 +4,7 @@
  * Centralised so route handlers stay slim and we can reuse the same
  * filter/sort logic from the upcoming search index build and admin views.
  */
+import { cache } from 'react';
 import { and, asc, desc, eq, ilike, inArray, ne, or, sql, type SQL } from 'drizzle-orm';
 import { db } from '@/lib/db/client';
 import { bundles, categories } from '@/lib/db/schema';
@@ -367,7 +368,7 @@ export async function getOwnerBundleById(
  * status='published' separately, so non-published bundles only appear
  * if you know the slug.
  */
-export async function getVisibleBundleBySlug(slug: string): Promise<BundleDetail | null> {
+export const getVisibleBundleBySlug = cache(async (slug: string): Promise<BundleDetail | null> => {
   const [row] = await db
     .select({
       id: bundles.id,
@@ -419,7 +420,7 @@ export async function getVisibleBundleBySlug(slug: string): Promise<BundleDetail
     .where(and(eq(bundles.slug, slug), ne(bundles.status, 'archived')))
     .limit(1);
   return (row as BundleDetail | undefined) ?? null;
-}
+});
 
 /** @deprecated use getVisibleBundleBySlug. Kept as an alias for any
  * callers we haven't migrated yet — same query path now returns

@@ -21,6 +21,29 @@ export const metadata: Metadata = {
   },
 };
 
+const collectionJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'CollectionPage',
+  '@id': 'https://uiuxskills.com/library',
+  name: 'UIUXskills Design Library',
+  description:
+    'Curated design skills for Linear, Stripe, Vercel, Apple HIG, and more. Drop one into Claude, Cursor, or Lovable to ship on-brand UI instantly.',
+  url: 'https://uiuxskills.com/library',
+  publisher: {
+    '@type': 'Organization',
+    name: 'UIUXskills',
+    url: 'https://uiuxskills.com',
+  },
+};
+
 export default function LibraryPage() {
-  return <LibraryClient />;
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionJsonLd) }}
+      />
+      <LibraryClient />
+    </>
+  );
 }

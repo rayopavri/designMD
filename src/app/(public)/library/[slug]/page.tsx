@@ -1,6 +1,13 @@
 import type { Metadata } from 'next';
 import { getVisibleBundleBySlug } from '@/lib/db/queries/bundles';
+import type { BundleDetail } from '@/lib/db/queries/bundles';
 import BundleDetailClient from './BundleDetailClient';
+
+function buildKeywords(bundle: Pick<BundleDetail, 'primaryCategoryName' | 'compatibleTools'>): string {
+  return [bundle.primaryCategoryName, ...bundle.compatibleTools, 'design system', 'DESIGN.md']
+    .filter(Boolean)
+    .join(', ');
+}
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -40,19 +47,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     `&b=${brandHexParam}` +
     `&cat=${encodeURIComponent(categoryParam)}`;
 
-  const keywords = [
-    bundle.primaryCategoryName,
-    ...bundle.compatibleTools,
-    'design system',
-    'DESIGN.md',
-  ]
-    .filter(Boolean)
-    .join(', ');
-
   return {
     title,
     description,
-    keywords,
+    keywords: buildKeywords(bundle),
     openGraph: {
       title,
       description,
@@ -103,24 +101,18 @@ export default async function Page({ params }: Props) {
             description: `Design skill for ${bundle.title}. Brand tokens, color palette, typography, and component specs for Claude, Cursor, and Lovable.`,
             url: `https://uiuxskills.com/library/${slug}`,
             encodingFormat: 'text/markdown',
-            keywords: [
-              bundle.primaryCategoryName,
-              ...bundle.compatibleTools,
-              'design system',
-              'DESIGN.md',
-            ]
-              .filter(Boolean)
-              .join(', '),
-            ...(bundle.publishedAt ? { datePublished: bundle.publishedAt.toISOString() } : {}),
+            keywords: buildKeywords(bundle),
+            datePublished: bundle.publishedAt?.toISOString(),
             dateModified: bundle.updatedAt.toISOString(),
-            ...(bundle.sourceUrl ? { sameAs: bundle.sourceUrl } : {}),
+            sameAs: bundle.sourceUrl ?? undefined,
             creator: {
               '@type': 'Organization',
               name: 'UIUXskills',
               url: 'https://uiuxskills.com',
             },
             isPartOf: {
-              '@type': 'DataCatalog',
+              '@type': 'CollectionPage',
+              '@id': 'https://uiuxskills.com/library',
               name: 'UIUXskills Design Library',
               url: 'https://uiuxskills.com/library',
             },
