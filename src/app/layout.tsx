@@ -14,9 +14,10 @@ export const metadata: Metadata = {
     siteName: 'UIUXskills',
     type: 'website',
     url: 'https://uiuxskills.com',
+    images: [{ url: '/api/og?t=UIUXskills&i=U&b=8B7BFF', width: 1200, height: 630 }],
   },
   twitter: {
-    card: 'summary',
+    card: 'summary_large_image',
   },
   icons: {
     icon: '/icon.svg',

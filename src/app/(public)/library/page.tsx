@@ -10,6 +10,11 @@ export const metadata: Metadata = {
     description:
       'Browse validated DESIGN.md bundles across 40+ brands. One paste, on-brand AI output.',
     url: 'https://uiuxskills.com/library',
+    images: [{ url: '/api/og?t=Design+System+Library&i=D&b=8B7BFF&cat=library', width: 1200, height: 630 }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    images: ['/api/og?t=Design+System+Library&i=D&b=8B7BFF&cat=library'],
   },
   alternates: {
     canonical: 'https://uiuxskills.com/library',
