@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { HomeHero } from "./HomeHero";
 import { HomeFeaturedBundles } from "./HomeFeaturedBundles";
+import { HomeSignIn } from "./HomeSignIn";
 
 export const metadata: Metadata = {
   title: 'Design Systems for AI Tools',
@@ -47,6 +48,7 @@ function Home() {
       />
       <HomeHero />
       <HomeFeaturedBundles />
+      <HomeSignIn />
     </>
   );
 }
