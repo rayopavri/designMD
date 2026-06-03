@@ -27,32 +27,24 @@ function RotatingBrand() {
   useEffect(() => {
     const t = setInterval(
       () => setIndex(i => (i + 1) % ROTATING_BRANDS.length),
-      1000,
+      1300,
     );
     return () => clearInterval(t);
   }, []);
 
   return (
-    /* overflow-hidden clips the sliding pill; inline-grid keeps width locked
-       to the widest brand so surrounding text never shifts */
-    <span
-      className="relative inline-grid overflow-hidden"
+    /* layout="size" smoothly animates the container to each word's exact
+       width — no fixed-width grid needed, surrounding text stays tight */
+    <motion.span
+      layout="size"
+      className="inline-block overflow-hidden"
       style={{ verticalAlign: "text-bottom" }}
+      transition={{ layout: { duration: 0.3, ease: "easeIn" } }}
     >
-      {/* Invisible anchors with same padding as the pill — sizes the grid cell */}
-      {ROTATING_BRANDS.map(brand => (
-        <span
-          key={brand}
-          className="col-start-1 row-start-1 invisible select-none pointer-events-none"
-          aria-hidden
-        >
-          {brand}
-        </span>
-      ))}
       <AnimatePresence mode="wait" initial={false}>
         <motion.span
           key={ROTATING_BRANDS[index]}
-          className="col-start-1 row-start-1 text-center"
+          className="block whitespace-nowrap"
           initial={{ y: "110%" }}
           animate={{ y: 0 }}
           exit={{ y: "-110%" }}
@@ -62,7 +54,7 @@ function RotatingBrand() {
           {ROTATING_BRANDS[index]}
         </motion.span>
       </AnimatePresence>
-    </span>
+    </motion.span>
   );
 }
 
