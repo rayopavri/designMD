@@ -35,7 +35,8 @@ function RotatingBrand() {
   return (
     /* inline-grid locks width to the widest word; all brand names sit in
        cell [1,1] as invisible anchors so the box never resizes */
-    <span className="relative inline-grid" style={{ verticalAlign: "text-bottom" }}>
+    {/* perspective on the parent so all faces share the same vanishing point */}
+    <span className="relative inline-grid" style={{ verticalAlign: "text-bottom", perspective: "400px" }}>
       {ROTATING_BRANDS.map(brand => (
         <span
           key={brand}
@@ -49,11 +50,11 @@ function RotatingBrand() {
         <motion.span
           key={ROTATING_BRANDS[index]}
           className="col-start-1 row-start-1 text-center"
-          initial={{ rotateX: -90, opacity: 0, transformPerspective: 500 }}
-          animate={{ rotateX: 0, opacity: 1, transformPerspective: 500 }}
-          exit={{ rotateX: 90, opacity: 0, transformPerspective: 500 }}
-          transition={{ duration: 0.35, ease: "easeInOut" }}
-          style={{ color: LIME }}
+          initial={{ rotateX: 90, opacity: 0 }}
+          animate={{ rotateX: 0, opacity: 1 }}
+          exit={{ rotateX: -90, opacity: 0 }}
+          transition={{ duration: 0.4, ease: "easeInOut" }}
+          style={{ color: LIME, transformOrigin: "center center" }}
         >
           {ROTATING_BRANDS[index]}
         </motion.span>
