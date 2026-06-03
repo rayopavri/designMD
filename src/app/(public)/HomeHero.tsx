@@ -33,12 +33,19 @@ function RotatingBrand() {
   }, []);
 
   return (
-    <span className="relative inline-grid" style={{ verticalAlign: "text-bottom", perspective: "400px" }}>
+    /* overflow-hidden clips the sliding pill; inline-grid keeps width locked
+       to the widest brand so surrounding text never shifts */
+    <span
+      className="relative inline-grid overflow-hidden"
+      style={{ verticalAlign: "text-bottom" }}
+    >
+      {/* Invisible anchors with same padding as the pill — sizes the grid cell */}
       {ROTATING_BRANDS.map(brand => (
         <span
           key={brand}
           className="col-start-1 row-start-1 invisible select-none pointer-events-none"
           aria-hidden
+          style={{ padding: "0 0.28em" }}
         >
           {brand}
         </span>
@@ -47,11 +54,16 @@ function RotatingBrand() {
         <motion.span
           key={ROTATING_BRANDS[index]}
           className="col-start-1 row-start-1 text-center"
-          initial={{ rotateX: 90, opacity: 0 }}
-          animate={{ rotateX: 0, opacity: 1 }}
-          exit={{ rotateX: -90, opacity: 0 }}
-          transition={{ duration: 0.4, ease: "easeInOut" }}
-          style={{ color: LIME, transformOrigin: "center center" }}
+          initial={{ y: "110%" }}
+          animate={{ y: 0 }}
+          exit={{ y: "-110%" }}
+          transition={{ duration: 0.35, ease: "easeInOut" }}
+          style={{
+            background: LIME,
+            color: "#fff",
+            borderRadius: "0.18em",
+            padding: "0 0.28em",
+          }}
         >
           {ROTATING_BRANDS[index]}
         </motion.span>
