@@ -2,13 +2,13 @@ import type { Metadata } from 'next';
 import LibraryClient from './LibraryClient';
 
 export const metadata: Metadata = {
-  title: 'Design System Library',
+  title: 'Design Skills',
   description:
-    'Curated DESIGN.md bundles for Linear, Stripe, Vercel, Apple HIG, and more. Drop one into Claude, Cursor, or Lovable to ship on-brand UI instantly.',
+    'Curated design skills for Linear, Stripe, Vercel, Apple HIG, and more. Drop one into Claude, Cursor, or Lovable to ship on-brand UI instantly.',
   openGraph: {
-    title: 'Design System Library',
+    title: 'Design Skills',
     description:
-      'Browse validated DESIGN.md bundles across 40+ brands. One paste, on-brand AI output.',
+      'Browse design skills across 40+ brands. One paste, on-brand AI output.',
     url: 'https://uiuxskills.com/library',
     images: [{ url: '/api/og?t=Design+System+Library&i=D&b=8B7BFF&cat=library', width: 1200, height: 630 }],
   },

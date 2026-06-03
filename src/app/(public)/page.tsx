@@ -6,14 +6,14 @@ import { HomeSignIn } from "./HomeSignIn";
 export const metadata: Metadata = {
   title: 'Design Systems for AI Tools',
   description:
-    'Browse curated DESIGN.md bundles for Linear, Stripe, Vercel, and 40+ more brands — or generate one from any URL in seconds.',
+    'Browse curated design skills for Linear, Stripe, Vercel, and 40+ more brands — or generate one from any URL in seconds.',
   alternates: {
     canonical: 'https://uiuxskills.com',
   },
   openGraph: {
     title: 'Design Systems for AI Tools',
     description:
-      'Browse curated DESIGN.md bundles for Linear, Stripe, Vercel, and 40+ more brands — or generate one from any URL in seconds.',
+      'Browse curated design skills for Linear, Stripe, Vercel, and 40+ more brands — or generate one from any URL in seconds.',
     url: 'https://uiuxskills.com',
     type: 'website',
   },

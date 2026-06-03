@@ -29,7 +29,7 @@ const SECTIONS = [
   },
   {
     heading: "Content",
-    body: "Generated design bundles are provided as-is. We make no warranties about their accuracy or fitness for a particular purpose.",
+    body: "Generated design skills are provided as-is. We make no warranties about their accuracy or fitness for a particular purpose.",
   },
   {
     heading: "Limitation of Liability",

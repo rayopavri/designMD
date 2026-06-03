@@ -35,7 +35,7 @@ function basePath(p: string): string {
 }
 
 const NAV: NavItem[] = [
-  { label: "Library", href: "/library", matches: (p) => basePath(p).startsWith("/library") },
+  { label: "Design Skills", href: "/library", matches: (p) => basePath(p).startsWith("/library") },
   { label: "Generate", href: "/generate", matches: (p) => basePath(p).startsWith("/generate") },
 ];
 
@@ -65,7 +65,7 @@ function GenPill() {
         style={{ borderColor: LIME, color: LIME, background: SURFACE }}
       >
         <span className="h-1.5 w-1.5 rounded-full" style={{ background: LIME }} />
-        Done · View bundle
+        Done · View design skill
       </Link>
     );
   }
@@ -155,13 +155,13 @@ export function Header() {
           <GenPill />
           <Link
             href="/library"
-            aria-label="Search the library (Cmd/Ctrl+K)"
+            aria-label="Search design skills (Cmd/Ctrl+K)"
             className="hidden lg:flex h-7 items-center gap-2 rounded-md border px-2 text-[11.5px]"
             style={{ borderColor: BORDER, color: MUTED, background: SURFACE }}
           >
             <Command className="h-3 w-3" aria-hidden="true" />
             <span style={{ color: SUB }}>K</span>
-            <span className="ml-1">Search the library</span>
+            <span className="ml-1">Search design skills</span>
           </Link>
           {user ? (
             <>
@@ -182,7 +182,7 @@ export function Header() {
                 className="text-[12.5px] md:hidden"
                 style={{ color: SUB }}
               >
-                Library
+                Design Skills
               </Link>
               <Link
                 href="/generate"
@@ -230,7 +230,7 @@ export function Footer() {
           </span>
         </div>
         <div className="flex items-center gap-5 flex-wrap">
-          <Link href="/library">library</Link>
+          <Link href="/library">design skills</Link>
           <Link href="/generate">generate</Link>
           <Link href="/legal/terms">terms</Link>
           <Link href="/legal/privacy">privacy</Link>

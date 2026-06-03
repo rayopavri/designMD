@@ -278,7 +278,7 @@ function GenerateContent() {
         return;
       }
       if (!brandName.trim()) {
-        setValidation("Give the brand a name so we can title the bundle.");
+        setValidation("Give the brand a name so we can title the design skill.");
         return;
       }
       clearTimers();
@@ -726,7 +726,7 @@ function GenerateContent() {
 
           {existingSlug ? (
             <div className="mt-4 inline-flex items-center gap-2 text-[11.5px]" style={{ fontFamily: MONO, color: SUB }}>
-              already in the library —
+              already a design skill —
               <a
                 href={`/library/${existingSlug}`}
                 className="underline underline-offset-4"
@@ -744,7 +744,7 @@ function GenerateContent() {
               ? `${(elapsedMs / 1000).toFixed(1)}s · step ${stepIdx + 1} of ${steps.length} · ${steps[Math.max(0, Math.min(stepIdx, steps.length - 1))]?.label ?? "starting"}`
               : status === "failed"
               ? "pipeline failed — try another URL or refresh"
-              : `done · ${(elapsedMs / 1000).toFixed(1)}s · opening bundle…`}
+              : `done · ${(elapsedMs / 1000).toFixed(1)}s · opening design skill…`}
           </div>
         </div>
       </section>

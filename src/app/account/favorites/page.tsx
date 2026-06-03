@@ -145,14 +145,14 @@ function EmptyState() {
       style={{ borderColor: BORDER_SOFT, background: SURFACE }}
     >
       <p className="text-[14px]" style={{ color: SUB }}>
-        You haven&apos;t saved any bundles yet.
+        You haven&apos;t saved any design skills yet.
       </p>
       <Link
         href="/library"
         className="mt-4 inline-flex items-center gap-1.5 text-[13px] font-medium"
         style={{ color: INK }}
       >
-        Browse the library
+        Browse design skills
         <ArrowUpRight className="h-3.5 w-3.5" />
       </Link>
     </div>
@@ -214,7 +214,7 @@ function YourFavorites() {
             : error
               ? "Something went wrong loading your favorites."
               : count === 0
-                ? "Bundles you save on their detail page show up here."
+                ? "Design skills you save on their detail page show up here."
                 : `Saved by ${user.displayName || "you"}.`}
         </p>
 

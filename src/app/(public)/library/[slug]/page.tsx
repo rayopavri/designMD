@@ -9,7 +9,7 @@ interface Props {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const bundle = await getVisibleBundleBySlug(slug);
-  if (!bundle) return { title: 'Bundle not found' };
+  if (!bundle) return { title: 'Design skill not found' };
 
   const coverage = bundle.coverageScore != null ? `${bundle.coverageScore}% coverage` : null;
   const topTools = bundle.compatibleTools.slice(0, 3).join(', ');
@@ -17,7 +17,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const title = `${bundle.title} Design System`;
   const description = [
-    `${bundle.title} DESIGN.md bundle${category}.`,
+    `${bundle.title} design skill${category}.`,
     coverage,
     topTools ? `Works with ${topTools}.` : null,
     'Drop into Claude, Cursor, or Lovable to ship on-brand UI.',
@@ -75,7 +75,7 @@ export default async function Page({ params }: Props) {
               {
                 '@type': 'ListItem',
                 position: 1,
-                name: 'Library',
+                name: 'Design Skills',
                 item: 'https://uiuxskills.com/library',
               },
               {
@@ -89,7 +89,7 @@ export default async function Page({ params }: Props) {
           {
             '@type': 'Dataset',
             name: `${bundle.title} Design System`,
-            description: `DESIGN.md bundle for ${bundle.title}. Brand tokens, color palette, typography, and component specs for Claude, Cursor, and Lovable.`,
+            description: `Design skill for ${bundle.title}. Brand tokens, color palette, typography, and component specs for Claude, Cursor, and Lovable.`,
             url: `https://uiuxskills.com/library/${slug}`,
             creator: {
               '@type': 'Organization',

@@ -39,7 +39,7 @@ export function HomeFeaturedBundles() {
             className="text-[10.5px] uppercase tracking-[0.22em]"
             style={{ fontFamily: MONO, color: MUTED }}
           >
-            Top bundles by coverage
+            Top design skills by coverage
           </div>
           {!loading && top20.length > 0 && (
             <span className="text-[10.5px]" style={{ fontFamily: MONO, color: MUTED }}>
@@ -53,7 +53,7 @@ export function HomeFeaturedBundles() {
           <LoadingSkeleton />
         ) : error ? (
           <div className="py-10 text-center text-[13px]" style={{ color: SUB }}>
-            Couldn&apos;t load bundles.
+            Couldn&apos;t load design skills.
           </div>
         ) : (
           <BundleGrid bundles={top20} />
@@ -71,7 +71,7 @@ export function HomeFeaturedBundles() {
               borderTop: 'none',
             }}
           >
-            View all bundles
+            View all design skills
             <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         )}

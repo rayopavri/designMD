@@ -139,7 +139,7 @@ function CopySuccess() {
                   Submit for editorial review
                 </div>
                 <div className="text-[11.5px] mt-1" style={{ color: SUB }}>
-                  curators verify compliance and publish to the public library
+                  curators verify compliance and publish to design skills
                 </div>
               </Link>
             </div>
@@ -153,7 +153,7 @@ function CopySuccess() {
                 className="inline-flex items-center gap-1.5 text-[12.5px]"
                 style={{ color: VIOLET }}
               >
-                Browse the curated library
+                Browse design skills
                 <ArrowUpRight className="h-3.5 w-3.5" />
               </Link>
             </div>

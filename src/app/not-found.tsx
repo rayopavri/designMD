@@ -36,13 +36,13 @@ export default function NotFound() {
         style={{ borderColor: BORDER, background: SURFACE }}
       >
         <Search className="h-3.5 w-3.5 ml-3" style={{ color: MUTED }} aria-hidden="true" />
-        <label htmlFor="nf-search" className="sr-only">Search the library</label>
+        <label htmlFor="nf-search" className="sr-only">Search design skills</label>
         <input
           id="nf-search"
           type="search"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Search the library — Linear, Figma, agent…"
+          placeholder="Search design skills — Linear, Figma, agent…"
           className="flex-1 h-8 bg-transparent text-[13px] px-1 min-w-0"
           style={{ color: INK }}
         />
@@ -61,7 +61,7 @@ export default function NotFound() {
           <ArrowUpRight className="h-3.5 w-3.5" />
         </Link>
         <Link href="/library" className="inline-flex items-center gap-1.5" style={{ color: VIOLET }}>
-          Back to the library
+          Back to design skills
           <ArrowUpRight className="h-3.5 w-3.5" />
         </Link>
         <Link href="/generate" className="inline-flex items-center gap-1.5" style={{ color: SUB }}>

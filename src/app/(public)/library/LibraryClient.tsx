@@ -118,10 +118,10 @@ function Library() {
     return list;
   }, [allItems, query, filters.category, sort]);
 
-  const headingNoun = filtered.length === 1 ? "design system" : "design systems";
+  const headingNoun = filtered.length === 1 ? "design skill" : "design skills";
 
   const requestKind: { label: string; href: string } = {
-    label: "Design system",
+    label: "Design skill",
     href: "/generate",
   };
 
@@ -136,7 +136,7 @@ function Library() {
                 className="text-[10.5px] uppercase tracking-[0.22em] mb-3"
                 style={{ fontFamily: MONO, color: MUTED }}
               >
-                The library
+                Design Skills
               </div>
               <h1 className="text-[44px] sm:text-[54px] leading-[1.02] font-medium tracking-[-0.022em]">
                 Design systems.
@@ -144,7 +144,7 @@ function Library() {
                 <span style={{ color: SUB }}>Drop one in. Ship on-brand.</span>
               </h1>
               <p className="mt-5 max-w-[36rem] text-[14.5px] leading-[1.6]" style={{ color: SUB }}>
-                design.md files for real brands and design systems — drop one in and your AI tool ships on-brand UI. Use the grid below to search across the library.
+                design.md files for real brands and design systems — drop one in and your AI tool ships on-brand UI. Use the grid below to search across design skills.
               </p>
             </div>
             <div className="col-span-12 lg:col-span-5">

@@ -92,7 +92,7 @@ function Welcome() {
           <span style={{ color: SUB }}>A few optional details.</span>
         </h1>
         <p className="text-[14px] leading-[1.6]" style={{ color: SUB }}>
-          These power your byline when you submit a bundle to the library, and they tune your
+          These power your byline when you submit a design skill, and they tune your
           recommendations. Everything here is optional — you can skip and add it later.
         </p>
 

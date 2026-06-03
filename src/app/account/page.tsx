@@ -33,7 +33,7 @@ function Account() {
           Hello, {user.displayName}.
         </h1>
         <p className="text-[14px] leading-[1.6]" style={{ color: SUB }}>
-          The full account section (bundles, submissions, settings, profile) is coming next. For
+          The full account section (design skills, submissions, settings, profile) is coming next. For
           now this confirms sign-in is working — your session persists across reloads and you can
           sign out from the menu in the header.
         </p>

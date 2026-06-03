@@ -8,7 +8,7 @@ export const metadata: Metadata = {
     template: '%s — UIUXskills',
   },
   description:
-    'Curated design.md bundles + calibrated Claude prompts. Make AI tools follow your design system.',
+    'Curated design skills + calibrated Claude prompts. Make AI tools follow your design system.',
   metadataBase: new URL('https://uiuxskills.com'),
   openGraph: {
     siteName: 'UIUXskills',

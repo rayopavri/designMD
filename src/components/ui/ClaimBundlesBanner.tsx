@@ -75,13 +75,13 @@ export function ClaimBundlesBanner() {
         <span>
           {claimed ? (
             <span style={{ color: LIME }}>
-              {count} bundle{count > 1 ? "s" : ""} claimed — now in Your bundles.
+              {count} design skill{count > 1 ? "s" : ""} claimed — now in Your design skills.
             </span>
           ) : (
             <>
               You generated{" "}
               <span style={{ color: INK }}>
-                {count} bundle{count > 1 ? "s" : ""}
+                {count} design skill{count > 1 ? "s" : ""}
               </span>{" "}
               before signing in.{" "}
               <button

@@ -155,7 +155,7 @@ function SearchBox({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder="Search..."
-        aria-label="Search bundles"
+        aria-label="Search design skills"
         className="w-full pl-8 pr-3 py-2 text-[12.5px] rounded-full focus:outline-none"
         style={{
           background: SURFACE,
@@ -230,7 +230,7 @@ function EmptyState({
       style={{ background: SURFACE, border: `1px solid ${BORDER}` }}
     >
       <div className="text-[14px] mb-2" style={{ color: INK }}>
-        No bundles match your filters.
+        No design skills match your filters.
       </div>
       {hasFilters ? (
         <button
@@ -243,7 +243,7 @@ function EmptyState({
         </button>
       ) : (
         <div className="text-[12px]" style={{ color: SUB }}>
-          The library is being curated — check back soon.
+          Design skills are being curated — check back soon.
         </div>
       )}
     </div>
@@ -257,7 +257,7 @@ function ErrorState({ message }: { message: string }) {
       style={{ background: SURFACE, border: `1px solid ${BORDER}` }}
     >
       <div className="text-[13px] mb-1" style={{ color: INK }}>
-        Couldn&apos;t load the library.
+        Couldn&apos;t load design skills.
       </div>
       <div className="text-[11.5px]" style={{ color: MUTED, fontFamily: MONO }}>
         {message}

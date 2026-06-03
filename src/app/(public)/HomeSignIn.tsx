@@ -33,7 +33,7 @@ export function HomeSignIn() {
               Pick up where you left off.
             </p>
             <p className="text-[13px]" style={{ color: MUTED }}>
-              10 generations/hour · saved to your account · byline on every bundle you publish
+              10 generations/hour · saved to your account · byline on every design skill you publish
             </p>
           </div>
           <div className="flex items-center gap-3 shrink-0">
@@ -42,7 +42,7 @@ export function HomeSignIn() {
               className="h-10 rounded-full px-5 text-[13px] font-medium inline-flex items-center gap-2"
               style={{ background: INK, color: INK_ON_LIGHT }}
             >
-              View library
+              Design skills
               <ArrowRight className="h-3.5 w-3.5" />
             </Link>
             <Link
@@ -69,7 +69,7 @@ export function HomeSignIn() {
               className="text-[10.5px] uppercase tracking-[0.22em] mb-6"
               style={{ fontFamily: MONO, color: MUTED }}
             >
-              Join the library
+              Join the community
             </div>
             <h2
               className="text-[40px] sm:text-[52px] leading-[1.05] font-medium tracking-[-0.022em] mb-6"
@@ -80,8 +80,7 @@ export function HomeSignIn() {
               <span style={{ color: SUB }}>Get credited.</span>
             </h2>
             <p className="text-[16px] leading-[1.65]" style={{ color: SUB }}>
-              Submit a bundle under your name. Build a public profile in the
-              library. 10 generations per hour instead of 3 — your work
+              Submit a design skill under your name. Build a public profile. 10 generations per hour instead of 3 — your work
               persists and is saved to your account.
             </p>
           </div>

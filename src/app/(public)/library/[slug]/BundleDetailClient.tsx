@@ -57,7 +57,7 @@ function BundleDetail() {
       <div className="mx-auto max-w-3xl px-6 lg:px-8 py-32 text-center">
         <SectionLabel n="·" t="Loading" />
         <h1 className="mt-4 text-[28px] font-medium" style={{ color: SUB }}>
-          Fetching bundle…
+          Fetching design skill…
         </h1>
       </div>
     );
@@ -76,7 +76,7 @@ function BundleDetail() {
           className="mt-6 inline-flex items-center gap-1.5 text-[13px]"
           style={{ color: VIOLET }}
         >
-          Back to library
+          Back to design skills
           <ArrowUpRight className="h-3.5 w-3.5" />
         </Link>
       </div>
@@ -93,7 +93,7 @@ function BundleDetail() {
           className="mt-6 inline-flex items-center gap-1.5 text-[13px]"
           style={{ color: VIOLET }}
         >
-          Back to library
+          Back to design skills
           <ArrowUpRight className="h-3.5 w-3.5" />
         </Link>
       </div>
@@ -636,19 +636,19 @@ function StatusBanner({
   const COPY: Record<typeof status, { label: string; detail: string }> = {
     pending_review: {
       label: "Draft",
-      detail: "Awaiting editorial review. The library only lists published bundles.",
+      detail: "Awaiting editorial review. Only published design skills are listed.",
     },
     personal: {
       label: "Personal draft",
-      detail: "Held below the quality bar for the public library — usable, but not editor-approved.",
+      detail: "Held below the quality bar — usable, but not editor-approved.",
     },
     rejected: {
       label: "Rejected",
-      detail: "An editor reviewed this and asked for changes before it can go to the library.",
+      detail: "An editor reviewed this and asked for changes before it can be published as a design skill.",
     },
     flagged: {
       label: "Flagged",
-      detail: "This bundle has been flagged by community votes and is under re-review.",
+      detail: "This design skill has been flagged by community votes and is under re-review.",
     },
   };
   const { label, detail } = COPY[status];
@@ -753,7 +753,7 @@ function Breadcrumb({ item }: { item: BundleItem }) {
         style={{ fontFamily: MONO, color: MUTED }}
       >
         <Link href="/library" style={{ color: SUB }}>
-          library
+          design skills
         </Link>
         <ChevronRight className="h-3 w-3" />
         <span style={{ color: INK }}>

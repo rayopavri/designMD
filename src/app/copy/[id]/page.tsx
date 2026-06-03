@@ -4,7 +4,7 @@ import CopyPage from './CopyPage';
 export const metadata: Metadata = {
   title: 'Draft Ready',
   description:
-    'Your generated design bundle draft is ready. Paste it into Claude, Cursor, or Lovable to ship on-brand UI.',
+    'Your generated design skill draft is ready. Paste it into Claude, Cursor, or Lovable to ship on-brand UI.',
   robots: { index: false },
 };
 

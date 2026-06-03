@@ -17,12 +17,12 @@ import { BORDER_SOFT, INK, MUTED, MONO, SUB } from "@/lib/ui-data/tokens";
 const CREDITS = [
   {
     name: "@google/design.md",
-    role: "The open-source design.md format that powers every bundle in this library.",
+    role: "The open-source design.md format that powers every design skill.",
     license: "Apache 2.0",
   },
   {
     name: "Firecrawl",
-    role: "Web scraping and content extraction used in the bundle generation pipeline.",
+    role: "Web scraping and content extraction used in the design skill generation pipeline.",
     license: "AGPL-3.0",
   },
   {

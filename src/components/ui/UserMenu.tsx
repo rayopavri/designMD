@@ -88,7 +88,7 @@ export function UserMenu() {
             style={{ color: INK }}
           >
             <LayoutList className="h-3.5 w-3.5" style={{ color: SUB }} />
-            Your bundles
+            Your design skills
           </Link>
           <Link
             href="/account/favorites"

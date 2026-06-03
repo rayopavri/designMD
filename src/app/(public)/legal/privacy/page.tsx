@@ -16,10 +16,10 @@ import { BORDER_SOFT, INK, MUTED, MONO, SUB } from "@/lib/ui-data/tokens";
 
 const THIRD_PARTIES = [
   { name: "Firebase Auth", role: "Authentication — stores your email and auth tokens." },
-  { name: "Supabase / Postgres", role: "Database — stores bundles, accounts, and usage data." },
+  { name: "Supabase / Postgres", role: "Database — stores design skills, accounts, and usage data." },
   { name: "Upstash Redis", role: "Rate limiting — transiently stores IP addresses to enforce request limits." },
   { name: "Vercel", role: "Hosting and edge delivery — processes all requests." },
-  { name: "Anthropic Claude API", role: "AI processing — submitted URLs and their scraped content are sent to generate design bundles." },
+  { name: "Anthropic Claude API", role: "AI processing — submitted URLs and their scraped content are sent to generate design skills." },
   { name: "Google Gemini API", role: "AI processing — same as above; used in the generation pipeline." },
   { name: "Firecrawl", role: "Web scraping — submitted URLs are crawled to extract content for generation." },
 ];
@@ -50,7 +50,7 @@ export default function PrivacyPage() {
             What we collect
           </h2>
           <p className="mt-3 text-[14px] leading-[1.7]" style={{ color: SUB }}>
-            We collect your email address when you sign in, URLs you submit for bundle generation,
+            We collect your email address when you sign in, URLs you submit for design skill generation,
             and basic usage data (pages visited, actions taken). We do not sell your data.
           </p>
         </div>
@@ -62,8 +62,8 @@ export default function PrivacyPage() {
             How we use it
           </h2>
           <p className="mt-3 text-[14px] leading-[1.7]" style={{ color: SUB }}>
-            Your email is used to authenticate you and associate generated bundles with your account.
-            Submitted URLs are processed through our AI pipeline to produce design bundles.
+            Your email is used to authenticate you and associate generated design skills with your account.
+            Submitted URLs are processed through our AI pipeline to produce design skills.
             Usage data helps us improve the service.
           </p>
         </div>
@@ -101,8 +101,8 @@ export default function PrivacyPage() {
             Data retention
           </h2>
           <p className="mt-3 text-[14px] leading-[1.7]" style={{ color: SUB }}>
-            Account data is retained until you delete your account. Generated bundles may remain
-            in the library after account deletion if they have been published. Contact us to
+            Account data is retained until you delete your account. Generated design skills may remain
+            after account deletion if they have been published. Contact us to
             request deletion.
           </p>
         </div>

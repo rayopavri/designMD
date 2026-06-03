@@ -62,7 +62,7 @@ export function HomeHero() {
             style={{ color: SUB }}
           >
             We reverse-engineered the design systems behind the interfaces
-            designers aspire to — distilled into DESIGN.md bundles your AI
+            designers aspire to — distilled into design skills your AI
             can act on. Paste one in. Watch the diff.
           </p>
 
@@ -73,7 +73,7 @@ export function HomeHero() {
               className="h-12 rounded-full px-7 text-[13.5px] font-medium inline-flex items-center gap-2 transition-opacity hover:opacity-90"
               style={{ background: VIOLET, color: INK_ON_LIGHT }}
             >
-              Open the library
+              Browse design skills
               <ArrowRight className="h-3.5 w-3.5" />
             </Link>
             <Link
