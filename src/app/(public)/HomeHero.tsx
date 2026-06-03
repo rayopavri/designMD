@@ -69,7 +69,7 @@ export function HomeHero() {
     <>
       {/* ── Above-the-fold hero ── */}
       <section className="border-b" style={{ borderColor: BORDER_SOFT }}>
-        <div className="mx-auto max-w-6xl px-6 lg:px-8 pt-20 pb-16 text-center">
+        <div className="mx-auto max-w-6xl px-6 lg:px-8 pt-20 pb-12 text-center">
 
           {/* Eyebrow */}
           <div
@@ -96,15 +96,14 @@ export function HomeHero() {
 
           {/* Subheadline */}
           <p
-            className="mx-auto max-w-[520px] text-[17px] leading-[1.65] mb-10"
+            className="mx-auto max-w-[520px] lg:max-w-none lg:whitespace-nowrap text-[17px] leading-[1.65] mb-10"
             style={{ color: SUB }}
           >
-            The world's best design systems, formatted for AI.
-            Pick a brand and paste it in.
+            The world's best design systems, formatted for AI. Pick a brand and paste it in.
           </p>
 
           {/* CTAs — primary fills, secondary ghost */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-14">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link
               href="/library"
               className="h-12 rounded-full px-7 text-[13.5px] font-medium inline-flex items-center gap-2 transition-opacity hover:opacity-90"
