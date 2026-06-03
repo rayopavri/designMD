@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-06-03** (Nav: hide Design Skills + Generate on portrait mobile ≤440px)
+> Last updated: **2026-06-03** (seo: quick-win improvements across layout and bundle pages)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -256,6 +256,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-06-03** - seo: quick-win improvements across layout and bundle pages (90f7475)
 - [x] **2026-06-03** - Nav: hide Design Skills + Generate on portrait mobile ≤440px (3af943a)
 - [x] **2026-06-03** - Rotating brand: 1800ms cycle (d843a9e)
 - [x] **2026-06-03** - Hero: single-line subhead on desktop, reduce bottom gap to 48px (36db498)
