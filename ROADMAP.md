@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-06-03** (Speed up hero brand rotation to 1s interval)
+> Last updated: **2026-06-03** (Hero brand rotation: dice-face 3D roll effect)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -256,6 +256,8 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-06-03** - Hero brand rotation: dice-face 3D roll effect (9938418)
+- [x] **2026-06-03** - Switch hero brand rotation to 3D rotateX flip with fixed width: replaced vertical slide with rotateX (slot-machine) 3D flip using transformPerspective; width locked to widest word by rendering all brand names as invisible anchors in same inline-grid cell, preventing surrounding text shift. (a6bed39)
 - [x] **2026-06-03** - Speed up hero brand rotation to 1s interval: reduced HomeHero RotatingBrand interval from 2000ms to 1000ms for faster brand name cycling. (a5fe7af)
 - [x] **2026-06-03** - Rotate brand name in hero headline with vertical slide animation: replaced static "Stripe" with RotatingBrand component cycling through Linear, Stripe, Vercel, Wise, Ramp, Nike, Airbnb, Spotify, Tesla every 2s using Framer Motion AnimatePresence with ease-in-out slide up/down in LIME brand color (#C5E96A). (95615df)
 - [x] **2026-06-03** - rename Library and Bundles to Design Skills across the site: replaced all user-facing "Library" → "Design Skills", "bundle(s)" → "design skill(s)" labels in navigation, footers, and copy across 25 files; URL paths (/library, /library/[slug]) unchanged for SEO; updated all metadata titles and descriptions on pages. (b61aa45)
