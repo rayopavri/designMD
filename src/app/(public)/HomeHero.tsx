@@ -111,9 +111,8 @@ export function HomeHero() {
             className="mx-auto max-w-[520px] text-[17px] leading-[1.65] mb-10"
             style={{ color: SUB }}
           >
-            The design systems behind the world's best products, captured
-            in a file your AI can read. Pick a brand, paste its file into
-            any AI tool — your output starts looking like the real thing.
+            The world's best design systems, formatted for AI.
+            Pick a brand and paste it in.
           </p>
 
           {/* CTAs — primary fills, secondary ghost */}
