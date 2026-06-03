@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-06-03** (Fix invalid JSX syntax in RotatingBrand)
+> Last updated: **2026-06-03** (Hero rotating brand: lime pill highlight sliding in shadcn style)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -256,6 +256,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-06-03** - Hero rotating brand: lime pill highlight sliding in shadcn style (ba5dd37)
 - [x] **2026-06-03** - Fix invalid JSX syntax in RotatingBrand (stray comment broke build) (6f8ce48)
 - [x] **2026-06-03** - Hero brand rotation: dice-face 3D roll effect (9938418)
 - [x] **2026-06-03** - Switch hero brand rotation to 3D rotateX flip with fixed width: replaced vertical slide with rotateX (slot-machine) 3D flip using transformPerspective; width locked to widest word by rendering all brand names as invisible anchors in same inline-grid cell, preventing surrounding text shift. (a6bed39)
