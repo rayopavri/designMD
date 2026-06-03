@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-06-03** (Remove peek section — hero flows directly into sign-in then library grid)
+> Last updated: **2026-06-03** (Redesign sign-in as pre-footer split-layout CTA)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -256,6 +256,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-06-03** - Redesign sign-in as pre-footer split-layout CTA: removed sign-in section from HomeHero, created new HomeSignIn component with 2-column signed-out layout (editorial copy + bordered AuthCard with VIOLET glow) and slim horizontal strip for signed-in state, mounted before footer in page.tsx. (ec8bf0b)
 - [x] **2026-06-03** - Remove peek section — hero flows directly into sign-in then library grid: deleted the asymmetric editorial cards (Stripe design.md preview + Linear/Vercel insight cards), replaced with direct sign-in CTA + HomeFeaturedBundles grid below hero, reducing vertical scroll distance to content. (e999f87)
 - [x] **2026-06-03** - Merge peek+auth sections, replace HomeLibrary with top-20 coverage grid: collapsed sign-in section into peek (border-t divider, saves py-16), new HomeFeaturedBundles reuses ItemCard + useBundleItems, sorts by coverage desc, slices top 20 into gap-px grid + "View all →" footer link. (94ee547)
 - [x] **2026-06-03** - Redesign peek section with asymmetric editorial layout: replaced three equal-column cards with featured Stripe card showing DESIGN.md preview (colors, typography, spacing) alongside compact Linear and Vercel insight cards for product tangibility. (50b6944)
