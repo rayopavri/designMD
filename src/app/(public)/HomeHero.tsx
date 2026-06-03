@@ -33,19 +33,27 @@ function RotatingBrand() {
   }, []);
 
   return (
-    <span
-      className="inline-block overflow-hidden"
-      style={{ verticalAlign: "text-bottom", height: "1.05em" }}
-    >
+    /* inline-grid locks width to the widest word; all brand names sit in
+       cell [1,1] as invisible anchors so the box never resizes */
+    <span className="relative inline-grid" style={{ verticalAlign: "text-bottom" }}>
+      {ROTATING_BRANDS.map(brand => (
+        <span
+          key={brand}
+          className="col-start-1 row-start-1 invisible select-none pointer-events-none"
+          aria-hidden
+        >
+          {brand}
+        </span>
+      ))}
       <AnimatePresence mode="wait" initial={false}>
         <motion.span
           key={ROTATING_BRANDS[index]}
-          className="block"
-          initial={{ y: "105%" }}
-          animate={{ y: "0%" }}
-          exit={{ y: "-105%" }}
-          transition={{ duration: 0.4, ease: "easeInOut" }}
-          style={{ color: LIME, lineHeight: "1.05" }}
+          className="col-start-1 row-start-1 text-center"
+          initial={{ rotateX: -90, opacity: 0, transformPerspective: 500 }}
+          animate={{ rotateX: 0, opacity: 1, transformPerspective: 500 }}
+          exit={{ rotateX: 90, opacity: 0, transformPerspective: 500 }}
+          transition={{ duration: 0.35, ease: "easeInOut" }}
+          style={{ color: LIME }}
         >
           {ROTATING_BRANDS[index]}
         </motion.span>
