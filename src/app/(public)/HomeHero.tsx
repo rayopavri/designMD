@@ -16,149 +16,265 @@ import {
   PEACH,
   SUB,
   SURFACE,
+  SURFACE_2,
   VIOLET,
 } from "@/lib/ui-data/tokens";
 import { useAuth } from "@/lib/ui-data/mockAuth";
 
-/**
- * Split hero for the public landing page.
- *
- * Left column: storytelling (label + headline + palette bar + sample
- * design.md card + three quick links).
- * Right column: sign-in card with persuasive copy. Sign-in is OPTIONAL —
- * the left column has direct links to browse the library and generate
- * without signing in. The right rail is the upsell surface for the
- * value-added features (history, favorites, higher rate limit, byline).
- *
- * When signed in, the right rail flips to a "welcome back" aside with
- * shortcuts into the library and the generator.
- */
+const BRANDS = [
+  { name: "Linear",  dot: "#5E6AD2" },
+  { name: "Stripe",  dot: "#635BFF" },
+  { name: "Vercel",  dot: "#F2F1EE" },
+  { name: "Apple",   dot: "#A2AAAD" },
+  { name: "Notion",  dot: "#FFFFFF" },
+  { name: "Arc",     dot: "#FF7C5C" },
+  { name: "Raycast", dot: "#FF6363" },
+  { name: "Figma",   dot: "#F24E1E" },
+];
+
+const PEEK_CARDS = [
+  {
+    brand: "linear",
+    coverage: "94% coverage",
+    swatch: "#5E6AD2",
+    swatchLabel: "--color-accent",
+    swatchValue: "#5E6AD2",
+    tokenRule: 'font-family: "Inter" · weight: 400 / 500 only',
+    teaser: "Monospace type. Strict neutral palette. Icon-weight tokens that make every glyph feel deliberate.",
+  },
+  {
+    brand: "stripe",
+    coverage: "91% coverage",
+    swatch: "#635BFF",
+    swatchLabel: "--color-primary",
+    swatchValue: "#635BFF",
+    tokenRule: "spacing base: 16px · grid: 8-column",
+    teaser: "The exact spacing rhythm that made Stripe's UI feel engineered, not eyeballed.",
+  },
+  {
+    brand: "vercel",
+    coverage: "89% coverage",
+    swatch: "#F2F1EE",
+    swatchLabel: "--font-family",
+    swatchValue: '"Geist", system-ui',
+    tokenRule: "theme: dark-first · chrome: minimal",
+    teaser: "Geist. Dark-first. The tokens behind the UI your users already trust.",
+  },
+] as const;
+
 export function HomeHero() {
   const router = useRouter();
   const { user } = useAuth();
   const signedIn = Boolean(user);
 
   return (
-    <section className="border-b" style={{ borderColor: BORDER_SOFT }}>
-      <div className="mx-auto max-w-6xl px-6 lg:px-8 pt-16 pb-16">
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-12 lg:gap-16 items-start">
-          {/* Left: storytelling */}
-          <div>
-            <div
-              className="inline-flex items-center gap-2 text-[10.5px] uppercase tracking-[0.22em] mb-7"
-              style={{ fontFamily: MONO, color: MUTED }}
-            >
-              <span
-                className="h-1.5 w-1.5 rounded-full"
-                style={{ background: LIME, boxShadow: `0 0 8px ${LIME}88` }}
-                aria-hidden
-              />
-              <span style={{ color: SUB }}>UIUXskills</span>
-              <span className="h-px w-5" style={{ background: "#26262A" }} aria-hidden />
-              <span>The catalog for designers shipping with AI</span>
-            </div>
+    <>
+      {/* ── Above-the-fold hero ── */}
+      <section className="border-b" style={{ borderColor: BORDER_SOFT }}>
+        <div className="mx-auto max-w-3xl px-6 lg:px-8 pt-20 pb-16 text-center">
 
-            <h1
-              className="text-[44px] sm:text-[60px] lg:text-[72px] leading-[1.02] font-medium tracking-[-0.022em]"
-              style={{ color: INK }}
-            >
-              Stop fighting{" "}
-              <br />
-              <span style={{ color: SUB }}>the model&apos;s defaults.</span>
-            </h1>
-
-            {/* Palette bar — five hero accent colors */}
-            <div className="mt-8 h-1.5 w-full max-w-md rounded overflow-hidden flex" aria-hidden>
-              <span className="flex-1" style={{ background: VIOLET }} />
-              <span className="flex-1" style={{ background: LIME }} />
-              <span className="flex-1" style={{ background: PEACH }} />
-              <span className="flex-1" style={{ background: CYAN }} />
-              <span className="flex-1" style={{ background: "#EB5757" }} />
-            </div>
-
-            {/* Sample design.md card */}
-            <div
-              className="mt-6 rounded-lg border p-5 max-w-xl"
-              style={{ borderColor: BORDER, background: SURFACE }}
-            >
-              <div className="text-[11.5px] mb-2" style={{ fontFamily: MONO, color: SUB }}>
-                <span style={{ color: INK }}>design.md</span>
-                <span className="mx-2" style={{ color: MUTED }}>·</span>
-                linear
-                <span className="mx-2" style={{ color: MUTED }}>·</span>
-                <span style={{ color: LIME }}>94% coverage</span>
-              </div>
-              <p className="text-[13.5px] leading-[1.6]" style={{ color: SUB }}>
-                Linear, Vercel, Stripe, Apple HIG — drop one in and your AI starts
-                shipping on-brand.
-              </p>
-            </div>
-
-            {/* Three quick links — all work without sign-in */}
-            <ul className="mt-6 space-y-2 text-[13.5px]">
-              <li>
-                <Link
-                  href="/library"
-                  className="inline-flex items-center gap-1.5 hover:underline underline-offset-4"
-                  style={{ color: INK }}
-                >
-                  Browse the library
-                </Link>
-                <span style={{ color: SUB }}>{" "}— no account required.</span>
-              </li>
-              <li>
-                <Link
-                  href="/generate"
-                  className="inline-flex items-center gap-1.5 hover:underline underline-offset-4"
-                  style={{ color: INK }}
-                >
-                  Generate from a URL or screenshot
-                </Link>
-                <span style={{ color: SUB }}>{" "}— anonymous works, sign in for higher limits.</span>
-              </li>
-            </ul>
+          {/* Eyebrow */}
+          <div
+            className="inline-flex items-center gap-2 text-[10.5px] uppercase tracking-[0.22em] mb-9"
+            style={{ fontFamily: MONO, color: MUTED }}
+          >
+            <span
+              className="h-1.5 w-1.5 rounded-full"
+              style={{ background: LIME, boxShadow: `0 0 8px ${LIME}88` }}
+              aria-hidden
+            />
+            For designers who actually ship
           </div>
 
-          {/* Right: sign-in card or welcome-back aside */}
+          {/* Headline — curiosity gap: line 1 full weight, line 2 muted */}
+          <h1
+            className="text-[46px] sm:text-[62px] lg:text-[76px] leading-[1.02] font-medium tracking-[-0.025em] mb-7"
+            style={{ color: INK }}
+          >
+            What does Stripe tell AI
+            <br />
+            <span style={{ color: SUB }}>about how to design?</span>
+          </h1>
+
+          {/* Subheadline */}
+          <p
+            className="mx-auto max-w-[520px] text-[17px] leading-[1.65] mb-10"
+            style={{ color: SUB }}
+          >
+            We reverse-engineered the design systems behind the interfaces
+            designers aspire to — distilled into DESIGN.md bundles your AI
+            can act on. Paste one in. Watch the diff.
+          </p>
+
+          {/* CTAs — primary fills, secondary ghost */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-14">
+            <Link
+              href="/library"
+              className="h-12 rounded-full px-7 text-[13.5px] font-medium inline-flex items-center gap-2 transition-opacity hover:opacity-90"
+              style={{ background: VIOLET, color: INK_ON_LIGHT }}
+            >
+              Open the library
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+            <Link
+              href="/generate"
+              className="h-12 rounded-full border px-7 text-[13.5px] font-medium inline-flex items-center gap-2 transition-opacity hover:opacity-70"
+              style={{ borderColor: BORDER, color: SUB }}
+            >
+              Generate from your URL
+            </Link>
+          </div>
+
+          {/* Brand strip — authority transfer before the fold */}
+          <div
+            className="flex items-center justify-center gap-x-6 gap-y-3 flex-wrap"
+          >
+            {BRANDS.map(({ name, dot }) => (
+              <span
+                key={name}
+                className="inline-flex items-center gap-1.5 text-[11px]"
+                style={{ fontFamily: MONO, color: MUTED }}
+              >
+                <span
+                  className="h-1.5 w-1.5 rounded-full shrink-0"
+                  style={{ background: dot }}
+                  aria-hidden
+                />
+                {name}
+              </span>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Palette bar — repurposed as section divider ── */}
+      <div className="h-px w-full flex" aria-hidden>
+        <span className="flex-1" style={{ background: VIOLET }} />
+        <span className="flex-1" style={{ background: LIME }} />
+        <span className="flex-1" style={{ background: PEACH }} />
+        <span className="flex-1" style={{ background: CYAN }} />
+        <span className="flex-1" style={{ background: "#EB5757" }} />
+      </div>
+
+      {/* ── Curiosity peek section ── */}
+      <section className="border-b" style={{ borderColor: BORDER_SOFT }}>
+        <div className="mx-auto max-w-6xl px-6 lg:px-8 py-16">
+
+          <div
+            className="text-[10.5px] uppercase tracking-[0.22em] mb-10"
+            style={{ fontFamily: MONO, color: MUTED }}
+          >
+            What&apos;s inside a DESIGN.md?
+          </div>
+
+          {/* Three peek cards — partial reveal drives clicks */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-12">
+            {PEEK_CARDS.map((card) => (
+              <div
+                key={card.brand}
+                className="rounded-xl border p-6 flex flex-col gap-4"
+                style={{ borderColor: BORDER, background: SURFACE }}
+              >
+                {/* Brand + coverage */}
+                <div className="flex items-center justify-between">
+                  <span className="text-[11.5px]" style={{ fontFamily: MONO, color: INK }}>
+                    {card.brand}/design.md
+                  </span>
+                  <span className="text-[10.5px]" style={{ fontFamily: MONO, color: LIME }}>
+                    {card.coverage}
+                  </span>
+                </div>
+
+                {/* Color swatch + one revealed token value */}
+                <div className="flex items-center gap-3">
+                  <span
+                    className="h-8 w-8 rounded-md shrink-0 border"
+                    style={{ background: card.swatch, borderColor: BORDER }}
+                    aria-hidden
+                  />
+                  <div>
+                    <div className="text-[10px] mb-0.5" style={{ fontFamily: MONO, color: MUTED }}>
+                      {card.swatchLabel}
+                    </div>
+                    <div className="text-[11px]" style={{ fontFamily: MONO, color: LIME }}>
+                      {card.swatchValue}
+                    </div>
+                  </div>
+                </div>
+
+                {/* One token rule — code-style, partial reveal */}
+                <div
+                  className="text-[11px] px-3 py-2 rounded-md border"
+                  style={{
+                    fontFamily: MONO,
+                    color: SUB,
+                    borderColor: BORDER,
+                    background: SURFACE_2,
+                  }}
+                >
+                  {card.tokenRule}
+                </div>
+
+                {/* Teaser copy */}
+                <p className="text-[13px] leading-[1.55] flex-1" style={{ color: SUB }}>
+                  {card.teaser}
+                </p>
+
+                {/* Curiosity link */}
+                <Link
+                  href="/library"
+                  className="inline-flex items-center gap-1 text-[12px] hover:underline underline-offset-4"
+                  style={{ color: VIOLET }}
+                >
+                  See all tokens
+                  <ArrowRight className="h-3 w-3" />
+                </Link>
+              </div>
+            ))}
+          </div>
+
+          {/* Specificity bar — whispered authority */}
+          <div
+            className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-8 text-[11px]"
+            style={{
+              fontFamily: MONO,
+              color: MUTED,
+              borderTop: `1px solid ${BORDER_SOFT}`,
+            }}
+          >
+            <span>47 brand systems</span>
+            <span aria-hidden style={{ color: BORDER }}>·</span>
+            <span>Validated by @google/design.md</span>
+            <span aria-hidden style={{ color: BORDER }}>·</span>
+            <span>Free to browse — no account required</span>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Sign-in surface — appears after user has seen the value ── */}
+      <section className="border-b" style={{ borderColor: BORDER_SOFT }}>
+        <div className="mx-auto max-w-6xl px-6 lg:px-8 py-16">
           {signedIn ? (
             <WelcomeBack />
           ) : (
-            <aside
-              className="rounded-xl border p-7"
-              style={{
-                borderColor: BORDER,
-                background: SURFACE,
-                boxShadow: `0 0 0 1px ${VIOLET}11, 0 24px 48px -24px ${VIOLET}22`,
-              }}
-            >
+            <div className="max-w-md">
               <AuthCard
                 variant="compact"
-                title="Sign in to UIUXskills"
-                intent="Save your generations. Pin favorites. Submit bundles under your byline. And get 10 generations per hour instead of 3. You can keep using the generator without signing in."
-                onSuccess={() => {
-                  // Stay on the homepage; the aside re-renders into the
-                  // welcome-back state on the next render cycle.
-                  router.refresh();
-                }}
+                title="Designers who contribute get credited."
+                intent="Submit a bundle under your name. Build a public profile in the library. 10 generations per hour instead of 3 — your work persists and is saved to your account."
+                onSuccess={() => router.refresh()}
               />
-            </aside>
+            </div>
           )}
         </div>
-      </div>
-    </section>
+      </section>
+    </>
   );
 }
 
 function WelcomeBack() {
   return (
-    <aside
-      className="rounded-xl border p-7 flex flex-col gap-5"
-      style={{
-        borderColor: BORDER,
-        background: SURFACE,
-        boxShadow: `0 0 0 1px ${LIME}11, 0 24px 48px -24px ${LIME}22`,
-      }}
-    >
+    <div className="flex flex-col gap-5 max-w-sm">
       <div
         className="text-[10.5px] uppercase tracking-[0.22em]"
         style={{ fontFamily: MONO, color: MUTED }}
@@ -172,8 +288,8 @@ function WelcomeBack() {
         Pick up where you left off.
       </h3>
       <p className="text-[13.5px] leading-[1.55]" style={{ color: SUB }}>
-        Your generations are higher-priority and rate-limited at 10/hour. Save bundles, pin
-        favorites (soon), and submit to the public library under your byline.
+        Your generations run at 10/hour and are saved to your account. Submit
+        bundles to the public library under your byline.
       </p>
       <div className="flex flex-col gap-2.5">
         <Link
@@ -193,6 +309,6 @@ function WelcomeBack() {
           <ArrowRight className="h-3.5 w-3.5" />
         </Link>
       </div>
-    </aside>
+    </div>
   );
 }
