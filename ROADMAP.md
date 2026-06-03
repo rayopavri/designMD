@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-06-03** (Fix hero headline to single line per phrase on desktop)
+> Last updated: **2026-06-03** (Redesign peek section with asymmetric editorial layout)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -256,6 +256,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-06-03** - Redesign peek section with asymmetric editorial layout: replaced three equal-column cards with featured Stripe card showing DESIGN.md preview (colors, typography, spacing) alongside compact Linear and Vercel insight cards for product tangibility. (50b6944)
 - [x] **2026-06-03** - Fix hero headline to single line per phrase on desktop: widened hero container to max-w-6xl and wrap each phrase in block span with lg:whitespace-nowrap for single-line layout on lg breakpoint. (58e9aa7)
 - [x] **2026-06-03** - Redesign landing page hero with Concept 2 curiosity-gap layout: center-aligned headline ("What does Stripe tell AI about how to design?"), updated eyebrow ("For designers who actually ship"), violet primary CTA + ghost secondary, brand strip for authority transfer, 5-color palette divider, three peek cards (linear/stripe/vercel), specificity bar, and moved sign-in below fold. (b673f5e)
 - [x] **2026-06-03** - SEO: add Dataset schema alongside BreadcrumbList on bundle detail pages for richer search results. (6c9487c)
