@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-06-03** (Hero brand rotation: dice-face 3D roll effect)
+> Last updated: **2026-06-03** (Fix invalid JSX syntax in RotatingBrand)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -256,6 +256,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-06-03** - Fix invalid JSX syntax in RotatingBrand (stray comment broke build) (6f8ce48)
 - [x] **2026-06-03** - Hero brand rotation: dice-face 3D roll effect (9938418)
 - [x] **2026-06-03** - Switch hero brand rotation to 3D rotateX flip with fixed width: replaced vertical slide with rotateX (slot-machine) 3D flip using transformPerspective; width locked to widest word by rendering all brand names as invisible anchors in same inline-grid cell, preventing surrounding text shift. (a6bed39)
 - [x] **2026-06-03** - Speed up hero brand rotation to 1s interval: reduced HomeHero RotatingBrand interval from 2000ms to 1000ms for faster brand name cycling. (a5fe7af)
