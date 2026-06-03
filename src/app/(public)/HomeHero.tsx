@@ -17,8 +17,8 @@ import {
 } from "@/lib/ui-data/tokens";
 
 const ROTATING_BRANDS = [
-  "Linear", "Stripe", "Vercel", "Wise",
-  "Ramp", "Nike", "Airbnb", "Spotify", "Tesla",
+  "Linear", "Stripe", "Vercel", "Airbnb",
+  "Spotify", "Ferrari", "Shopify", "Kraken",
 ];
 
 function RotatingBrand() {
@@ -27,7 +27,7 @@ function RotatingBrand() {
   useEffect(() => {
     const t = setInterval(
       () => setIndex(i => (i + 1) % ROTATING_BRANDS.length),
-      1000,
+      500,
     );
     return () => clearInterval(t);
   }, []);
@@ -45,7 +45,6 @@ function RotatingBrand() {
           key={brand}
           className="col-start-1 row-start-1 invisible select-none pointer-events-none"
           aria-hidden
-          style={{ padding: "0 0.28em" }}
         >
           {brand}
         </span>
@@ -57,13 +56,8 @@ function RotatingBrand() {
           initial={{ y: "110%" }}
           animate={{ y: 0 }}
           exit={{ y: "-110%" }}
-          transition={{ duration: 0.35, ease: "easeInOut" }}
-          style={{
-            background: LIME,
-            color: "#fff",
-            borderRadius: "0.18em",
-            padding: "0 0.28em",
-          }}
+          transition={{ duration: 0.3, ease: "easeIn" }}
+          style={{ color: LIME }}
         >
           {ROTATING_BRANDS[index]}
         </motion.span>
