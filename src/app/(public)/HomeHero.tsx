@@ -27,7 +27,7 @@ function RotatingBrand() {
   useEffect(() => {
     const t = setInterval(
       () => setIndex(i => (i + 1) % ROTATING_BRANDS.length),
-      500,
+      1000,
     );
     return () => clearInterval(t);
   }, []);
@@ -56,7 +56,7 @@ function RotatingBrand() {
           initial={{ y: "110%" }}
           animate={{ y: 0 }}
           exit={{ y: "-110%" }}
-          transition={{ duration: 0.3, ease: "easeIn" }}
+          transition={{ duration: 0.4, ease: "easeIn" }}
           style={{ color: LIME }}
         >
           {ROTATING_BRANDS[index]}
