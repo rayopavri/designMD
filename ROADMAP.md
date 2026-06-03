@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-06-03** (Hero: single-line subhead on desktop, reduce bottom gap to 48px)
+> Last updated: **2026-06-03** (Rotating brand: 1800ms cycle)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -256,6 +256,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-06-03** - Rotating brand: 1800ms cycle (d843a9e)
 - [x] **2026-06-03** - Hero: single-line subhead on desktop, reduce bottom gap to 48px (36db498)
 - [x] **2026-06-03** - Hero: white primary button, remove brand strip (0fd5b71)
 - [x] **2026-06-03** - Tighten hero subheadline to two punchy sentences (6c9c0cb)
