@@ -40,9 +40,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     `&b=${brandHexParam}` +
     `&cat=${encodeURIComponent(categoryParam)}`;
 
+  const keywords = [
+    bundle.primaryCategoryName,
+    ...bundle.compatibleTools,
+    'design system',
+    'DESIGN.md',
+  ]
+    .filter(Boolean)
+    .join(', ');
+
   return {
     title,
     description,
+    keywords,
     openGraph: {
       title,
       description,
@@ -87,14 +97,32 @@ export default async function Page({ params }: Props) {
             ],
           },
           {
-            '@type': 'Dataset',
+            '@type': 'CreativeWork',
+            '@id': `https://uiuxskills.com/library/${slug}`,
             name: `${bundle.title} Design System`,
             description: `Design skill for ${bundle.title}. Brand tokens, color palette, typography, and component specs for Claude, Cursor, and Lovable.`,
             url: `https://uiuxskills.com/library/${slug}`,
+            encodingFormat: 'text/markdown',
+            keywords: [
+              bundle.primaryCategoryName,
+              ...bundle.compatibleTools,
+              'design system',
+              'DESIGN.md',
+            ]
+              .filter(Boolean)
+              .join(', '),
+            ...(bundle.publishedAt ? { datePublished: bundle.publishedAt.toISOString() } : {}),
+            dateModified: bundle.updatedAt.toISOString(),
+            ...(bundle.sourceUrl ? { sameAs: bundle.sourceUrl } : {}),
             creator: {
               '@type': 'Organization',
               name: 'UIUXskills',
               url: 'https://uiuxskills.com',
+            },
+            isPartOf: {
+              '@type': 'DataCatalog',
+              name: 'UIUXskills Design Library',
+              url: 'https://uiuxskills.com/library',
             },
           },
         ],

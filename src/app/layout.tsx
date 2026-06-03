@@ -1,6 +1,10 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { Shell } from '@/components/ui/Shell';
+
+export const viewport: Viewport = {
+  themeColor: '#8B7BFF',
+};
 
 export const metadata: Metadata = {
   title: {
