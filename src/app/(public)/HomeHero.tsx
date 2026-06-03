@@ -111,9 +111,9 @@ export function HomeHero() {
             className="mx-auto max-w-[520px] text-[17px] leading-[1.65] mb-10"
             style={{ color: SUB }}
           >
-            We reverse-engineered the design systems behind the interfaces
-            designers aspire to — distilled into design skills your AI
-            can act on. Paste one in. Watch the diff.
+            The design systems behind the world's best products, captured
+            in a file your AI can read. Pick a brand, paste its file into
+            any AI tool — your output starts looking like the real thing.
           </p>
 
           {/* CTAs — primary fills, secondary ghost */}
