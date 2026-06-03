@@ -32,35 +32,11 @@ const BRANDS = [
   { name: "Figma",   dot: "#F24E1E" },
 ];
 
-const PEEK_CARDS = [
-  {
-    brand: "linear",
-    coverage: "94% coverage",
-    swatch: "#5E6AD2",
-    swatchLabel: "--color-accent",
-    swatchValue: "#5E6AD2",
-    tokenRule: 'font-family: "Inter" · weight: 400 / 500 only',
-    teaser: "Monospace type. Strict neutral palette. Icon-weight tokens that make every glyph feel deliberate.",
-  },
-  {
-    brand: "stripe",
-    coverage: "91% coverage",
-    swatch: "#635BFF",
-    swatchLabel: "--color-primary",
-    swatchValue: "#635BFF",
-    tokenRule: "spacing base: 16px · grid: 8-column",
-    teaser: "The exact spacing rhythm that made Stripe's UI feel engineered, not eyeballed.",
-  },
-  {
-    brand: "vercel",
-    coverage: "89% coverage",
-    swatch: "#F2F1EE",
-    swatchLabel: "--font-family",
-    swatchValue: '"Geist", system-ui',
-    tokenRule: "theme: dark-first · chrome: minimal",
-    teaser: "Geist. Dark-first. The tokens behind the UI your users already trust.",
-  },
-] as const;
+const STRIPE_COLORS = [
+  { label: "primary",    value: "#635BFF", swatch: "#635BFF" },
+  { label: "surface",    value: "#F6F9FC", swatch: "#F6F9FC" },
+  { label: "text",       value: "#0A2540", swatch: "#0A2540" },
+];
 
 export function HomeHero() {
   const router = useRouter();
@@ -167,70 +143,180 @@ export function HomeHero() {
             What&apos;s inside a DESIGN.md?
           </div>
 
-          {/* Three peek cards — partial reveal drives clicks */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-12">
-            {PEEK_CARDS.map((card) => (
+          {/* Asymmetric layout: featured document-preview card + two compact insight cards */}
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4 mb-12">
+
+            {/* ── Featured card: Stripe with DESIGN.md document preview ── */}
+            <div
+              className="rounded-xl border overflow-hidden flex flex-col"
+              style={{ borderColor: BORDER, background: SURFACE }}
+            >
+              {/* Card header */}
               <div
-                key={card.brand}
-                className="rounded-xl border p-6 flex flex-col gap-4"
-                style={{ borderColor: BORDER, background: SURFACE }}
+                className="flex items-center justify-between px-6 py-4"
+                style={{ borderBottom: `1px solid ${BORDER}` }}
               >
-                {/* Brand + coverage */}
-                <div className="flex items-center justify-between">
-                  <span className="text-[11.5px]" style={{ fontFamily: MONO, color: INK }}>
-                    {card.brand}/design.md
-                  </span>
-                  <span className="text-[10.5px]" style={{ fontFamily: MONO, color: LIME }}>
-                    {card.coverage}
-                  </span>
+                <span className="text-[12.5px]" style={{ fontFamily: MONO, color: INK }}>
+                  stripe/design.md
+                </span>
+                <span className="text-[10.5px]" style={{ fontFamily: MONO, color: LIME }}>
+                  91% coverage
+                </span>
+              </div>
+
+              {/* Document preview — looks like the actual file */}
+              <div className="px-6 py-5 flex-1" style={{ background: SURFACE_2 }}>
+                {/* Colors */}
+                <div className="mb-5">
+                  <div
+                    className="text-[9.5px] uppercase tracking-[0.18em] mb-3"
+                    style={{ fontFamily: MONO, color: MUTED }}
+                  >
+                    ## Colors
+                  </div>
+                  <div className="space-y-2">
+                    {STRIPE_COLORS.map(({ label, value, swatch }) => (
+                      <div
+                        key={label}
+                        className="flex items-center gap-3 text-[11px]"
+                        style={{ fontFamily: MONO }}
+                      >
+                        <span className="w-16 shrink-0" style={{ color: MUTED }}>{label}</span>
+                        <span
+                          className="h-3 w-3 rounded-sm border shrink-0"
+                          style={{ background: swatch, borderColor: BORDER }}
+                          aria-hidden
+                        />
+                        <span style={{ color: LIME }}>{value}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
 
-                {/* Color swatch + one revealed token value */}
-                <div className="flex items-center gap-3">
-                  <span
-                    className="h-8 w-8 rounded-md shrink-0 border"
-                    style={{ background: card.swatch, borderColor: BORDER }}
-                    aria-hidden
-                  />
-                  <div>
-                    <div className="text-[10px] mb-0.5" style={{ fontFamily: MONO, color: MUTED }}>
-                      {card.swatchLabel}
+                {/* Typography */}
+                <div className="mb-5">
+                  <div
+                    className="text-[9.5px] uppercase tracking-[0.18em] mb-3"
+                    style={{ fontFamily: MONO, color: MUTED }}
+                  >
+                    ## Typography
+                  </div>
+                  <div className="space-y-1.5 text-[11px]" style={{ fontFamily: MONO }}>
+                    <div className="flex gap-3">
+                      <span className="w-16 shrink-0" style={{ color: MUTED }}>font</span>
+                      <span style={{ color: SUB }}>-apple-system, &quot;SF Pro Text&quot;</span>
                     </div>
-                    <div className="text-[11px]" style={{ fontFamily: MONO, color: LIME }}>
-                      {card.swatchValue}
+                    <div className="flex gap-3">
+                      <span className="w-16 shrink-0" style={{ color: MUTED }}>weights</span>
+                      <span style={{ color: SUB }}>400 · 600 only</span>
                     </div>
                   </div>
                 </div>
 
-                {/* One token rule — code-style, partial reveal */}
-                <div
-                  className="text-[11px] px-3 py-2 rounded-md border"
-                  style={{
-                    fontFamily: MONO,
-                    color: SUB,
-                    borderColor: BORDER,
-                    background: SURFACE_2,
-                  }}
-                >
-                  {card.tokenRule}
+                {/* Spacing */}
+                <div>
+                  <div
+                    className="text-[9.5px] uppercase tracking-[0.18em] mb-3"
+                    style={{ fontFamily: MONO, color: MUTED }}
+                  >
+                    ## Spacing
+                  </div>
+                  <div className="space-y-1.5 text-[11px]" style={{ fontFamily: MONO }}>
+                    <div className="flex gap-3">
+                      <span className="w-16 shrink-0" style={{ color: MUTED }}>base</span>
+                      <span style={{ color: SUB }}>16px</span>
+                    </div>
+                    <div className="flex gap-3">
+                      <span className="w-16 shrink-0" style={{ color: MUTED }}>grid</span>
+                      <span style={{ color: SUB }}>8-column</span>
+                    </div>
+                  </div>
                 </div>
+              </div>
 
-                {/* Teaser copy */}
-                <p className="text-[13px] leading-[1.55] flex-1" style={{ color: SUB }}>
-                  {card.teaser}
+              {/* Editorial insight + link */}
+              <div className="px-6 py-5" style={{ borderTop: `1px solid ${BORDER}` }}>
+                <p className="text-[14px] leading-[1.6] mb-4" style={{ color: SUB }}>
+                  &ldquo;The spacing rhythm that made Stripe&apos;s layouts feel
+                  engineered, not eyeballed.&rdquo;
                 </p>
-
-                {/* Curiosity link */}
                 <Link
                   href="/library"
                   className="inline-flex items-center gap-1 text-[12px] hover:underline underline-offset-4"
-                  style={{ color: VIOLET }}
+                  style={{ fontFamily: MONO, color: VIOLET }}
                 >
-                  See all tokens
+                  Open bundle
                   <ArrowRight className="h-3 w-3" />
                 </Link>
               </div>
-            ))}
+            </div>
+
+            {/* ── Right column: two compact insight cards ── */}
+            <div className="flex flex-col gap-4">
+
+              {/* Linear */}
+              <div
+                className="rounded-xl border p-6 flex flex-col gap-4 flex-1"
+                style={{ borderColor: BORDER, background: SURFACE }}
+              >
+                <div className="flex items-center gap-2">
+                  <span
+                    className="h-2 w-2 rounded-full shrink-0"
+                    style={{ background: "#5E6AD2" }}
+                    aria-hidden
+                  />
+                  <span className="text-[12px]" style={{ fontFamily: MONO, color: INK }}>
+                    linear/design.md
+                  </span>
+                  <span className="ml-auto text-[10.5px]" style={{ fontFamily: MONO, color: LIME }}>
+                    94%
+                  </span>
+                </div>
+                <p className="text-[14px] leading-[1.55] flex-1" style={{ color: SUB }}>
+                  Two font weights. No exceptions. Every pixel made deliberate.
+                </p>
+                <Link
+                  href="/library"
+                  className="inline-flex items-center gap-1 text-[12px] hover:underline underline-offset-4"
+                  style={{ fontFamily: MONO, color: VIOLET }}
+                >
+                  Open bundle
+                  <ArrowRight className="h-3 w-3" />
+                </Link>
+              </div>
+
+              {/* Vercel */}
+              <div
+                className="rounded-xl border p-6 flex flex-col gap-4 flex-1"
+                style={{ borderColor: BORDER, background: SURFACE }}
+              >
+                <div className="flex items-center gap-2">
+                  <span
+                    className="h-2 w-2 rounded-full border shrink-0"
+                    style={{ background: "#F2F1EE", borderColor: "#3A3A40" }}
+                    aria-hidden
+                  />
+                  <span className="text-[12px]" style={{ fontFamily: MONO, color: INK }}>
+                    vercel/design.md
+                  </span>
+                  <span className="ml-auto text-[10.5px]" style={{ fontFamily: MONO, color: LIME }}>
+                    89%
+                  </span>
+                </div>
+                <p className="text-[14px] leading-[1.55] flex-1" style={{ color: SUB }}>
+                  Geist first. Dark always. Chrome at zero.
+                </p>
+                <Link
+                  href="/library"
+                  className="inline-flex items-center gap-1 text-[12px] hover:underline underline-offset-4"
+                  style={{ fontFamily: MONO, color: VIOLET }}
+                >
+                  Open bundle
+                  <ArrowRight className="h-3 w-3" />
+                </Link>
+              </div>
+
+            </div>
           </div>
 
           {/* Specificity bar — whispered authority */}
