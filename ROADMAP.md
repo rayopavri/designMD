@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-06-03** (Hero: white primary button, remove brand strip)
+> Last updated: **2026-06-03** (Hero: single-line subhead on desktop, reduce bottom gap to 48px)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -256,6 +256,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-06-03** - Hero: single-line subhead on desktop, reduce bottom gap to 48px (36db498)
 - [x] **2026-06-03** - Hero: white primary button, remove brand strip (0fd5b71)
 - [x] **2026-06-03** - Tighten hero subheadline to two punchy sentences (6c9c0cb)
 - [x] **2026-06-03** - Rewrite hero subheadline for clarity (f7b53f3)
