@@ -71,7 +71,7 @@ export function HomeHero() {
     <>
       {/* ── Above-the-fold hero ── */}
       <section className="border-b" style={{ borderColor: BORDER_SOFT }}>
-        <div className="mx-auto max-w-3xl px-6 lg:px-8 pt-20 pb-16 text-center">
+        <div className="mx-auto max-w-6xl px-6 lg:px-8 pt-20 pb-16 text-center">
 
           {/* Eyebrow */}
           <div
@@ -86,14 +86,14 @@ export function HomeHero() {
             For designers who actually ship
           </div>
 
-          {/* Headline — curiosity gap: line 1 full weight, line 2 muted */}
+          {/* Headline — each phrase is its own line; lg:whitespace-nowrap locks
+              each to a single line on desktop, smaller viewports wrap freely */}
           <h1
             className="text-[46px] sm:text-[62px] lg:text-[76px] leading-[1.02] font-medium tracking-[-0.025em] mb-7"
             style={{ color: INK }}
           >
-            What does Stripe tell AI
-            <br />
-            <span style={{ color: SUB }}>about how to design?</span>
+            <span className="block lg:whitespace-nowrap">What does Stripe tell AI</span>
+            <span className="block lg:whitespace-nowrap" style={{ color: SUB }}>about how to design?</span>
           </h1>
 
           {/* Subheadline */}
