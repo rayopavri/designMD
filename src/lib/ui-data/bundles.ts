@@ -51,6 +51,11 @@ export type Bundle = {
    * For user-generated bundles this is populated by the scrape pipeline from the
    * page's HTML head. For seed bundles, hand-picked from each brand's site. */
   brandLogoUrl?: string;
+  /** Absolute URL to a durably-stored above-the-fold website screenshot, shown
+   * as the detail-page hero. Populated by the capture-screenshot job; absent
+   * until that backfill runs, in which case the hero falls back to the live
+   * token-rendered PreviewPane. */
+  previewImageUrl?: string;
 };
 
 const linear = `---
