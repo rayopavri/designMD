@@ -477,6 +477,90 @@ export async function listUserBundles(userId: string): Promise<UserBundleListIte
   return rows as UserBundleListItem[];
 }
 
+// ─── Related bundles query ────────────────────────────────────
+// Surfaces other published design systems that share a primary
+// category, design style, or compatible tool with the source bundle.
+// Returns the same row shape as listPublishedBundles so the existing
+// list→BundleItem mapper works unchanged.
+
+const RELATED_DEFAULT_LIMIT = 6;
+
+export async function getRelatedBundles(
+  slug: string,
+  limit = RELATED_DEFAULT_LIMIT,
+): Promise<BundleListItem[]> {
+  // Look up the source bundle's matchable attributes by slug.
+  const [source] = await db
+    .select({
+      id: bundles.id,
+      primaryCategoryId: bundles.primaryCategoryId,
+      designStyle: bundles.designStyle,
+      compatibleTools: bundles.compatibleTools,
+    })
+    .from(bundles)
+    .where(eq(bundles.slug, slug))
+    .limit(1);
+
+  if (!source) return [];
+
+  // Match on any of: same primary category, overlapping design styles,
+  // or overlapping compatible tools. Skip the array-overlap predicates
+  // when the source arrays are empty so we never emit `ARRAY[]::text[]`.
+  const matchConditions: SQL[] = [];
+  if (source.primaryCategoryId) {
+    matchConditions.push(eq(bundles.primaryCategoryId, source.primaryCategoryId));
+  }
+  if (source.designStyle.length) {
+    matchConditions.push(
+      sql`${bundles.designStyle} && ${sql.raw(`ARRAY[${source.designStyle.map((s) => `'${s.replace(/'/g, "''")}'`).join(',')}]::text[]`)}`,
+    );
+  }
+  if (source.compatibleTools.length) {
+    matchConditions.push(
+      sql`${bundles.compatibleTools} && ${sql.raw(`ARRAY[${source.compatibleTools.map((s) => `'${s.replace(/'/g, "''")}'`).join(',')}]::text[]`)}`,
+    );
+  }
+
+  // Nothing to relate on (no category, no styles, no tools).
+  if (matchConditions.length === 0) return [];
+
+  const matchClause = matchConditions.length === 1 ? matchConditions[0] : or(...matchConditions);
+
+  const rows = await db
+    .select({
+      id: bundles.id,
+      slug: bundles.slug,
+      title: bundles.title,
+      description: bundles.description,
+      type: bundles.type,
+      coverageScore: bundles.coverageScore,
+      primaryCategorySlug: categories.slug,
+      primaryCategoryName: categories.name,
+      designStyle: bundles.designStyle,
+      compatibleTools: bundles.compatibleTools,
+      paletteColors: bundles.paletteColors,
+      brandLogoUrl: bundles.brandLogoUrl,
+      brandInitial: bundles.brandInitial,
+      brandColor: bundles.brandColor,
+      voteCount: bundles.voteCount,
+      positiveVoteRate: bundles.positiveVoteRate,
+      isFeatured: bundles.isFeatured,
+      isCurated: bundles.isCurated,
+      sourceDomain: bundles.sourceDomain,
+      authorName: bundles.authorName,
+      license: bundles.license,
+      publishedAt: bundles.publishedAt,
+      updatedAt: bundles.updatedAt,
+    })
+    .from(bundles)
+    .leftJoin(categories, eq(bundles.primaryCategoryId, categories.id))
+    .where(and(eq(bundles.status, 'published'), ne(bundles.id, source.id), matchClause))
+    .orderBy(desc(bundles.positiveVoteRate), desc(bundles.voteCount))
+    .limit(limit);
+
+  return rows as BundleListItem[];
+}
+
 export interface BundleIndexItem {
   id: string;
   slug: string;
