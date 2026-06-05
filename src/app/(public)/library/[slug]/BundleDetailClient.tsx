@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useSearchParams, useParams } from "next/navigation";
 
 import { Suspense, useEffect, useState } from "react";
-import { ArrowUpRight, Check, ChevronRight, Copy, GitFork, Heart } from "lucide-react";
+import { ArrowUpRight, Check, ChevronRight, Copy, Download, GitFork, Heart } from "lucide-react";
 import { SectionLabel } from "@/components/ui/Shell";
 import { CodePanel } from "@/components/ui/CodePanel";
 import { AttributionRow } from "@/components/ui/AttributionRow";
@@ -304,11 +304,16 @@ function BundleView({ item }: { item: BundleItem }) {
                 <button
                   onClick={onZip}
                   disabled={zipping}
-                  className="inline-flex items-center gap-1 text-[12px]"
-                  style={{ color: SUB, opacity: zipping ? 0.6 : 1 }}
+                  className="h-9 rounded-full border inline-flex items-center gap-1.5 px-4 text-[12px] transition-opacity hover:opacity-80"
+                  style={{
+                    borderColor: BORDER,
+                    color: SUB,
+                    opacity: zipping ? 0.5 : 1,
+                    cursor: zipping ? "not-allowed" : "pointer",
+                  }}
                 >
-                  <span aria-hidden>↓</span>
-                  {zipping ? "preparing…" : "download as .zip"}
+                  <Download className="h-3.5 w-3.5" />
+                  {zipping ? "preparing…" : "Download .zip"}
                 </button>
                 <button
                   onClick={toggleFavorite}
@@ -410,12 +415,16 @@ function BundleView({ item }: { item: BundleItem }) {
                   hint="the brand spec — tokens, component anatomy, forbidden rules"
                   meta={`${bundle.tokens.toLocaleString()} tokens · ${designLines} lines`}
                   accent={LIME}
+                  onCopy={() => copyText(bundle.designMd, "spec")}
+                  copied={copiedSpec}
                 />
                 <ArtifactChip
                   filename="companion.md"
                   hint="system instructions that teach your AI how to use the spec"
                   meta={`~${promptTokensApprox.toLocaleString()} tokens · ${promptLines} lines`}
                   accent={VIOLET}
+                  onCopy={() => copyText(bundle.companionPrompt, "prompt")}
+                  copied={copiedPrompt}
                 />
               </div>
             </div>
@@ -553,26 +562,30 @@ function BundleView({ item }: { item: BundleItem }) {
               </p>
             </div>
             <div className="col-span-12 lg:col-span-9">
-              <div className="flex items-center gap-1 border-b mb-6" style={{ borderColor: BORDER }}>
+              <div
+                className="text-[10.5px] uppercase tracking-[0.22em] mb-2"
+                style={{ fontFamily: MONO, color: MUTED }}
+              >
+                explore the bundle
+              </div>
+              <div
+                className="inline-flex items-center gap-1 rounded-full border p-1 mb-6"
+                style={{ borderColor: BORDER, background: SURFACE_2 }}
+              >
                 {(["preview", "design.md", "companion"] as Tab[]).map((t) => {
                   const isActive = tab === t;
                   return (
                     <button
                       key={t}
                       onClick={() => setTab(t)}
-                      className="relative px-4 py-3 text-[12.5px]"
+                      className="h-8 rounded-full px-4 text-[12.5px] transition-colors"
                       style={{
-                        color: isActive ? INK : SUB,
+                        background: isActive ? INK : "transparent",
+                        color: isActive ? INK_ON_LIGHT : SUB,
                         fontFamily: t === "design.md" ? MONO : undefined,
                       }}
                     >
                       {t === "design.md" ? "design.md" : t === "companion" ? "companion prompt" : "live preview"}
-                      {isActive ? (
-                        <span
-                          className="absolute left-0 right-0 -bottom-px h-px"
-                          style={{ background: VIOLET }}
-                        />
-                      ) : null}
                     </button>
                   );
                 })}
@@ -714,22 +727,39 @@ function ArtifactChip({
   hint,
   meta,
   accent,
+  onCopy,
+  copied,
 }: {
   filename: string;
   hint: string;
   meta: string;
   accent: string;
+  onCopy?: () => void;
+  copied?: boolean;
 }) {
   return (
     <div
       className="rounded-lg border p-3.5"
       style={{ borderColor: BORDER, background: SURFACE_2 }}
     >
-      <div className="flex items-center gap-2 mb-1.5">
-        <span className="h-1.5 w-1.5 rounded-full" style={{ background: accent }} />
-        <span className="text-[12.5px] font-medium" style={{ color: INK, fontFamily: MONO }}>
-          {filename}
-        </span>
+      <div className="flex items-center justify-between mb-1.5">
+        <div className="flex items-center gap-2">
+          <span className="h-1.5 w-1.5 rounded-full" style={{ background: accent }} />
+          <span className="text-[12.5px] font-medium" style={{ color: INK, fontFamily: MONO }}>
+            {filename}
+          </span>
+        </div>
+        {onCopy && (
+          <button
+            type="button"
+            onClick={onCopy}
+            title={copied ? "Copied!" : `Copy ${filename}`}
+            className="h-6 w-6 rounded flex items-center justify-center transition-colors hover:opacity-80"
+            style={{ color: copied ? LIME : MUTED }}
+          >
+            {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+          </button>
+        )}
       </div>
       <div className="text-[11.5px] leading-[1.5]" style={{ color: SUB }}>
         {hint}
