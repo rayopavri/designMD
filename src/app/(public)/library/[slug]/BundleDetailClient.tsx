@@ -287,7 +287,7 @@ function BundleView({ item }: { item: BundleItem }) {
             </div>
 
             {/* Primary CTA + zip link */}
-            <div className="mt-5">
+            <div className="mt-5 flex flex-col sm:flex-row sm:items-center sm:gap-4">
               <button
                 onClick={() => setShowInstall(true)}
                 className="h-11 rounded-full px-6 text-[13px] font-medium inline-flex items-center gap-2"
@@ -300,7 +300,7 @@ function BundleView({ item }: { item: BundleItem }) {
                 Use in {toolLabel(tool)}
                 <ChevronRight className="h-3.5 w-3.5" />
               </button>
-              <div className="mt-2.5 flex items-center gap-5">
+              <div className="mt-2.5 sm:mt-0 flex items-center gap-5">
                 <button
                   onClick={onZip}
                   disabled={zipping}
