@@ -13,6 +13,7 @@ import {
   MONO,
   MUTED,
   SUB,
+  VIOLET,
 } from "@/lib/ui-data/tokens";
 
 const ROTATING_BRANDS = [
@@ -102,22 +103,26 @@ export function HomeHero() {
             The world's best design systems, formatted for AI. Pick a brand and paste it in.
           </p>
 
-          {/* CTAs — primary fills, secondary ghost */}
+          {/* CTAs — generate is primary USP */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link
-              href="/library"
+              href="/generate"
               className="h-12 rounded-full px-7 text-[13.5px] font-medium inline-flex items-center gap-2 transition-opacity hover:opacity-90"
-              style={{ background: "#fff", color: INK_ON_LIGHT }}
+              style={{
+                background: INK,
+                color: INK_ON_LIGHT,
+                boxShadow: `0 0 0 1px ${VIOLET}55, 0 8px 28px -8px ${VIOLET}77`,
+              }}
             >
-              Browse design skills
+              Generate from your URL
               <ArrowRight className="h-3.5 w-3.5" />
             </Link>
             <Link
-              href="/generate"
+              href="/library"
               className="h-12 rounded-full border px-7 text-[13.5px] font-medium inline-flex items-center gap-2 transition-opacity hover:opacity-70"
               style={{ borderColor: BORDER, color: SUB }}
             >
-              Generate from your URL
+              Browse design skills
             </Link>
           </div>
 
