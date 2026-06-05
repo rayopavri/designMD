@@ -124,6 +124,14 @@ export function ActionsCard({
           </div>
         )}
 
+        {/* Attribution + reassurance */}
+        <div className="mt-4">
+          <AttributionRow attr={item.attribution} />
+        </div>
+        <div className="mt-3 text-[11.5px]" style={{ fontFamily: MONO, color: MUTED }}>
+          free forever · no install · paste into any AI tool
+        </div>
+
         {/* Stats strip */}
         <div
           className="mt-5 pt-5 border-t grid grid-cols-2 gap-y-3 text-[11.5px]"
@@ -250,14 +258,6 @@ export function ActionsCard({
             initialPositiveVoteRate={bundle.voteRate}
           />
         </div>
-      </div>
-
-      {/* Attribution + reassurance */}
-      <div className="mt-4">
-        <AttributionRow attr={item.attribution} />
-      </div>
-      <div className="mt-3 text-[11.5px]" style={{ fontFamily: MONO, color: MUTED }}>
-        free forever · no install · paste into any AI tool
       </div>
     </aside>
   );
