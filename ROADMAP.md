@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-06-05** (Raise pipeline timeouts for Vercel Pro (60s Hobby → 180s))
+> Last updated: **2026-06-05** (Restructure bundle detail page: visual-first hero + actions card)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -256,6 +256,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-06-05** - Restructure bundle detail page: visual-first hero + actions card (e34a93d)
 - [x] **2026-06-05** - Raise pipeline timeouts for Vercel Pro (60s Hobby → 180s) (68decb0)
 - [x] **2026-06-05** - Layout: inline secondary actions with primary CTA on desktop (e201cfa)
 - [x] **2026-06-05** - Merge UX improvements: generate CTA, download zip, coverage, copy chips, tabs (cdff3ef)
