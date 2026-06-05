@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-06-05** (Merge UX improvements: generate CTA, download zip, coverage, copy chips, tabs)
+> Last updated: **2026-06-05** (Layout: inline secondary actions with primary CTA on desktop)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -256,6 +256,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-06-05** - Layout: inline secondary actions with primary CTA on desktop (e201cfa)
 - [x] **2026-06-05** - Merge UX improvements: generate CTA, download zip, coverage, copy chips, tabs (cdff3ef)
 - [x] **2026-06-03** - fix: address code-review findings in SEO commit (eaa8267)
 - [x] **2026-06-03** - seo: quick-win improvements across layout and bundle pages (90f7475)
