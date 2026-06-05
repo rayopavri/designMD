@@ -30,12 +30,12 @@ import { env } from '@/lib/env';
 const DISPATCH_LOCK_KEY = 4_727_001;
 
 // A running job that hasn't bumped updated_at within this window is presumed
-// dead. Must exceed the Vercel function timeout (60s Hobby cap) plus QStash's
-// single-retry window so we never reap a worker that is legitimately still
-// executing a slow substage or about to be retried by QStash. Each worker
-// invocation bumps updated_at at its first step, so this is measured from the
-// last sign of progress, not from job creation.
-const LEASE_MS = 180_000; // 3 minutes
+// dead. Must exceed the Vercel function timeout (180s on the Pro plan) plus
+// QStash's single-retry window so we never reap a worker that is legitimately
+// still executing a slow substage or about to be retried by QStash. Each
+// worker invocation bumps updated_at at its first step, so this is measured
+// from the last sign of progress, not from job creation.
+const LEASE_MS = 420_000; // 7 minutes
 
 // Total dispatch attempts (initial + reaper resumes) before a stuck job is
 // failed. attempts starts at 1, so this permits exactly one reaper resume:

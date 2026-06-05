@@ -9,7 +9,7 @@
 
 | Layer | Tool | Plan | Monthly cost |
 |---|---|---|---|
-| Hosting / framework | Vercel | Hobby | $0 |
+| Hosting / framework | Vercel | Pro | $20 |
 | Database | Supabase Postgres 17 (migrated from Neon 2026-05-21) | Free | $0 |
 | Auth | Firebase Auth | Free (Spark) | $0 |
 | Durable task queue | Upstash QStash | Free | $0 |
@@ -18,9 +18,9 @@
 | Web scraping | Firecrawl | Pay-per-use | ~$0-5 (light use) |
 | LLM (authoring) | Anthropic Claude | API | ~$0.02-0.08 per bundle |
 | LLM (vision/extract) | Google Gemini | API | ~$0.001-0.005 per bundle |
-| **Total live cost** | | | **~$0/mo + per-bundle LLM costs** |
+| **Total live cost** | | | **~$20/mo (Vercel Pro) + per-bundle LLM costs** |
 
-Nothing here is on a paid tier. Everything sits inside generous free allowances at current traffic.
+Only Vercel is on a paid tier (Pro, for the raised function limits); everything else sits inside generous free allowances at current traffic.
 
 ---
 
@@ -85,10 +85,10 @@ Nothing here is on a paid tier. Everything sits inside generous free allowances 
 
 ## Infrastructure
 
-### Vercel (Hobby plan)
+### Vercel (Pro plan)
 - Hosts the Next.js app, terminates TLS, serves CDN-cached static + edge functions.
 - **Constraints driving architecture:**
-  - 60s function timeout. Drives the 3-worker pipeline split (`scrape-and-extract` → `author-design-md` → `generate-companion`).
+  - Function timeout: Pro allows 300s (standard) / 800s (Fluid Compute). Each pipeline worker pins `maxDuration = 180s` with a 174s in-process watchdog. The 3-worker split (`scrape-and-extract` → `author-design-md` → `generate-companion`) predates the Pro upgrade — kept for parallelism (author + companion run concurrently) and per-stage retry isolation, not the old 60s cap.
   - Cron jobs limited to once-per-day (tightened ~2026-05-21). Triggered the migration to GitHub Actions cron.
 - **GitHub auto-deploy** — pushes to `main` trigger production builds automatically. If the webhook stops firing, the fallback is `pnpm dlx vercel --prod` from the local checkout (linked project lives at `~/.vercel/`).
 
@@ -176,7 +176,7 @@ Phase 1 ships the design.md generator + bundle library only. Phase 2 will reintr
 
 At current volume (~5-10 generations/day, no marketing push):
 
-- **Vercel** — $0 (Hobby covers it).
+- **Vercel** — $20/mo (Pro plan; the raised function limits size the pipeline worker budgets).
 - **Supabase** — $0 (Free covers 500 MB database + 5 GB bandwidth/month + 50k MAU; we're using a fraction).
 - **Upstash** — $0 (Free tier covers 500k QStash + 10k Redis commands/day; we use a fraction).
 - **Firebase** — $0 (Spark plan covers 50k MAU; we have ~1).
@@ -184,12 +184,12 @@ At current volume (~5-10 generations/day, no marketing push):
 - **Firecrawl** — ~$0-5 depending on scrape volume.
 - **Claude + Gemini** — ~$0.02-0.08 per generated bundle. At 10/day = **~$10-25/mo**.
 
-**Realistic monthly burn at current scale: $10-30 in API costs, zero infra.**
+**Realistic monthly burn at current scale: $20 infra (Vercel Pro) + $10-30 in API costs.**
 
 Inflection points:
 - ~50 generations/day → Firecrawl free tier may run out, expect ~$20/mo on that line.
-- ~100k page views/month → Vercel Hobby is still fine; Supabase Free is fine (you only feel it at the 500 MB / 5 GB egress walls).
-- ~500k page views/month → consider Vercel Pro ($20/mo) for better function limits + analytics.
+- ~100k page views/month → Vercel Pro covers it comfortably; Supabase Free is fine (you only feel it at the 500 MB / 5 GB egress walls).
+- ~500k page views/month → still within Vercel Pro; watch Supabase egress + Firecrawl credits before anything else.
 - ~5,000 signed-in users → Firebase Spark still fine until 50k MAU.
 
 ---

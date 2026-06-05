@@ -8,8 +8,8 @@
  *
  * Batch jobs (batchId NOT NULL) are deliberately untouched here: the
  * supervise-batches cron owns their full lifecycle — reapStale resumes stuck
- * running rows on a 6-min lease, dispatchReady fills slots from the queue.
- * Letting this 2-min sweep fail batch rows would race that resume logic and
+ * running rows on a 7-min lease, dispatchReady fills slots from the queue.
+ * Letting this 5-min sweep fail batch rows would race that resume logic and
  * destroy jobs that are merely waiting for a concurrency slot.
  *
  * Triggered by GitHub Actions (Vercel Hobby crons are once-per-day now).
@@ -23,13 +23,14 @@ import { generationJobs } from '@/lib/db/schema';
 export const runtime = 'nodejs';
 export const maxDuration = 15;
 
-// Workers now have in-process timeouts (90s on Gemini, similar on Anthropic)
-// that throw inside the try/catch so failJob runs and the row flips to
-// `failed` within seconds. The watchdog is the last-resort fallback for
-// the case where the worker dies before its catch runs (Vercel SIGKILL on
-// maxDuration, OOM, etc.). Cron runs every 5 min so 2 min stale is the
-// tightest cutoff that's safe — anything shorter races the cron interval.
-const STUCK_JOB_AGE_MS = 2 * 60_000;
+// Workers now have in-process timeouts (90s on Gemini, 150s on the design.md
+// author, 70s on Anthropic) that throw inside the try/catch so failJob runs
+// and the row flips to `failed` within seconds. The watchdog is the
+// last-resort fallback for the case where the worker dies before its catch
+// runs (Vercel SIGKILL on the 180s maxDuration, OOM, etc.). Cron runs every 5
+// min and a single worker can now run up to 180s, so 5 min stale is the
+// tightest cutoff that's safe — anything shorter risks reaping a live job.
+const STUCK_JOB_AGE_MS = 5 * 60_000;
 
 export async function GET(req: NextRequest) {
   const expected = process.env.CRON_SECRET;

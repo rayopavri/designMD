@@ -1272,14 +1272,14 @@ const MAX_EXTRACTION_MARKDOWN_CHARS = 12_000;
 // Hobby 60s function cap — see TECH-STACK.md) so the AbortSignal fires inside
 // the worker's try/catch and failJob() runs before the platform SIGKILLs us. A
 // SIGKILL would leave the generation_jobs row in `running` state and trigger a
-// QStash retry storm. Firecrawl already consumes ~27-35s of the 60s budget and
-// a normal extraction returns in 8-25s, so 30s is the ceiling that still lets a
+// QStash retry storm. Firecrawl can consume up to ~120s of the 180s budget and
+// a normal extraction returns in 8-25s, so 90s is the ceiling that still lets a
 // slow-but-valid call finish while keeping the worker inside its budget. Passed
 // as config.abortSignal via AbortSignal.timeout() — the @google/genai SDK
 // aborts the fetch and rejects when the signal fires. Note: client-only; Google
 // still processes (and bills) the in-flight request. (The author call uses its
 // own AUTHOR_TIMEOUT_MS, not this constant.)
-const GEMINI_TIMEOUT_MS = 30_000;
+const GEMINI_TIMEOUT_MS = 90_000;
 
 async function fetchImageAsPart(url: string): Promise<Part | null> {
   const res = await fetch(url);

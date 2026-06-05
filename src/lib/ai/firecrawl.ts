@@ -60,7 +60,7 @@ function client(): Firecrawl {
  * the underlying fetch can still hang indefinitely if the server keeps the
  * connection open (observed on JS-heavy marketing sites like framer.com).
  * Without this, the only thing that catches a hang is the worker-level
- * 110s watchdog, and QStash's 1 retry then doubles that to ~220s of "stuck"
+ * 174s watchdog, and QStash's 1 retry then doubles that to ~350s of "stuck"
  * UI before the row gets marked failed.
  *
  * The underlying SDK promise is intentionally left unresolved — Node will
@@ -170,14 +170,15 @@ export async function scrapeUrlSmart(
   url: string,
   opts?: { searchQuery?: string },
 ): Promise<ScrapeResult> {
-  // Total Firecrawl budget. The scrape-and-extract worker runs on Vercel Hobby
-  // (60s function cap — see TECH-STACK.md) with a 54s watchdog; Phase 1 also
-  // runs Gemini brand extraction (~8-25s), orphan resolution (~50ms), DB writes
-  // (~200ms), and QStash enqueue (~500ms), so we keep Firecrawl under 35s. The
-  // pre-step budget checks below assume the worst-case per-step wrapper budgets
-  // and subtract them from this number — slow primaries cause enrichment to
-  // skip rather than risk pushing the worker past the watchdog.
-  const FIRECRAWL_BUDGET_MS = 35_000;
+  // Total Firecrawl budget. The scrape-and-extract worker runs on Vercel Pro
+  // (300s standard / 800s Fluid cap — see TECH-STACK.md) with maxDuration
+  // pinned to 180s and a 174s watchdog; Phase 1 also runs Gemini brand
+  // extraction (~8-25s), orphan resolution (~50ms), DB writes (~200ms), and
+  // QStash enqueue (~500ms), so we keep Firecrawl under 120s. The pre-step
+  // budget checks below assume the worst-case per-step wrapper budgets and
+  // subtract them from this number — slow primaries cause enrichment to skip
+  // rather than risk pushing the worker past the watchdog.
+  const FIRECRAWL_BUDGET_MS = 120_000;
   const start = Date.now();
 
   // Step 1: Full primary scrape (screenshot + html + branding).
@@ -247,7 +248,7 @@ export async function scrapeUrlSmart(
 
   // Skip batch if too much budget has been spent already. Batch wrapper
   // is 14s; -16_000 means we only enter batch when ≥16s of budget remain
-  // (i.e. elapsed < 24s) so we never push firecrawl past 38s total.
+  // (i.e. elapsed < 104s) so we never push firecrawl past ~118s total.
   const afterMap = Date.now() - start;
   if (afterMap > FIRECRAWL_BUDGET_MS - 16_000) {
     console.warn(

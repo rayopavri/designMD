@@ -157,13 +157,14 @@ interface SpecInput {
 const MAX_OUTPUT_TOKENS = 1500;
 
 // Per-request timeout for ONE Sonnet attempt. The generate-companion worker
-// runs on Vercel Hobby (60s function cap — see TECH-STACK.md). The Anthropic
-// SDK retries transient 429/5xx/timeout up to maxRetries (pinned to 1 in
-// runCompanionSonnet), so worst case is 2 attempts × 24s + backoff ≈ 53s, which
-// stays under the 60s SIGKILL so failJob() can mark the row `failed` first. A
-// normal companion call returns in 10-20s; 24s is the ceiling so a typical call
-// isn't cut short while a hang still aborts inside the function budget.
-const SONNET_TIMEOUT_MS = 24_000;
+// runs on Vercel Pro (300s standard / 800s Fluid cap — see TECH-STACK.md) with
+// maxDuration pinned to 180s. The Anthropic SDK retries transient
+// 429/5xx/timeout up to maxRetries (pinned to 1 in runCompanionSonnet), so
+// worst case is 2 attempts × 70s + backoff ≈ 145s, which stays under the 180s
+// SIGKILL so failJob() can mark the row `failed` first. A normal companion call
+// returns in 10-20s; 70s is the ceiling so a typical call isn't cut short while
+// a hang still aborts inside the function budget.
+const SONNET_TIMEOUT_MS = 70_000;
 
 // Guards against a pathological design.md blowing the context window. A real
 // design.md is a few KB; this cap (~10k tokens) never truncates a healthy spec.

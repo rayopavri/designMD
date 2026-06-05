@@ -15,7 +15,7 @@
  *
  * Provider: Gemini 3.1 Flash-Lite direct — single provider, no fallback.
  * Same GEMINI_API_KEY billing surface as extraction. The per-call timeout
- * (AUTHOR_TIMEOUT_MS) is sized to fit inside the author worker's 60s Hobby
+ * (AUTHOR_TIMEOUT_MS) is sized to fit inside the author worker's 180s Pro
  * budget so a hang aborts cleanly and failJob() can mark the row failed;
  * transient 429s are retried inside generateTextFromGemini (withGeminiRetry)
  * and, at the job level, by QStash + the supervisor. Companion-prompt worker
@@ -437,11 +437,11 @@ function logMissingHeadings(provider: string, text: string): void {
 
 // Author worker runs on Vercel Hobby (60s function cap) with a 54s watchdog;
 // lint + scoring + DB writes after this call need ~10s, so the Gemini call must
-// abort with margin to spare. 42s is the ceiling, not the target: with LOW
+// abort with margin to spare. 150s is the ceiling, not the target: with LOW
 // thinking (see gemini.ts) and the trimmed prompt below, normal author latency
-// is ~8-20s. A genuine hang aborts at 42s so failJob() runs in-process — well
-// before the 54s watchdog and the 60s SIGKILL.
-const AUTHOR_TIMEOUT_MS = 42_000;
+// is ~8-20s. A genuine hang aborts at 150s so failJob() runs in-process — well
+// before the 174s watchdog and the 180s SIGKILL.
+const AUTHOR_TIMEOUT_MS = 150_000;
 
 /**
  * Author-model call: Gemini 3.1 Flash-Lite direct, single provider.

@@ -84,7 +84,7 @@ Upstash Redis sliding window on `/api/generate`: 3/hour anonymous (by IP), 10/ho
 
 # Constraints and gotchas
 
-- **Vercel 60s function timeout** — drives the 3-worker split. Don't collapse workers.
+- **Vercel function timeout (Pro: 300s / 800s Fluid; workers pin `maxDuration = 180s`)** — the 3-worker split is kept for parallelism + per-stage retry isolation, not the old 60s cap. Don't collapse workers.
 - **PgBouncer transaction mode** — no prepared statements via the pooler. `client.ts` handles this automatically; don't remove the `prepare: false` guard.
 - **`@google/design.md` external package** — `next.config.ts` includes `outputFileTracingIncludes` to ensure Vercel bundles the YAML data files. Don't remove that config.
 - **Deloitte corporate WiFi blocks port 5432/6543** — tether to a phone hotspot for any direct DB operations from a work machine.
