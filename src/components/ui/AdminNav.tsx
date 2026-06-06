@@ -16,6 +16,7 @@ const TABS: Tab[] = [
   { label: "Bundles", href: "/admin/bundles", match: (p) => p.startsWith("/admin/bundles") },
   { label: "Reviewer queue", href: "/admin/queue", match: (p) => p.startsWith("/admin/queue") },
   { label: "Bulk upload", href: "/admin/bulk-upload", match: (p) => p.startsWith("/admin/bulk-upload") },
+  { label: "Screenshots", href: "/admin/backfill-screenshots", match: (p) => p.startsWith("/admin/backfill-screenshots") },
 ];
 
 export function AdminNav() {
