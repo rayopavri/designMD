@@ -285,6 +285,18 @@ export async function runScrapeAndExtract(payload: ScrapeAndExtractPayload): Pro
     // retried later or run from author-design-md as a future fallback.
   }
 
+  // Best-effort: capture + persist an above-the-fold screenshot for the detail
+  // hero. Fully off the critical path — skipped for uploads (no source page)
+  // and for scrapes that returned no screenshot; a failure to enqueue never
+  // affects generation.
+  if (!isUpload && scrape.screenshotUrl) {
+    try {
+      await enqueueTask('capture-screenshot', { bundleId, screenshotUrl: scrape.screenshotUrl });
+    } catch (err) {
+      console.error('[scrape-and-extract] failed to enqueue capture-screenshot task:', err);
+    }
+  }
+
   // Phase 1 ends here. The job stays `running` with phase='author' until Phase
   // 2 picks it up (or the supervisor resumes it) and advances the step.
 }

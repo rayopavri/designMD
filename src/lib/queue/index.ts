@@ -23,6 +23,7 @@ export type TaskName =
   | 'scrape-and-extract'
   | 'author-design-md'
   | 'generate-companion'
+  | 'capture-screenshot'
   | 'discover-fetch';
 
 export interface EnqueueResult {

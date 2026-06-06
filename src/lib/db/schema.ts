@@ -232,6 +232,10 @@ export const bundles = pgTable(
     // Visual card data
     paletteColors: text('palette_colors').array().notNull().default(sql`'{}'::text[]`),
     brandLogoUrl: text('brand_logo_url'),
+    // Durable above-the-fold website screenshot (Supabase Storage public URL),
+    // shown as the detail-page hero. Populated by the capture-screenshot worker
+    // (new generations) and scripts/backfill-screenshots.ts (existing bundles).
+    previewImageUrl: text('preview_image_url'),
     brandInitial: text('brand_initial'),
     brandColor: text('brand_color'),
 

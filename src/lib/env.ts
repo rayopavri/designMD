@@ -8,6 +8,11 @@ const EnvSchema = z.object({
   // Database
   DATABASE_URL: z.string().url(),
 
+  // Storage (Supabase Storage — durable website screenshots for the detail hero).
+  // Server-only; never expose the service-role key to the client.
+  SUPABASE_URL: z.string().url().optional(),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
+
   // Firebase Admin (server-side)
   FIREBASE_ADMIN_CREDENTIALS_B64: z.string().min(1).optional(),
 
