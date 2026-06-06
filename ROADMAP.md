@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-06-06** (Activate screenshot read path)
+> Last updated: **2026-06-06** (Add one-click screenshot backfill)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -256,6 +256,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-06-06** - Add one-click screenshot backfill for existing bundles (c751ed0)
 - [x] **2026-06-06** - Activate screenshot read path (migration-tolerant) (d1bcf42)
 - [x] **2026-06-06** - Add screenshot capture infra (storage, worker, schema, backfill) (5c58527)
 - [x] **2026-06-06** - Move source attribution row above the stats strip (9831696)
