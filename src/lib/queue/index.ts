@@ -24,6 +24,7 @@ export type TaskName =
   | 'author-design-md'
   | 'generate-companion'
   | 'capture-screenshot'
+  | 'backfill-screenshot'
   | 'discover-fetch';
 
 export interface EnqueueResult {
