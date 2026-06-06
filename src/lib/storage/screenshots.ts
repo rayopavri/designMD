@@ -50,6 +50,7 @@ export async function captureAndStoreScreenshot({
     const up = await fetch(uploadUrl, {
       method: 'POST',
       headers: {
+        apikey: serviceKey,
         Authorization: `Bearer ${serviceKey}`,
         'Content-Type': 'image/webp',
         'x-upsert': 'true',
@@ -99,6 +100,7 @@ export async function probeScreenshotStorage(): Promise<{
     const res = await fetch(`${base}/storage/v1/object/${BUCKET}/__healthcheck__.webp`, {
       method: 'POST',
       headers: {
+        apikey: serviceKey,
         Authorization: `Bearer ${serviceKey}`,
         'Content-Type': 'image/webp',
         'x-upsert': 'true',
