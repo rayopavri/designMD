@@ -281,6 +281,7 @@ export interface BundleDetail extends BundleListItem {
   sourceUrl: string | null;
   accessibilityNotes: string | null;
   companionStatus: string;
+  previewImageUrl?: string | null;
 }
 
 export interface OwnerBundleDetail extends BundleDetail {
@@ -369,57 +370,74 @@ export async function getOwnerBundleById(
  * if you know the slug.
  */
 export const getVisibleBundleBySlug = cache(async (slug: string): Promise<BundleDetail | null> => {
-  const [row] = await db
-    .select({
-      id: bundles.id,
-      slug: bundles.slug,
-      title: bundles.title,
-      description: bundles.description,
-      type: bundles.type,
-      status: bundles.status,
-      designMd: bundles.designMd,
-      companionPrompt: bundles.companionPrompt,
-      companionPromptVersion: bundles.companionPromptVersion,
-      coverageScore: bundles.coverageScore,
-      coverageColors: bundles.coverageColors,
-      coverageTypography: bundles.coverageTypography,
-      coverageLayout: bundles.coverageLayout,
-      coverageElevation: bundles.coverageElevation,
-      coverageShapes: bundles.coverageShapes,
-      coverageComponents: bundles.coverageComponents,
-      coverageDosDonts: bundles.coverageDosDonts,
-      primaryCategorySlug: categories.slug,
-      primaryCategoryName: categories.name,
-      designStyle: bundles.designStyle,
-      compatibleTools: bundles.compatibleTools,
-      paletteColors: bundles.paletteColors,
-      brandLogoUrl: bundles.brandLogoUrl,
-      brandInitial: bundles.brandInitial,
-      brandColor: bundles.brandColor,
-      voteCount: bundles.voteCount,
-      positiveVoteCount: bundles.positiveVoteCount,
-      positiveVoteRate: bundles.positiveVoteRate,
-      copyCount: bundles.copyCount,
-      downloadCount: bundles.downloadCount,
-      cliInstallCount: bundles.cliInstallCount,
-      isFeatured: bundles.isFeatured,
-      isCurated: bundles.isCurated,
-      sourceDomain: bundles.sourceDomain,
-      sourceUrl: bundles.sourceUrl,
-      authorName: bundles.authorName,
-      authorUrl: bundles.authorUrl,
-      license: bundles.license,
-      attributionStatement: bundles.attributionStatement,
-      accessibilityNotes: bundles.accessibilityNotes,
-      companionStatus: bundles.companionStatus,
-      publishedAt: bundles.publishedAt,
-      updatedAt: bundles.updatedAt,
-    })
-    .from(bundles)
-    .leftJoin(categories, eq(bundles.primaryCategoryId, categories.id))
-    .where(and(eq(bundles.slug, slug), ne(bundles.status, 'archived')))
-    .limit(1);
-  return (row as BundleDetail | undefined) ?? null;
+  // Column set excluding preview_image_url, so we can transparently fall back
+  // when that column hasn't been migrated yet (mirrors setJobStep's
+  // migration-tolerant retry in the scrape worker).
+  const cols = {
+    id: bundles.id,
+    slug: bundles.slug,
+    title: bundles.title,
+    description: bundles.description,
+    type: bundles.type,
+    status: bundles.status,
+    designMd: bundles.designMd,
+    companionPrompt: bundles.companionPrompt,
+    companionPromptVersion: bundles.companionPromptVersion,
+    coverageScore: bundles.coverageScore,
+    coverageColors: bundles.coverageColors,
+    coverageTypography: bundles.coverageTypography,
+    coverageLayout: bundles.coverageLayout,
+    coverageElevation: bundles.coverageElevation,
+    coverageShapes: bundles.coverageShapes,
+    coverageComponents: bundles.coverageComponents,
+    coverageDosDonts: bundles.coverageDosDonts,
+    primaryCategorySlug: categories.slug,
+    primaryCategoryName: categories.name,
+    designStyle: bundles.designStyle,
+    compatibleTools: bundles.compatibleTools,
+    paletteColors: bundles.paletteColors,
+    brandLogoUrl: bundles.brandLogoUrl,
+    brandInitial: bundles.brandInitial,
+    brandColor: bundles.brandColor,
+    voteCount: bundles.voteCount,
+    positiveVoteCount: bundles.positiveVoteCount,
+    positiveVoteRate: bundles.positiveVoteRate,
+    copyCount: bundles.copyCount,
+    downloadCount: bundles.downloadCount,
+    cliInstallCount: bundles.cliInstallCount,
+    isFeatured: bundles.isFeatured,
+    isCurated: bundles.isCurated,
+    sourceDomain: bundles.sourceDomain,
+    sourceUrl: bundles.sourceUrl,
+    authorName: bundles.authorName,
+    authorUrl: bundles.authorUrl,
+    license: bundles.license,
+    attributionStatement: bundles.attributionStatement,
+    accessibilityNotes: bundles.accessibilityNotes,
+    companionStatus: bundles.companionStatus,
+    publishedAt: bundles.publishedAt,
+    updatedAt: bundles.updatedAt,
+  };
+  const visible = and(eq(bundles.slug, slug), ne(bundles.status, 'archived'));
+  try {
+    const [row] = await db
+      .select({ ...cols, previewImageUrl: bundles.previewImageUrl })
+      .from(bundles)
+      .leftJoin(categories, eq(bundles.primaryCategoryId, categories.id))
+      .where(visible)
+      .limit(1);
+    return (row as BundleDetail | undefined) ?? null;
+  } catch {
+    // preview_image_url not present yet (migration pending) — degrade so the
+    // detail page keeps working; the hero falls back to the live PreviewPane.
+    const [row] = await db
+      .select(cols)
+      .from(bundles)
+      .leftJoin(categories, eq(bundles.primaryCategoryId, categories.id))
+      .where(visible)
+      .limit(1);
+    return row ? ({ ...row, previewImageUrl: null } as BundleDetail) : null;
+  }
 });
 
 /** @deprecated use getVisibleBundleBySlug. Kept as an alias for any

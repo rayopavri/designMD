@@ -42,6 +42,7 @@ interface ApiBundleDetail {
   compatibleTools: string[];
   paletteColors: string[];
   brandLogoUrl: string | null;
+  previewImageUrl: string | null;
   brandInitial: string | null;
   brandColor: string | null;
   voteCount: number;
@@ -200,6 +201,7 @@ function detailToBundleItem(row: ApiBundleDetail): BundleItem {
     feel: feelFromDesignStyle(row.designStyle),
     palette,
     brandLogoUrl: row.brandLogoUrl ?? undefined,
+    previewImageUrl: row.previewImageUrl ?? undefined,
     coverage,
     sectionCoverage,
     tokens: 0,
