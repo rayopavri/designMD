@@ -72,3 +72,50 @@ export async function captureAndStoreScreenshot({
     return null;
   }
 }
+
+/**
+ * Health-check for the storage setup, surfaced by the admin backfill page so a
+ * misconfiguration is obvious instead of silent. Reports whether the env vars
+ * are present and whether a real write to the bucket succeeds (which exercises
+ * the URL, the service-role key, and the bucket name/permissions in one shot).
+ *
+ *   configured=false        → SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY not set
+ *                             in the deployed app (or wrong names / not redeployed)
+ *   configured=true, ok=false, status=401 → service-role key wrong
+ *   configured=true, ok=false, status=400/404 → bucket name/permission issue
+ *   ok=true                 → storage is good to go
+ */
+export async function probeScreenshotStorage(): Promise<{
+  configured: boolean;
+  ok: boolean;
+  status?: number;
+  error?: string;
+}> {
+  const base = env.SUPABASE_URL?.replace(/\/$/, '');
+  const serviceKey = env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!base || !serviceKey) return { configured: false, ok: false };
+
+  try {
+    const res = await fetch(`${base}/storage/v1/object/${BUCKET}/__healthcheck__.webp`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${serviceKey}`,
+        'Content-Type': 'image/webp',
+        'x-upsert': 'true',
+      },
+      body: new Uint8Array([82, 73, 70, 70]), // 4 bytes — we only test write auth, not content
+      signal: AbortSignal.timeout(UPLOAD_TIMEOUT_MS),
+    });
+    if (!res.ok) {
+      return {
+        configured: true,
+        ok: false,
+        status: res.status,
+        error: (await res.text().catch(() => '')).slice(0, 200),
+      };
+    }
+    return { configured: true, ok: true, status: res.status };
+  } catch (err) {
+    return { configured: true, ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}

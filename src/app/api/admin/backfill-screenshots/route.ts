@@ -15,6 +15,7 @@ import { requireEditor } from '@/lib/auth/session';
 import { db } from '@/lib/db/client';
 import { bundles } from '@/lib/db/schema';
 import { enqueueTask } from '@/lib/queue';
+import { probeScreenshotStorage } from '@/lib/storage/screenshots';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -63,6 +64,14 @@ export async function POST() {
     throw res;
   }
 
+  // Self-test storage first: if the app can't write to the bucket (missing env
+  // vars, wrong service key, bucket issue), report that instead of enqueuing
+  // 100+ jobs that would all silently no-op.
+  const storage = await probeScreenshotStorage();
+  if (!storage.ok) {
+    return NextResponse.json({ ok: false, storage, enqueued: 0, remaining: 0, etaSeconds: 0 });
+  }
+
   const rows = await db
     .select({ id: bundles.id })
     .from(bundles)
@@ -70,7 +79,7 @@ export async function POST() {
     .limit(MAX_BATCH);
 
   if (rows.length === 0) {
-    return NextResponse.json({ ok: true, enqueued: 0, remaining: 0, etaSeconds: 0 });
+    return NextResponse.json({ ok: true, storage, enqueued: 0, remaining: 0, etaSeconds: 0 });
   }
 
   const outcomes = await runWithConcurrency(rows, ENQUEUE_CONCURRENCY, async (row, idx) => {
@@ -94,5 +103,5 @@ export async function POST() {
   const remaining = Math.max(0, (countRow?.remaining ?? 0) - enqueued);
   const etaSeconds = enqueued > 0 ? (enqueued - 1) * STAGGER_SECONDS + 180 : 0;
 
-  return NextResponse.json({ ok: true, enqueued, remaining, etaSeconds });
+  return NextResponse.json({ ok: true, storage, enqueued, remaining, etaSeconds });
 }

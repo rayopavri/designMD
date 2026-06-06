@@ -15,7 +15,27 @@ import {
   VIOLET,
 } from "@/lib/ui-data/tokens";
 
-type Result = { ok: boolean; enqueued: number; remaining: number; etaSeconds: number };
+type Storage = { configured: boolean; ok: boolean; status?: number; error?: string };
+type Result = {
+  ok: boolean;
+  enqueued: number;
+  remaining: number;
+  etaSeconds: number;
+  storage?: Storage;
+};
+
+function storageHint(s: Storage): string {
+  if (!s.configured) {
+    return "The app doesn't have your Supabase credentials. In Vercel → Settings → Environment Variables, add SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (exact names, no NEXT_PUBLIC_ prefix), enabled for Production.";
+  }
+  if (s.status === 401 || s.status === 403) {
+    return "The Supabase service-role key looks wrong. Copy the service_role key (not the anon key) from Supabase → Settings → API into SUPABASE_SERVICE_ROLE_KEY.";
+  }
+  if (s.status === 404 || s.status === 400) {
+    return "The app reached Supabase but couldn't write to the bucket. Make sure a Public bucket named exactly bundle-screenshots exists.";
+  }
+  return `Storage write test failed${s.error ? `: ${s.error}` : ""}.`;
+}
 
 export default function BackfillScreenshotsPage() {
   const [running, setRunning] = useState(false);
@@ -83,7 +103,24 @@ export default function BackfillScreenshotsPage() {
         </div>
       ) : null}
 
-      {result ? (
+      {result && result.storage && !result.storage.ok ? (
+        <div className="mt-6 rounded-lg border p-5" style={{ borderColor: PEACH, background: SURFACE }}>
+          <div
+            className="text-[10.5px] uppercase tracking-[0.22em] mb-2"
+            style={{ fontFamily: MONO, color: PEACH }}
+          >
+            storage not ready — no jobs enqueued
+          </div>
+          <div className="text-[13.5px] leading-[1.6]" style={{ color: INK }}>
+            {storageHint(result.storage)}
+          </div>
+          <div className="mt-2 text-[11.5px] leading-[1.5]" style={{ fontFamily: MONO, color: MUTED }}>
+            After fixing it in Vercel, <strong>redeploy</strong> (env changes don&apos;t apply to the
+            running build), then click the button again.
+            {result.storage.status ? ` · storage test returned HTTP ${result.storage.status}` : ""}
+          </div>
+        </div>
+      ) : result ? (
         <div className="mt-6 rounded-lg border p-5" style={{ borderColor: BORDER, background: SURFACE }}>
           <div
             className="text-[10.5px] uppercase tracking-[0.22em] mb-2"
