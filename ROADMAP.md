@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-06-06** (Move source attribution row above the stats strip)
+> Last updated: **2026-06-06** (Add screenshot capture infra)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -256,6 +256,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-06-06** - Add screenshot capture infra (storage, worker, schema, backfill) (5c58527)
 - [x] **2026-06-06** - Move source attribution row above the stats strip (9831696)
 - [x] **2026-06-05** - Restructure bundle detail page: visual-first hero + actions card (e34a93d)
 - [x] **2026-06-05** - Raise pipeline timeouts for Vercel Pro (60s Hobby → 180s) (68decb0)
