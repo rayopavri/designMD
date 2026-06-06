@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-06-06** (Make screenshot backfill self-diagnose storage config)
+> Last updated: **2026-06-06** (Send apikey header on Supabase storage writes)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -256,6 +256,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-06-06** - Send apikey header on Supabase storage writes (029a8eb)
 - [x] **2026-06-06** - Make screenshot backfill self-diagnose storage config (4745624)
 - [x] **2026-06-06** - Add Screenshots tab to admin nav (7366543)
 - [x] **2026-06-06** - Add one-click screenshot backfill for existing bundles (c751ed0)
