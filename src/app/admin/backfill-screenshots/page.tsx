@@ -15,7 +15,7 @@ import {
   VIOLET,
 } from "@/lib/ui-data/tokens";
 
-type Storage = { configured: boolean; ok: boolean; status?: number; error?: string };
+type Storage = { configured: boolean; ok: boolean; status?: number; error?: string; host?: string };
 type Result = {
   ok: boolean;
   enqueued: number;
@@ -32,7 +32,7 @@ function storageHint(s: Storage): string {
     return "The Supabase service-role key looks wrong. Copy the service_role key (not the anon key) from Supabase → Settings → API into SUPABASE_SERVICE_ROLE_KEY.";
   }
   if (s.status === 404 || s.status === 400) {
-    return "The app reached Supabase but couldn't write to the bucket. Make sure a Public bucket named exactly bundle-screenshots exists.";
+    return "The app reached Supabase but the bundle-screenshots bucket isn't in the project it's connected to. Point SUPABASE_URL at the project where you created the bucket (and make sure the bucket is named exactly bundle-screenshots and is Public).";
   }
   return `Storage write test failed${s.error ? `: ${s.error}` : ""}.`;
 }
@@ -114,6 +114,11 @@ export default function BackfillScreenshotsPage() {
           <div className="text-[13.5px] leading-[1.6]" style={{ color: INK }}>
             {storageHint(result.storage)}
           </div>
+          {result.storage.host ? (
+            <div className="mt-2 text-[11.5px]" style={{ fontFamily: MONO, color: SUB }}>
+              app is connected to: <strong>{result.storage.host}</strong>
+            </div>
+          ) : null}
           <div className="mt-2 text-[11.5px] leading-[1.5]" style={{ fontFamily: MONO, color: MUTED }}>
             After fixing it in Vercel, <strong>redeploy</strong> (env changes don&apos;t apply to the
             running build), then click the button again.

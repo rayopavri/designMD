@@ -91,10 +91,20 @@ export async function probeScreenshotStorage(): Promise<{
   ok: boolean;
   status?: number;
   error?: string;
+  host?: string;
 }> {
   const base = env.SUPABASE_URL?.replace(/\/$/, '');
   const serviceKey = env.SUPABASE_SERVICE_ROLE_KEY;
   if (!base || !serviceKey) return { configured: false, ok: false };
+
+  // Surfaced to the admin page so a wrong SUPABASE_URL (e.g. a different
+  // project, or the Postgres URL pasted by mistake) is immediately visible.
+  let host: string | undefined;
+  try {
+    host = new URL(base).host;
+  } catch {
+    host = base;
+  }
 
   try {
     const res = await fetch(`${base}/storage/v1/object/${BUCKET}/__healthcheck__.webp`, {
@@ -114,10 +124,11 @@ export async function probeScreenshotStorage(): Promise<{
         ok: false,
         status: res.status,
         error: (await res.text().catch(() => '')).slice(0, 200),
+        host,
       };
     }
-    return { configured: true, ok: true, status: res.status };
+    return { configured: true, ok: true, status: res.status, host };
   } catch (err) {
-    return { configured: true, ok: false, error: err instanceof Error ? err.message : String(err) };
+    return { configured: true, ok: false, error: err instanceof Error ? err.message : String(err), host };
   }
 }
