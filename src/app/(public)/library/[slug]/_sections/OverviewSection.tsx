@@ -37,16 +37,16 @@ export function OverviewSection({ bundle, n }: { bundle: Bundle; n: string }) {
           </div>
           <div className="col-span-12 lg:col-span-9 space-y-6">
             <div className="rounded-xl border p-6" style={{ borderColor: BORDER, background: SURFACE }}>
-              <div className="flex items-start justify-between mb-4">
+              <div className="flex items-baseline justify-between mb-4">
                 <div
-                  className="text-[10.5px] uppercase tracking-[0.22em] mt-1"
+                  className="text-[10.5px] uppercase tracking-[0.22em]"
                   style={{ fontFamily: MONO, color: MUTED }}
                 >
                   coverage by surface
                 </div>
-                <div className="text-[56px] leading-none font-medium tracking-[-0.03em]" style={{ color: INK }}>
+                <div className="text-[24px] leading-none font-medium" style={{ color: INK }}>
                   {bundle.coverage}
-                  <span className="text-[24px]" style={{ color: SUB }}>%</span>
+                  <span className="text-[14px]" style={{ color: SUB }}>%</span>
                 </div>
               </div>
               {bundle.sectionCoverage ? (
