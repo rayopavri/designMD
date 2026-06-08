@@ -2,7 +2,9 @@
  * Internal worker: backfill ONE existing bundle's screenshot.
  *
  * Enqueued (staggered) by POST /api/admin/backfill-screenshots for published
- * bundles that have a source URL but no stored screenshot yet. Uses the
+ * bundles that have a source URL but no stored screenshot yet — or, with
+ * `recapture: true`, an auto-captured one to refresh (admin uploads/recaptures
+ * are spared). Uses the
  * screenshot-only Firecrawl scrape (lighter/faster than the full scrape, and
  * avoids the branding extractor stalling on JS-heavy sites), stores the image,
  * and sets bundles.preview_image_url so the detail hero shows it.
@@ -17,7 +19,7 @@
  */
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, isNull, or, sql } from 'drizzle-orm';
 import { assertTaskAuth, enqueueTask } from '@/lib/queue';
 import { db } from '@/lib/db/client';
 import { bundles } from '@/lib/db/schema';
@@ -33,6 +35,9 @@ const MAX_ATTEMPTS = 10;
 const PayloadSchema = z.object({
   bundleId: z.string().uuid(),
   attempt: z.number().int().min(1).optional(),
+  // true = recapture mode: refresh an existing auto-captured screenshot too
+  // (not just missing ones), while never touching an admin upload/recapture.
+  recapture: z.boolean().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -65,13 +70,20 @@ export async function POST(req: NextRequest) {
     .where(eq(bundles.id, parsed.bundleId))
     .limit(1);
 
-  // Already done, gone, or nothing to scrape — nothing to do.
-  if (
-    !bundle ||
-    bundle.previewImageUrl ||
-    !bundle.sourceUrl ||
-    bundle.sourceUrl.startsWith('upload://')
-  ) {
+  const recapture = parsed.recapture === true;
+
+  // Gone or nothing scrapeable — always skip.
+  if (!bundle || !bundle.sourceUrl || bundle.sourceUrl.startsWith('upload://')) {
+    return NextResponse.json({ ok: true, stored: false, reason: 'skip' });
+  }
+
+  // A screenshot stored at the unversioned `{id}.webp` path is auto-captured; a
+  // versioned `{id}-{ts}.webp` path means an admin uploaded or recaptured it.
+  const existing = bundle.previewImageUrl;
+  const isAutoCaptured = !!existing && existing.endsWith(`/${bundle.id}.webp`);
+  if (existing && (!recapture || !isAutoCaptured)) {
+    // fill-missing mode never touches an existing screenshot; recapture mode
+    // refreshes auto-captured ones but spares every admin-touched image.
     return NextResponse.json({ ok: true, stored: false, reason: 'skip' });
   }
 
@@ -88,7 +100,7 @@ export async function POST(req: NextRequest) {
       try {
         await enqueueTask(
           'backfill-screenshot',
-          { bundleId: bundle.id, attempt: attempt + 1 },
+          { bundleId: bundle.id, attempt: attempt + 1, recapture },
           { delaySeconds },
         );
       } catch (e) {
@@ -100,18 +112,29 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, stored: false, reason: 'scrape-failed' });
   }
 
-  const url = await captureAndStoreScreenshot({ screenshotUrl, key: bundle.id });
+  // Recapture writes a versioned key so the new image lands at a fresh URL —
+  // overwriting the cached-immutable `{id}.webp` wouldn't bust browser/CDN
+  // caches. Fill-missing keeps the stable `{id}.webp` (nothing to invalidate).
+  const key = recapture ? `${bundle.id}-${Date.now()}` : bundle.id;
+  const url = await captureAndStoreScreenshot({ screenshotUrl, key });
   if (!url) {
     return NextResponse.json({ ok: true, stored: false, reason: 'store-failed' });
   }
 
   try {
-    // IS NULL guard so a concurrent capture (e.g. a re-run) wins cleanly and we
-    // never bump updated_at on an already-set row.
+    // Guard against a race with a concurrent write. Fill-missing only sets a
+    // still-empty row (a re-run/generation wins cleanly). Recapture overwrites,
+    // but still bails if an admin upload/recapture (versioned) landed meanwhile.
+    const guard = recapture
+      ? or(
+          isNull(bundles.previewImageUrl),
+          sql`${bundles.previewImageUrl} LIKE '%/' || ${bundles.id}::text || '.webp'`,
+        )
+      : isNull(bundles.previewImageUrl);
     await db
       .update(bundles)
       .set({ previewImageUrl: url })
-      .where(and(eq(bundles.id, bundle.id), isNull(bundles.previewImageUrl)));
+      .where(and(eq(bundles.id, bundle.id), guard));
   } catch (err) {
     console.error('[backfill-screenshot] update failed:', err instanceof Error ? err.message : err);
     return NextResponse.json({ ok: true, stored: false, reason: 'update-failed' });

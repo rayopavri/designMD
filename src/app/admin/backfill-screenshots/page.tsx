@@ -22,7 +22,9 @@ type Result = {
   remaining: number;
   etaSeconds: number;
   storage?: Storage;
+  recaptureAll?: boolean;
 };
+type RunMode = "fill" | "recapture";
 
 function storageHint(s: Storage): string {
   if (!s.configured) {
@@ -38,16 +40,26 @@ function storageHint(s: Storage): string {
 }
 
 export default function BackfillScreenshotsPage() {
-  const [running, setRunning] = useState(false);
+  const [running, setRunning] = useState<RunMode | null>(null);
   const [result, setResult] = useState<Result | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  async function run() {
-    setRunning(true);
+  async function run(mode: RunMode) {
+    if (mode === "recapture") {
+      const ok = window.confirm(
+        "Re-shoot every auto-captured screenshot in the library? Each source is re-scraped through Firecrawl (uses credits). Manual uploads and past Re-captures are skipped.",
+      );
+      if (!ok) return;
+    }
+    setRunning(mode);
     setError(null);
     setResult(null);
     try {
-      const res = await fetch("/api/admin/backfill-screenshots", { method: "POST" });
+      const res = await fetch("/api/admin/backfill-screenshots", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recaptureAll: mode === "recapture" }),
+      });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
         setError(body.error || `Request failed (${res.status})`);
@@ -57,7 +69,7 @@ export default function BackfillScreenshotsPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Request failed");
     } finally {
-      setRunning(false);
+      setRunning(null);
     }
   }
 
@@ -68,27 +80,65 @@ export default function BackfillScreenshotsPage() {
       <SectionLabel n="◆" t="Admin · Screenshots" />
       <h1 className="mt-4 text-[32px] font-medium tracking-[-0.02em]">Backfill screenshots</h1>
       <p className="mt-3 text-[14px] leading-[1.6]" style={{ color: SUB }}>
-        Captures a real website screenshot for every published bundle that doesn&apos;t have one
-        yet and shows it as the detail-page hero. Each source is re-scraped in the background
-        (staggered so we stay gentle on Firecrawl), so screenshots fill in over a few minutes.
-        Safe to run more than once — it skips bundles that already have one.
+        Captures a real website screenshot and shows it as the detail-page hero. Each source is
+        re-scraped in the background (staggered so we stay gentle on Firecrawl), so screenshots
+        fill in over a few minutes.
       </p>
+      <ul className="mt-3 space-y-1.5 text-[13.5px] leading-[1.55]" style={{ color: SUB }}>
+        <li>
+          <strong style={{ color: INK }}>Fill missing</strong> — only bundles with no screenshot
+          yet. Safe to run repeatedly; skips ones that already have one.
+        </li>
+        <li>
+          <strong style={{ color: INK }}>Re-capture all</strong> — also re-shoots existing
+          auto-captured screenshots with the latest capture settings.{" "}
+          <span style={{ color: MUTED }}>
+            Manual uploads and past Re-captures are left untouched.
+          </span>
+        </li>
+      </ul>
 
-      <button
-        onClick={() => void run()}
-        disabled={running}
-        className="mt-7 h-11 rounded-full px-6 text-[13px] font-medium inline-flex items-center gap-2"
-        style={{
-          background: INK,
-          color: INK_ON_LIGHT,
-          opacity: running ? 0.6 : 1,
-          cursor: running ? "not-allowed" : "pointer",
-          boxShadow: `0 0 0 1px ${VIOLET}55, 0 10px 36px -10px ${VIOLET}88`,
-        }}
-      >
-        {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
-        {running ? "Enqueuing…" : "Backfill screenshots"}
-      </button>
+      <div className="mt-7 flex flex-wrap items-center gap-3">
+        <button
+          onClick={() => void run("fill")}
+          disabled={running !== null}
+          className="h-11 rounded-full px-6 text-[13px] font-medium inline-flex items-center gap-2"
+          style={{
+            background: INK,
+            color: INK_ON_LIGHT,
+            opacity: running !== null ? 0.6 : 1,
+            cursor: running !== null ? "not-allowed" : "pointer",
+            boxShadow: `0 0 0 1px ${VIOLET}55, 0 10px 36px -10px ${VIOLET}88`,
+          }}
+        >
+          {running === "fill" ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Camera className="h-4 w-4" />
+          )}
+          {running === "fill" ? "Enqueuing…" : "Fill missing"}
+        </button>
+
+        <button
+          onClick={() => void run("recapture")}
+          disabled={running !== null}
+          className="h-11 rounded-full px-6 text-[13px] font-medium inline-flex items-center gap-2 border"
+          style={{
+            background: SURFACE,
+            color: INK,
+            borderColor: BORDER,
+            opacity: running !== null ? 0.6 : 1,
+            cursor: running !== null ? "not-allowed" : "pointer",
+          }}
+        >
+          {running === "recapture" ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Camera className="h-4 w-4" />
+          )}
+          {running === "recapture" ? "Enqueuing…" : "Re-capture all"}
+        </button>
+      </div>
 
       {error ? (
         <div
@@ -146,7 +196,9 @@ export default function BackfillScreenshotsPage() {
             </>
           ) : (
             <div className="text-[14px]" style={{ color: INK }}>
-              Nothing to do — every published bundle already has a screenshot. 🎉
+              {result.recaptureAll
+                ? "Nothing to do — every eligible bundle already has a fresh screenshot. 🎉"
+                : "Nothing to do — every published bundle already has a screenshot. 🎉"}
             </div>
           )}
           {result.remaining > 0 ? (
