@@ -22,6 +22,7 @@ import {
   VIOLET,
 } from "@/lib/ui-data/tokens";
 import { TYPE_META } from "@/lib/ui-data/items";
+import { openAuthModal } from "@/lib/ui-data/mockAuth";
 import {
   compressImageForUpload,
   formatBytes,
@@ -344,6 +345,13 @@ function GenerateContent() {
             : "You've hit the generation rate limit. Try again later.",
         );
         setStatus("failed");
+        // Anonymous visitors get one free generation — open the sign-in wall.
+        if (body.tier === "anonymous") {
+          openAuthModal(
+            "/generate",
+            "You've used your free generation. Sign in to keep generating.",
+          );
+        }
         return;
       }
       if (!res.ok) {
@@ -376,6 +384,13 @@ function GenerateContent() {
             : "You've hit the generation rate limit. Try again later.",
         );
         setStatus("failed");
+        // Anonymous visitors get one free generation — open the sign-in wall.
+        if (body.tier === "anonymous") {
+          openAuthModal(
+            "/generate",
+            "You've used your free generation. Sign in to keep generating.",
+          );
+        }
         return;
       }
       if (!res.ok) {

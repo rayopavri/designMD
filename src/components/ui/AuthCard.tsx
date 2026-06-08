@@ -97,9 +97,21 @@ export function AuthCard({ variant = "compact", onSuccess, intent, onSkip, title
       setLoadingProvider(null);
       // Global auth subscriber closes the modal once the user clicks the
       // link and `/auth/callback` completes sign-in.
-    } catch {
+    } catch (err) {
       if (!mountedRef.current) return;
-      setError("Couldn't send the link. Try again.");
+      // Surface the real Firebase reason instead of a generic message. The
+      // usual culprits: auth/operation-not-allowed (email-link sign-in not
+      // enabled in the Firebase console) and auth/unauthorized-continue-uri
+      // (the /auth/callback origin isn't in the authorized domains list).
+      const code =
+        err && typeof err === "object" && "code" in err
+          ? String((err as { code: unknown }).code)
+          : null;
+      setError(
+        code
+          ? `Couldn't send the link (${code}). Try again.`
+          : "Couldn't send the link. Try again.",
+      );
       setLoadingProvider(null);
     }
   }

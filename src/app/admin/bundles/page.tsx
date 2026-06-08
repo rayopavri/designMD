@@ -84,6 +84,11 @@ interface ListRow {
 interface DetailRow extends ListRow {
   designMd: string | null;
   companionPrompt: string;
+  // Creator attribution. createdBy is null for anonymously-generated bundles;
+  // creatorName/creatorEmail come from a join on the users table.
+  createdBy: string | null;
+  creatorName: string | null;
+  creatorEmail: string | null;
   brandLogoUrl: string | null;
   brandInitial: string | null;
   brandColor: string | null;
@@ -870,6 +875,39 @@ export default function AdminBundlesPage() {
     }
   };
 
+  // Reject a submission: moves it to `rejected` (out of the public library &
+  // search, but still visible to the creator in /account/bundles). The reject
+  // endpoint requires a reason, collected via the inline panel in DetailEditor.
+  // Returns true on success so the panel can close and clear its input.
+  const onReject = async (reason: string): Promise<boolean> => {
+    if (!detail) return false;
+    setActionState("rejecting");
+    setActionError(null);
+    try {
+      const res = await fetch(
+        `/api/admin/bundles/${encodeURIComponent(detail.slug)}/reject`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reviewNotes: reason }),
+        },
+      );
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({ error: res.statusText }));
+        setActionError(body.error || `Reject failed (${res.status})`);
+        return false;
+      }
+      await loadDetail(detail.slug);
+      await loadList();
+      return true;
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Network error");
+      return false;
+    } finally {
+      setActionState("idle");
+    }
+  };
+
   const onRegenerateCompanion = async () => {
     if (!detail) return;
     setActionState("regenerating-companion");
@@ -1531,6 +1569,7 @@ export default function AdminBundlesPage() {
               onSave={onSave}
               onArchive={onArchive}
               onRestore={onRestore}
+              onReject={onReject}
               onPublish={onPublish}
               onRegenerateCompanion={onRegenerateCompanion}
               onRerunPipeline={onRerunPipeline}
@@ -1579,6 +1618,7 @@ interface DetailEditorProps {
   onSave: () => void | Promise<void>;
   onArchive: () => void | Promise<void>;
   onRestore: (target: "published" | "pending_review") => void | Promise<void>;
+  onReject: (reason: string) => Promise<boolean>;
   onPublish: () => void | Promise<void>;
   onRegenerateCompanion: () => void | Promise<void>;
   onRerunPipeline: (feedback?: string) => Promise<boolean>;
@@ -1784,13 +1824,17 @@ function DetailEditor(props: DetailEditorProps) {
 
   const [showRerunPanel, setShowRerunPanel] = useState(false);
   const [rerunFeedback, setRerunFeedback] = useState("");
+  const [showRejectPanel, setShowRejectPanel] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
 
-  // Reset the panel when the editor switches to a different bundle so feedback
+  // Reset the panels when the editor switches to a different bundle so text
   // typed for one bundle can't leak into another. DetailEditor isn't keyed by
   // slug, so its local state otherwise persists across row selections.
   useEffect(() => {
     setShowRerunPanel(false);
     setRerunFeedback("");
+    setShowRejectPanel(false);
+    setRejectReason("");
   }, [detail.slug]);
 
   return (
@@ -2074,6 +2118,13 @@ function DetailEditor(props: DetailEditorProps) {
           >
             meta
           </div>
+          <MetaRow
+            k="creator"
+            v={detail.createdBy ? (detail.creatorName ?? "—") : "anonymous"}
+          />
+          {detail.createdBy && detail.creatorEmail ? (
+            <MetaRow k="email" v={detail.creatorEmail} />
+          ) : null}
           <MetaRow k="author" v={detail.authorName ?? "—"} />
           <MetaRow k="votes" v={`${detail.voteCount} (${detail.positiveVoteRate}%)`} />
           <MetaRow k="companion" v={detail.companionStatus} />
@@ -2309,6 +2360,42 @@ function DetailEditor(props: DetailEditorProps) {
             );
           })() : null}
 
+          {!editing && (status === "pending_review" || status === "personal" || status === "flagged") ? (
+            <button
+              type="button"
+              onClick={() => setShowRejectPanel((v) => !v)}
+              disabled={busy || showProgress}
+              title="Reject this submission — it leaves the public library but stays in the creator's account"
+              className="h-9 rounded-full px-4 text-[12.5px] inline-flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{ background: SURFACE_2, color: INK, border: `1px solid ${PEACH}66` }}
+            >
+              {actionState === "rejecting" ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <X className="h-3.5 w-3.5" style={{ color: PEACH }} />
+              )}
+              Reject
+            </button>
+          ) : null}
+
+          {!editing && (status === "rejected" || status === "archived") ? (
+            <button
+              type="button"
+              onClick={() => void props.onRestore("published")}
+              disabled={busy || showProgress}
+              title="Restore this bundle and publish it to the public library"
+              className="h-9 rounded-full px-4 text-[12.5px] inline-flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{ background: SURFACE_2, color: INK, border: `1px solid ${LIME}66` }}
+            >
+              {actionState === "restoring" ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <RotateCw className="h-3.5 w-3.5" style={{ color: LIME }} />
+              )}
+              Restore
+            </button>
+          ) : null}
+
           {!editing && detail.sourceUrl && !detail.sourceUrl.startsWith("upload://") ? (
             <button
               type="button"
@@ -2390,6 +2477,79 @@ function DetailEditor(props: DetailEditorProps) {
             </a>
           ) : null}
         </div>
+
+        {showRejectPanel ? (
+          <div
+            className="rounded-lg border p-3 flex flex-col gap-2.5"
+            style={{ borderColor: `${PEACH}55`, background: SURFACE_2 }}
+          >
+            <div className="flex items-center gap-2">
+              <X className="h-3.5 w-3.5" style={{ color: PEACH }} />
+              <span
+                className="text-[10.5px] uppercase tracking-[0.22em]"
+                style={{ color: PEACH, fontFamily: MONO }}
+              >
+                reject submission
+              </span>
+            </div>
+            <p className="text-[11.5px] leading-[1.55]" style={{ color: SUB }}>
+              The bundle leaves the public library and search but stays in the
+              creator&apos;s account. Give a reason the creator can act on.
+            </p>
+            <textarea
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              rows={3}
+              maxLength={2000}
+              placeholder="e.g. The palette doesn't match the source site — re-run with the correct brand colors, or the design.md is too sparse to publish."
+              className="w-full resize-y rounded-md border px-2.5 py-2 text-[12px] outline-none"
+              style={{ color: INK, background: SURFACE, borderColor: BORDER, fontFamily: MONO }}
+            />
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={busy || rejectReason.trim() === ""}
+                onClick={async () => {
+                  const ok = await props.onReject(rejectReason.trim());
+                  if (ok) {
+                    setShowRejectPanel(false);
+                    setRejectReason("");
+                  }
+                }}
+                title={
+                  rejectReason.trim() === ""
+                    ? "Enter a rejection reason"
+                    : "Reject this submission"
+                }
+                className="h-8 rounded-full px-3.5 text-[12px] font-medium inline-flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{
+                  background: INK,
+                  color: INK_ON_LIGHT,
+                  boxShadow: `0 0 0 1px ${PEACH}55, 0 10px 28px -12px ${PEACH}66`,
+                }}
+              >
+                {actionState === "rejecting" ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <X className="h-3.5 w-3.5" />
+                )}
+                Confirm rejection
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => {
+                  setShowRejectPanel(false);
+                  setRejectReason("");
+                }}
+                className="h-8 rounded-full px-3.5 text-[12px] inline-flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ background: SURFACE_2, color: SUB, border: `1px solid ${BORDER}` }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : null}
 
         {showRerunPanel && detail.sourceUrl && !detail.sourceUrl.startsWith("upload://") ? (
           <div
@@ -2484,7 +2644,7 @@ function MetaRow({ k, v }: { k: string; v: string }) {
   return (
     <div className="flex items-baseline justify-between gap-3 text-[11.5px]" style={{ fontFamily: MONO }}>
       <span style={{ color: MUTED }}>{k}</span>
-      <span className="truncate" style={{ color: INK }}>
+      <span className="truncate" style={{ color: INK }} title={v}>
         {v}
       </span>
     </div>

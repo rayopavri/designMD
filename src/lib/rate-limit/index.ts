@@ -1,9 +1,14 @@
 /**
  * Rate-limit gate for `/api/generate`.
  *
- * Three tiers (sliding window, persisted in Upstash Redis):
- *   - anonymous  → 3 generations per hour, keyed by IP
- *   - signed-in  → 10 generations per hour, keyed by userId
+ * Three tiers, persisted in Upstash Redis:
+ *   - anonymous  → ONE free generation per browser (for the ~30d lifetime of
+ *                  the __anon_id cookie), keyed by that cookie (falls back to
+ *                  IP if the cookie is somehow absent). The gate is *peeked*
+ *                  here and only *consumed* (markFreeGenerationUsed) once a job
+ *                  is actually created, so a 400/409 doesn't burn the free run.
+ *                  After that the UI prompts sign-in.
+ *   - signed-in  → 10 generations per hour (sliding window), keyed by userId
  *   - editor     → unlimited (rate limit not applied)
  *
  * Graceful degradation: if UPSTASH_* env vars are unset (e.g. local
@@ -32,7 +37,6 @@ export interface RateLimitResult {
 }
 
 let _redis: Redis | null = null;
-let _anonLimiter: Ratelimit | null = null;
 let _signedInLimiter: Ratelimit | null = null;
 let _warnedDisabled = false;
 
@@ -50,17 +54,49 @@ function client(): Redis | null {
   return _redis;
 }
 
-function anonLimiter(): Ratelimit | null {
+// ─── Anonymous one-free-generation gate ──────────────────────────────────
+// A single free generation per browser, tracked by a plain Redis key (not a
+// sliding window) so it acts as a one-time gate. The 30-day TTL matches the
+// __anon_id cookie lifetime (src/lib/auth/anon-token.ts), so the free run
+// resets only when the cookie itself expires.
+const ANON_FREE_PREFIX = 'rl:generate:anon-free';
+const ANON_FREE_TTL_SECONDS = 30 * 24 * 60 * 60;
+
+function anonFreeKey(anonToken: string | null, req: Request): string {
+  // Key on the per-browser cookie so an IP change can't reset the gate; fall
+  // back to IP only when the cookie is somehow absent.
+  return `${ANON_FREE_PREFIX}:${anonToken ?? `ip:${getClientIp(req)}`}`;
+}
+
+/**
+ * Peek whether this browser has already used its one free generation.
+ * Non-consuming. Returns false (allow) when Redis isn't configured.
+ */
+export async function hasUsedFreeGeneration(
+  anonToken: string | null,
+  req: Request,
+): Promise<boolean> {
   const redis = client();
-  if (!redis) return null;
-  if (_anonLimiter) return _anonLimiter;
-  _anonLimiter = new Ratelimit({
-    redis,
-    limiter: Ratelimit.slidingWindow(3, '1 h'),
-    analytics: true,
-    prefix: 'rl:generate:anon',
+  if (!redis) return false;
+  const used = await redis.get(anonFreeKey(anonToken, req));
+  return used != null;
+}
+
+/**
+ * Consume this browser's one free generation. Call only after a job has
+ * actually been created, so a validation 400 / dedupe 409 doesn't burn it.
+ * SET NX so concurrent first-requests don't double-count.
+ */
+export async function markFreeGenerationUsed(
+  anonToken: string | null,
+  req: Request,
+): Promise<void> {
+  const redis = client();
+  if (!redis) return;
+  await redis.set(anonFreeKey(anonToken, req), Date.now(), {
+    nx: true,
+    ex: ANON_FREE_TTL_SECONDS,
   });
-  return _anonLimiter;
 }
 
 function signedInLimiter(): Ratelimit | null {
@@ -80,6 +116,9 @@ export interface RateLimitInput {
   req: Request;
   userId: string | null;
   isEditor: boolean;
+  /** The visitor's __anon_id cookie value (null for signed-in users). Used to
+   * key the anonymous one-free-generation gate per browser rather than per IP. */
+  anonToken: string | null;
 }
 
 export async function rateLimitGenerate(input: RateLimitInput): Promise<RateLimitResult> {
@@ -114,17 +153,11 @@ export async function rateLimitGenerate(input: RateLimitInput): Promise<RateLimi
     };
   }
 
-  const limiter = anonLimiter();
-  if (!limiter) {
-    return { ok: true, retryAfter: 0, limit: Infinity, remaining: Infinity, tier: 'disabled' };
-  }
-  const ip = getClientIp(input.req);
-  const r = await limiter.limit(ip);
-  return {
-    ok: r.success,
-    retryAfter: r.success ? 0 : Math.max(0, Math.ceil((r.reset - Date.now()) / 1000)),
-    limit: r.limit,
-    remaining: r.remaining,
-    tier: 'anonymous',
-  };
+  // Anonymous: one free generation per browser. Peek only — the route consumes
+  // it (markFreeGenerationUsed) after a job is actually created, so a 400/409
+  // doesn't burn the free run.
+  const used = await hasUsedFreeGeneration(input.anonToken, input.req);
+  return used
+    ? { ok: false, retryAfter: 0, limit: 1, remaining: 0, tier: 'anonymous' }
+    : { ok: true, retryAfter: 0, limit: 1, remaining: 1, tier: 'anonymous' };
 }

@@ -8,7 +8,7 @@ import { closeAuthModal, postAuthDestination, useAuthModal } from "@/lib/ui-data
 import { BORDER, INK, MUTED, SURFACE } from "@/lib/ui-data/tokens";
 
 export function AuthModal() {
-  const { isOpen, returnTo } = useAuthModal();
+  const { isOpen, returnTo, intent } = useAuthModal();
   const _router = useRouter();
   const navigate = (path: string) => _router.push(path);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -64,10 +64,8 @@ export function AuthModal() {
 
   if (!isOpen) return null;
 
-  // Intent copy is now generic — the AuthCard's default mentions the
-  // upcoming track-history and favorites features. Anonymous generation
-  // is permitted, so we no longer say "requires an account."
-  const intent = null;
+  // Intent copy is supplied per-open (e.g. the generate page's free-generation
+  // wall passes a specific message); falls back to AuthCard's default when null.
 
   return (
     <div

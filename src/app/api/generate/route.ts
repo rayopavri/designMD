@@ -30,7 +30,7 @@ import { getCurrentUser } from '@/lib/auth/session';
 import { getOrCreateAnonToken, attachAnonToken } from '@/lib/auth/anon-token';
 import { normalizeUrl } from '@/lib/generator/url';
 import { enqueueTask } from '@/lib/queue';
-import { rateLimitGenerate } from '@/lib/rate-limit';
+import { rateLimitGenerate, markFreeGenerationUsed } from '@/lib/rate-limit';
 
 export const runtime = 'nodejs';
 
@@ -50,14 +50,20 @@ export async function POST(req: NextRequest) {
     const userId = user?.id ?? null;
     const isEditor = user?.isEditor ?? false;
 
-    // Rate-limit gate. Editors are unmetered, signed-in get 10/hour by
-    // userId, anonymous get 3/hour by IP. Returns 429 if exceeded.
-    const rl = await rateLimitGenerate({ req, userId, isEditor });
+    // Resolve the anon cookie first so the rate-limit gate can key the
+    // one-free-generation limit on the browser (via __anon_id), not the IP.
+    const { token: anonToken, isNew } = await getOrCreateAnonToken(userId);
+
+    // Rate-limit gate. Editors are unmetered; signed-in get 10/hour by userId;
+    // anonymous get a single free generation per browser. Returns 429 if exceeded.
+    const rl = await rateLimitGenerate({ req, userId, isEditor, anonToken });
     if (!rl.ok) {
-      return NextResponse.json(
+      const res = NextResponse.json(
         {
           error: 'rate_limited',
-          message: `You've hit the generation limit (${rl.limit} per hour). Try again in ~${Math.ceil(rl.retryAfter / 60)}m${userId ? '' : ' — or sign in for higher limits.'}`,
+          message: userId
+            ? `You've hit the generation limit (${rl.limit} per hour). Try again in ~${Math.ceil(rl.retryAfter / 60)}m.`
+            : "You've used your free generation — sign in to generate more.",
           retryAfter: rl.retryAfter,
           limit: rl.limit,
           remaining: rl.remaining,
@@ -72,14 +78,21 @@ export async function POST(req: NextRequest) {
           },
         },
       );
+      // Tag the browser even on a block so it's consistently identified next time.
+      if (isNew && anonToken) attachAnonToken(res, anonToken);
+      return res;
     }
-
-    const { token: anonToken, isNew } = await getOrCreateAnonToken(userId);
 
     const contentType = req.headers.get('content-type') ?? '';
     const res = contentType.startsWith('multipart/form-data')
       ? await handleUpload(req, userId, anonToken, isEditor)
       : await handleUrl(req, userId, anonToken, isEditor);
+
+    // Anonymous: consume the single free generation only when a job was
+    // actually created (202), so validation 400s / dedupe 409s don't burn it.
+    if (!userId && res.status === 202) {
+      await markFreeGenerationUsed(anonToken, req);
+    }
 
     if (isNew && anonToken) attachAnonToken(res, anonToken);
     return res;

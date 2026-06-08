@@ -47,6 +47,8 @@ interface State {
   modal: {
     open: boolean;
     returnTo: string | null;
+    /** Optional context line shown in the auth card (e.g. why the prompt appeared). */
+    intent: string | null;
   };
 }
 
@@ -92,7 +94,7 @@ let state: State = {
   user: null,
   loading: true,
   isFirstSignIn: false,
-  modal: { open: false, returnTo: null },
+  modal: { open: false, returnTo: null, intent: null },
 };
 
 const listeners = new Set<() => void>();
@@ -120,7 +122,7 @@ const SERVER_SNAPSHOT: State = Object.freeze({
   user: null,
   loading: true,
   isFirstSignIn: false,
-  modal: Object.freeze({ open: false, returnTo: null }),
+  modal: Object.freeze({ open: false, returnTo: null, intent: null }),
 }) as State;
 
 function getServerSnapshot(): State {
@@ -136,17 +138,18 @@ export function useAuthModal() {
   return {
     isOpen: s.modal.open,
     returnTo: s.modal.returnTo,
+    intent: s.modal.intent,
     open: openAuthModal,
     close: closeAuthModal,
   };
 }
 
-export function openAuthModal(returnTo: string | null = null) {
-  setState({ modal: { open: true, returnTo } });
+export function openAuthModal(returnTo: string | null = null, intent: string | null = null) {
+  setState({ modal: { open: true, returnTo, intent } });
 }
 
 export function closeAuthModal() {
-  setState({ modal: { open: false, returnTo: null } });
+  setState({ modal: { open: false, returnTo: null, intent: null } });
 }
 
 // --- Session bridge: exchange a Firebase ID token for an httpOnly cookie ---
@@ -199,7 +202,7 @@ function ensureInitialized() {
           user,
           loading: false,
           isFirstSignIn: !seen,
-          modal: { open: false, returnTo: null },
+          modal: { open: false, returnTo: null, intent: null },
         });
       } else {
         setState({ loading: false });
@@ -223,7 +226,7 @@ export async function mockSignInGoogle(): Promise<AuthUser> {
       user,
       loading: false,
       isFirstSignIn: !seen,
-      modal: { open: false, returnTo: null },
+      modal: { open: false, returnTo: null, intent: null },
     });
     return user;
   } catch (err) {
@@ -245,6 +248,10 @@ export async function mockSignInEmail(email: string): Promise<void> {
     window.localStorage.setItem(EMAIL_LINK_STORAGE_KEY, email);
     setState({ loading: false });
   } catch (err) {
+    // Log the real Firebase error (e.g. auth/operation-not-allowed when
+    // email-link sign-in is disabled in the console) so failures are
+    // diagnosable instead of silently surfacing a generic UI message.
+    console.error('[auth] sendSignInLinkToEmail failed:', err);
     setState({ loading: false });
     throw err;
   }

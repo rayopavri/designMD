@@ -14,7 +14,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '@/lib/db/client';
-import { bundles, categories } from '@/lib/db/schema';
+import { bundles, categories, users } from '@/lib/db/schema';
 import { requireEditor } from '@/lib/auth/session';
 import {
   lintDesignMd,
@@ -67,6 +67,11 @@ const DETAIL_COLUMNS = {
   sourceDomain: bundles.sourceDomain,
   sourceUrl: bundles.sourceUrl,
   authorName: bundles.authorName,
+  // Creator attribution — distinct from authorName (which is the scraped
+  // site's own attribution). Null for anonymously-generated bundles.
+  createdBy: bundles.createdBy,
+  creatorName: users.displayName,
+  creatorEmail: users.email,
   license: bundles.license,
   attributionStatement: bundles.attributionStatement,
   isFeatured: bundles.isFeatured,
@@ -87,6 +92,7 @@ async function loadBundle(slug: string) {
     .select(DETAIL_COLUMNS)
     .from(bundles)
     .leftJoin(categories, eq(bundles.primaryCategoryId, categories.id))
+    .leftJoin(users, eq(bundles.createdBy, users.id))
     .where(eq(bundles.slug, slug))
     .limit(1);
   return row ?? null;
