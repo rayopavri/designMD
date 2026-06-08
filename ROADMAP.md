@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-06-08** (Fix admin recapture: screenshot-only scrape + surface real error)
+> Last updated: **2026-06-08** (Make screenshot backfill resilient to Firecrawl rate limits)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -256,6 +256,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-06-08** - Make screenshot backfill resilient to Firecrawl rate limits (770524a)
 - [x] **2026-06-08** - Fix admin recapture: screenshot-only scrape + surface real error (6a1eff4)
 - [x] **2026-06-08** - Fix screenshot upload 413: compress before upload, safe-parse response (04850bc)
 - [x] **2026-06-08** - Add screenshot view and replacement to admin bundle detail page (899b506)
