@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-06-08** (Install + register headroom MCP in web session-start hook)
+> Last updated: **2026-06-08** (Make preview the default, first tab in the bundle reader)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -256,6 +256,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-06-08** - Make preview the default, first tab in the bundle reader (f88f7ab)
 - [x] **2026-06-08** - Install + register headroom MCP in web session-start hook (c26b797)
 - [x] **2026-06-08** - Add 'recapture all' mode to screenshot backfill (spares manual uploads) (bf93fb8)
 - [x] **2026-06-08** - Improve Firecrawl screenshot capture: dismiss overlays, fix viewport/crop (36a4dcc)
