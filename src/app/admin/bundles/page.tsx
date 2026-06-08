@@ -2186,54 +2186,56 @@ function DetailEditor(props: DetailEditorProps) {
             no screenshot
           </div>
         )}
-        <div className="flex items-center gap-2 px-3 py-2 border-t" style={{ borderColor: BORDER }}>
-          {detail.sourceUrl && !detail.sourceUrl.startsWith("upload://") && (
+        {editing && (
+          <div className="flex items-center gap-2 px-3 py-2 border-t" style={{ borderColor: BORDER }}>
+            {detail.sourceUrl && !detail.sourceUrl.startsWith("upload://") && (
+              <button
+                type="button"
+                disabled={!!screenshotBusy}
+                onClick={() => void handleRecapture()}
+                className="inline-flex items-center gap-1.5 rounded px-2.5 py-1.5 text-[11px] border disabled:opacity-40"
+                style={{ color: INK, background: SURFACE_2, borderColor: BORDER, fontFamily: MONO }}
+              >
+                {screenshotBusy === "recapture" ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <RotateCw className="h-3 w-3" />
+                )}
+                Re-capture
+              </button>
+            )}
             <button
               type="button"
               disabled={!!screenshotBusy}
-              onClick={() => void handleRecapture()}
+              onClick={() => fileInputRef.current?.click()}
               className="inline-flex items-center gap-1.5 rounded px-2.5 py-1.5 text-[11px] border disabled:opacity-40"
               style={{ color: INK, background: SURFACE_2, borderColor: BORDER, fontFamily: MONO }}
             >
-              {screenshotBusy === "recapture" ? (
+              {screenshotBusy === "upload" ? (
                 <Loader2 className="h-3 w-3 animate-spin" />
               ) : (
-                <RotateCw className="h-3 w-3" />
+                <Upload className="h-3 w-3" />
               )}
-              Re-capture
+              Upload
             </button>
-          )}
-          <button
-            type="button"
-            disabled={!!screenshotBusy}
-            onClick={() => fileInputRef.current?.click()}
-            className="inline-flex items-center gap-1.5 rounded px-2.5 py-1.5 text-[11px] border disabled:opacity-40"
-            style={{ color: INK, background: SURFACE_2, borderColor: BORDER, fontFamily: MONO }}
-          >
-            {screenshotBusy === "upload" ? (
-              <Loader2 className="h-3 w-3 animate-spin" />
-            ) : (
-              <Upload className="h-3 w-3" />
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) void handleUpload(file);
+                e.target.value = "";
+              }}
+            />
+            {screenshotError && (
+              <span className="text-[11px] ml-1" style={{ color: PEACH, fontFamily: MONO }}>
+                {screenshotError}
+              </span>
             )}
-            Upload
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) void handleUpload(file);
-              e.target.value = "";
-            }}
-          />
-          {screenshotError && (
-            <span className="text-[11px] ml-1" style={{ color: PEACH, fontFamily: MONO }}>
-              {screenshotError}
-            </span>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Palette + source meta */}
