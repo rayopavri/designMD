@@ -17,6 +17,6 @@ export async function GET(_req: NextRequest, ctx: RouteContext) {
   if (!slug || slug.length > 200) {
     return NextResponse.json({ error: 'Invalid slug' }, { status: 400 });
   }
-  const rows = await getRelatedBundles(slug);
-  return NextResponse.json({ data: rows });
+  const { items, sourceCategoryName, sourceCategorySlug } = await getRelatedBundles(slug);
+  return NextResponse.json({ data: items, sourceCategoryName, sourceCategorySlug });
 }

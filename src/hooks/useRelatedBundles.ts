@@ -218,11 +218,15 @@ function apiToBundleItem(row: ApiBundleListItem): BundleItem {
 interface UseRelatedBundlesResult {
   items: BundleItem[];
   loading: boolean;
+  sourceCategoryName: string | null;
+  sourceCategorySlug: string | null;
 }
 
 export function useRelatedBundles(slug: string | undefined): UseRelatedBundlesResult {
   const [items, setItems] = useState<BundleItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sourceCategoryName, setSourceCategoryName] = useState<string | null>(null);
+  const [sourceCategorySlug, setSourceCategorySlug] = useState<string | null>(null);
 
   useEffect(() => {
     if (!slug) {
@@ -238,9 +242,15 @@ export function useRelatedBundles(slug: string | undefined): UseRelatedBundlesRe
           credentials: 'include',
         });
         if (!res.ok) throw new Error(`API ${res.status}`);
-        const json = (await res.json()) as { data: ApiBundleListItem[] };
+        const json = (await res.json()) as {
+          data: ApiBundleListItem[];
+          sourceCategoryName: string | null;
+          sourceCategorySlug: string | null;
+        };
         if (cancelled) return;
         setItems(json.data.map(apiToBundleItem));
+        setSourceCategoryName(json.sourceCategoryName ?? null);
+        setSourceCategorySlug(json.sourceCategorySlug ?? null);
       } catch {
         if (!cancelled) setItems([]);
       } finally {
@@ -253,5 +263,5 @@ export function useRelatedBundles(slug: string | undefined): UseRelatedBundlesRe
     };
   }, [slug]);
 
-  return { items, loading };
+  return { items, loading, sourceCategoryName, sourceCategorySlug };
 }

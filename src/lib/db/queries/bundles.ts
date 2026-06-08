@@ -503,23 +503,32 @@ export async function listUserBundles(userId: string): Promise<UserBundleListIte
 
 const RELATED_DEFAULT_LIMIT = 6;
 
+export interface RelatedBundlesResult {
+  items: BundleListItem[];
+  sourceCategoryName: string | null;
+  sourceCategorySlug: string | null;
+}
+
 export async function getRelatedBundles(
   slug: string,
   limit = RELATED_DEFAULT_LIMIT,
-): Promise<BundleListItem[]> {
+): Promise<RelatedBundlesResult> {
   // Look up the source bundle's matchable attributes by slug.
   const [source] = await db
     .select({
       id: bundles.id,
       primaryCategoryId: bundles.primaryCategoryId,
+      primaryCategoryName: categories.name,
+      primaryCategorySlug: categories.slug,
       designStyle: bundles.designStyle,
       compatibleTools: bundles.compatibleTools,
     })
     .from(bundles)
+    .leftJoin(categories, eq(bundles.primaryCategoryId, categories.id))
     .where(eq(bundles.slug, slug))
     .limit(1);
 
-  if (!source) return [];
+  if (!source) return { items: [], sourceCategoryName: null, sourceCategorySlug: null };
 
   // Match on any of: same primary category, overlapping design styles,
   // or overlapping compatible tools. Skip the array-overlap predicates
@@ -540,7 +549,7 @@ export async function getRelatedBundles(
   }
 
   // Nothing to relate on (no category, no styles, no tools).
-  if (matchConditions.length === 0) return [];
+  if (matchConditions.length === 0) return { items: [], sourceCategoryName: source.primaryCategoryName, sourceCategorySlug: source.primaryCategorySlug };
 
   const matchClause = matchConditions.length === 1 ? matchConditions[0] : or(...matchConditions);
 
@@ -576,7 +585,11 @@ export async function getRelatedBundles(
     .orderBy(desc(bundles.positiveVoteRate), desc(bundles.voteCount))
     .limit(limit);
 
-  return rows as BundleListItem[];
+  return {
+    items: rows as BundleListItem[],
+    sourceCategoryName: source.primaryCategoryName,
+    sourceCategorySlug: source.primaryCategorySlug,
+  };
 }
 
 export interface BundleIndexItem {
