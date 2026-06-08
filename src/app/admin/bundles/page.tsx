@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   Star,
   Trash2,
+  Upload,
   X,
 } from "lucide-react";
 import { SectionLabel } from "@/components/ui/Shell";
@@ -97,6 +98,7 @@ interface DetailRow extends ListRow {
   reviewNotes: string | null;
   accessibilityNotes: string | null;
   sourceUrl: string | null;
+  previewImageUrl: string | null;
   coverageColors: number | null;
   coverageTypography: number | null;
   coverageLayout: number | null;
@@ -1566,6 +1568,9 @@ export default function AdminBundlesPage() {
               rerunStep={rerunStep}
               rerunStatus={rerunStatus}
               latestJob={latestJob}
+              onScreenshotUpdate={(url) =>
+                setDetail((prev) => (prev ? { ...prev, previewImageUrl: url } : prev))
+              }
               onSave={onSave}
               onArchive={onArchive}
               onRestore={onRestore}
@@ -1615,6 +1620,7 @@ interface DetailEditorProps {
     designMdDoneAt: string | null;
     lintDoneAt: string | null;
   } | null;
+  onScreenshotUpdate: (url: string | null) => void;
   onSave: () => void | Promise<void>;
   onArchive: () => void | Promise<void>;
   onRestore: (target: "published" | "pending_review") => void | Promise<void>;
@@ -1836,6 +1842,55 @@ function DetailEditor(props: DetailEditorProps) {
     setShowRejectPanel(false);
     setRejectReason("");
   }, [detail.slug]);
+
+  const [screenshotBusy, setScreenshotBusy] = useState<"recapture" | "upload" | null>(null);
+  const [screenshotError, setScreenshotError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  async function handleRecapture() {
+    setScreenshotBusy("recapture");
+    setScreenshotError(null);
+    try {
+      const res = await fetch(`/api/admin/bundles/${detail.slug}/screenshot`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "recapture" }),
+      });
+      const body = (await res.json()) as { previewImageUrl?: string; error?: string };
+      if (!res.ok) {
+        setScreenshotError(body.error ?? `Error ${res.status}`);
+      } else {
+        props.onScreenshotUpdate(body.previewImageUrl ?? null);
+      }
+    } catch (err) {
+      setScreenshotError(err instanceof Error ? err.message : "Network error");
+    } finally {
+      setScreenshotBusy(null);
+    }
+  }
+
+  async function handleUpload(file: File) {
+    setScreenshotBusy("upload");
+    setScreenshotError(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch(`/api/admin/bundles/${detail.slug}/screenshot`, {
+        method: "POST",
+        body: fd,
+      });
+      const body = (await res.json()) as { previewImageUrl?: string; error?: string };
+      if (!res.ok) {
+        setScreenshotError(body.error ?? `Error ${res.status}`);
+      } else {
+        props.onScreenshotUpdate(body.previewImageUrl ?? null);
+      }
+    } catch (err) {
+      setScreenshotError(err instanceof Error ? err.message : "Network error");
+    } finally {
+      setScreenshotBusy(null);
+    }
+  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -2085,6 +2140,91 @@ function DetailEditor(props: DetailEditorProps) {
             </div>
           </div>
         ) : null}
+      </div>
+
+      {/* Screenshot */}
+      <div className="rounded-lg border overflow-hidden" style={{ borderColor: BORDER, background: SURFACE }}>
+        <div
+          className="flex items-center gap-2 h-8 px-3 border-b"
+          style={{ borderColor: BORDER, background: SURFACE_2 }}
+        >
+          <span className="flex gap-1" aria-hidden>
+            {["#FF5F57", "#FEBC2E", "#28C840"].map((c) => (
+              <span key={c} className="h-2 w-2 rounded-full" style={{ background: c, opacity: 0.7 }} />
+            ))}
+          </span>
+          <span className="ml-2 flex-1 truncate text-[10.5px]" style={{ fontFamily: MONO, color: MUTED }}>
+            {detail.sourceDomain ?? "screenshot"}
+          </span>
+          <span className="text-[9.5px] uppercase tracking-[0.18em]" style={{ color: MUTED, fontFamily: MONO }}>
+            screenshot · system-managed
+          </span>
+        </div>
+        {detail.previewImageUrl ? (
+          <a href={detail.previewImageUrl} target="_blank" rel="noopener noreferrer" className="block relative" style={{ aspectRatio: "16 / 10" }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={detail.previewImageUrl}
+              alt="bundle screenshot"
+              className="absolute inset-0 h-full w-full object-cover object-top"
+            />
+          </a>
+        ) : (
+          <div
+            className="flex items-center justify-center text-[11px]"
+            style={{ aspectRatio: "16 / 10", color: MUTED, fontFamily: MONO, background: SURFACE_2 }}
+          >
+            no screenshot
+          </div>
+        )}
+        <div className="flex items-center gap-2 px-3 py-2 border-t" style={{ borderColor: BORDER }}>
+          {detail.sourceUrl && !detail.sourceUrl.startsWith("upload://") && (
+            <button
+              type="button"
+              disabled={!!screenshotBusy}
+              onClick={() => void handleRecapture()}
+              className="inline-flex items-center gap-1.5 rounded px-2.5 py-1.5 text-[11px] border disabled:opacity-40"
+              style={{ color: INK, background: SURFACE_2, borderColor: BORDER, fontFamily: MONO }}
+            >
+              {screenshotBusy === "recapture" ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <RotateCw className="h-3 w-3" />
+              )}
+              Re-capture
+            </button>
+          )}
+          <button
+            type="button"
+            disabled={!!screenshotBusy}
+            onClick={() => fileInputRef.current?.click()}
+            className="inline-flex items-center gap-1.5 rounded px-2.5 py-1.5 text-[11px] border disabled:opacity-40"
+            style={{ color: INK, background: SURFACE_2, borderColor: BORDER, fontFamily: MONO }}
+          >
+            {screenshotBusy === "upload" ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <Upload className="h-3 w-3" />
+            )}
+            Upload
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) void handleUpload(file);
+              e.target.value = "";
+            }}
+          />
+          {screenshotError && (
+            <span className="text-[11px] ml-1" style={{ color: PEACH, fontFamily: MONO }}>
+              {screenshotError}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Palette + source meta */}

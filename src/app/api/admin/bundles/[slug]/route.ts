@@ -61,6 +61,7 @@ const DETAIL_COLUMNS = {
   designStyle: bundles.designStyle,
   compatibleTools: bundles.compatibleTools,
   paletteColors: bundles.paletteColors,
+  previewImageUrl: bundles.previewImageUrl,
   brandLogoUrl: bundles.brandLogoUrl,
   brandInitial: bundles.brandInitial,
   brandColor: bundles.brandColor,
