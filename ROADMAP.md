@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-06-08** (Right panel: match screenshot height, add separator below coverage)
+> Last updated: **2026-06-08** (Revert coverage % to original size)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -256,6 +256,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-06-08** - Revert coverage % to original size (24px) (546b53b)
 - [x] **2026-06-08** - Right panel: match screenshot height, add separator below coverage (cdf5653)
 - [x] **2026-06-08** - Coverage: remove accordion, enlarge %, fix right panel spacing (8809da7)
 - [x] **2026-06-08** - Add coverage stat to right panel; pin panel height to screenshot height (bf59414)
