@@ -13,7 +13,6 @@ import {
   SURFACE,
 } from "@/lib/ui-data/tokens";
 import { type Bundle } from "@/lib/ui-data/bundles";
-import { PreviewPane } from "./PreviewPane";
 
 /**
  * Overview: the per-surface coverage breakdown, the brand palette, and any
@@ -37,8 +36,6 @@ export function OverviewSection({ bundle, n }: { bundle: Bundle; n: string }) {
             </p>
           </div>
           <div className="col-span-12 lg:col-span-9 space-y-6">
-            {bundle.previewImageUrl ? <PreviewPane bundle={bundle} /> : null}
-
             <div className="rounded-xl border p-6" style={{ borderColor: BORDER, background: SURFACE }}>
               <div className="flex items-baseline justify-between mb-5">
                 <div

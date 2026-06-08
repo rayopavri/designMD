@@ -14,6 +14,7 @@ import { downloadBundleZip } from "@/lib/ui-data/bundleZip";
 import { useBundleDetail } from "@/hooks/useBundleDetail";
 import { openAuthModal, useAuth } from "@/lib/ui-data/mockAuth";
 import { HeroScreenshot } from "./_sections/HeroScreenshot";
+import { PreviewPane } from "./_sections/PreviewPane";
 import { ActionsCard } from "./_sections/ActionsCard";
 import { CompanionSection, type CompanionTab } from "./_sections/CompanionSection";
 import { InstallSection } from "./_sections/InstallSection";
@@ -186,8 +187,9 @@ function BundleView({ item }: { item: BundleItem }) {
       {/* Hero: visual left, actions card right */}
       <section className="border-b" style={{ borderColor: BORDER_SOFT }}>
         <div className="mx-auto max-w-6xl px-6 lg:px-8 pt-6 pb-12 grid grid-cols-12 gap-8 items-start">
-          <div className="col-span-12 lg:col-span-7">
+          <div className="col-span-12 lg:col-span-7 space-y-6">
             <HeroScreenshot bundle={bundle} />
+            {bundle.previewImageUrl && <PreviewPane bundle={bundle} />}
           </div>
           <ActionsCard
             item={item}
