@@ -85,7 +85,7 @@ function BundleView({ item }: { item: BundleItem }) {
   const bundle = item.bundle;
   const routeParams = useParams<{ slug: string }>();
   const slug = routeParams?.slug ?? "";
-  const [tab, setTab] = useState<CompanionTab>("design.md");
+  const [tab, setTab] = useState<CompanionTab>("preview");
   const [tool, setTool] = useToolPref();
   const search = useSearchParams().toString();
   const [showInstall, setShowInstall] = useState<boolean>(() => {

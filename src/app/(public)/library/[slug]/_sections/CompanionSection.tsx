@@ -18,12 +18,12 @@ import {
 import { type Bundle } from "@/lib/ui-data/bundles";
 import { PreviewPane } from "./PreviewPane";
 
-export type CompanionTab = "design.md" | "companion" | "preview";
+export type CompanionTab = "preview" | "design.md" | "companion";
 
 /**
- * The two-file reader: design.md spec + companion prompt, behind a tab toggle.
- * The live preview that used to share this toggle now lives in the hero /
- * Overview, so this section is purely the source files.
+ * The bundle reader: a live preview, the design.md spec, and the companion
+ * prompt, behind a tab toggle. Preview leads as the default tab; design.md and
+ * the companion prompt are the underlying source files.
  */
 export function CompanionSection({
   bundle,
@@ -61,7 +61,7 @@ export function CompanionSection({
               className="inline-flex items-center gap-1 rounded-full border p-1 mb-6"
               style={{ borderColor: BORDER, background: SURFACE_2 }}
             >
-              {(["design.md", "companion", "preview"] as CompanionTab[]).map((t) => {
+              {(["preview", "design.md", "companion"] as CompanionTab[]).map((t) => {
                 const isActive = tab === t;
                 const label = t === "design.md" ? "design.md" : t === "companion" ? "companion prompt" : "preview";
                 return (
