@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-06-08** (Add coverage stat to right panel; pin panel height to screenshot height)
+> Last updated: **2026-06-08** (Coverage: remove accordion, enlarge %, fix right panel spacing)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -256,6 +256,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-06-08** - Coverage: remove accordion, enlarge %, fix right panel spacing (8809da7)
 - [x] **2026-06-08** - Add coverage stat to right panel; pin panel height to screenshot height (bf59414)
 - [x] **2026-06-08** - Move token preview to companion tabs; compress right panel to ~28% width (381398a)
 - [x] **2026-06-08** - Move PreviewPane to hero left column below screenshot (d452526)
