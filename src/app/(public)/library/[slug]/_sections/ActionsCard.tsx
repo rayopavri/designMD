@@ -62,8 +62,8 @@ export function ActionsCard({
   const bundle = item.bundle;
 
   return (
-    <aside className="w-full lg:w-[28%] lg:shrink-0 lg:overflow-hidden">
-      <div className="rounded-xl border p-4 lg:h-full lg:flex lg:flex-col" style={{ borderColor: BORDER, background: SURFACE }}>
+    <aside className="w-full lg:w-[28%] lg:shrink-0">
+      <div className="rounded-xl border p-4" style={{ borderColor: BORDER, background: SURFACE }}>
         {/* Identity */}
         <div
           className="text-[9.5px] uppercase tracking-[0.18em] mb-2 inline-flex items-center gap-1.5 flex-wrap"
@@ -125,9 +125,6 @@ export function ActionsCard({
           </span>
           <span>{item.updatedAgo}</span>
         </div>
-
-        {/* Spacer pushes CTAs to bottom on desktop */}
-        <div className="flex-1" />
 
         {/* Tool picker */}
         <div className="mt-4">

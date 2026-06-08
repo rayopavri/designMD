@@ -185,7 +185,7 @@ function BundleView({ item }: { item: BundleItem }) {
 
       {/* Hero: visual left, actions card right */}
       <section className="border-b" style={{ borderColor: BORDER_SOFT }}>
-        <div className="mx-auto max-w-6xl px-6 lg:px-8 pt-6 pb-12 flex flex-col lg:flex-row gap-8 lg:items-stretch">
+        <div className="mx-auto max-w-6xl px-6 lg:px-8 pt-6 pb-12 flex flex-col lg:flex-row gap-8 items-start">
           <div className="w-full lg:flex-1 min-w-0">
             <HeroScreenshot bundle={bundle} />
           </div>
