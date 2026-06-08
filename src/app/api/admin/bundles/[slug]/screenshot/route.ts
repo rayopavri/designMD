@@ -111,7 +111,10 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
     return NextResponse.json({ error: `Firecrawl: ${msg}` }, { status: 502 });
   }
 
-  const url = await captureAndStoreScreenshot({ screenshotUrl, key: bundle.id });
+  // Use a versioned key so the new URL is never cached — overwriting the same
+  // {bundleId}.webp path doesn't invalidate browser/CDN caches set as immutable.
+  const versionedKey = `${bundle.id}-${Date.now()}`;
+  const url = await captureAndStoreScreenshot({ screenshotUrl, key: versionedKey });
   if (!url) {
     return NextResponse.json({ error: 'Failed to store screenshot' }, { status: 500 });
   }
@@ -133,7 +136,9 @@ async function storeBuffer(input: Buffer, bundleId: string): Promise<{ url: stri
       .webp({ quality: 80 })
       .toBuffer();
 
-    const path = `${bundleId}.webp`;
+    // Versioned filename so each replacement lands at a fresh URL — the old
+    // path is cached as immutable and a same-path upsert won't bust it.
+    const path = `${bundleId}-${Date.now()}.webp`;
     const uploadUrl = `${base}/storage/v1/object/bundle-screenshots/${path}`;
     const up = await fetch(uploadUrl, {
       method: 'POST',
