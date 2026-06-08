@@ -13,6 +13,7 @@ import Firecrawl, {
   type BrandingProfile,
   type FormatOption,
   type ScrapeOptions,
+  type ActionOption,
 } from '@mendable/firecrawl-js';
 import { env } from '@/lib/env';
 
@@ -319,46 +320,125 @@ const EXTRACT_PROMPT =
   '(6) animations — CSS transition and animation values: duration values in ms and easing functions (cubic-bezier or keyword), each with a name (duration-short, duration-medium, easing-standard, etc.). ' +
   'Prioritize values observable in CSS variables and computed styles over visual guesses.';
 
+// ─── Screenshot capture config ───────────────────────────────
+//
+// Capture at a 1440×900 desktop viewport (16:10). This is the breakpoint the
+// site renders at AND it matches the aspect ratio of the 1200×750 storage card
+// in src/lib/storage/screenshots.ts — so the sharp `cover` resize there becomes
+// a clean proportional downscale instead of slicing the left/right edges.
+// quality:90 keeps text crisp before our own webp re-encode.
+const SCREENSHOT_FORMAT: FormatOption = {
+  type: 'screenshot',
+  viewport: { width: 1440, height: 900 },
+  quality: 90,
+};
+
+// Generic, site-agnostic overlay cleanup. We scrape arbitrary user-submitted
+// URLs, so per-site click selectors don't generalize (a missing selector makes
+// the whole scrape fail). executeJavascript is the safe generic tool — it
+// no-ops when nothing matches instead of erroring. We only remove fixed/sticky
+// consent bars and fixed full-screen modal backdrops, leaving absolutely-
+// positioned decorative hero overlays intact.
+const DISMISS_OVERLAYS = `
+try {
+  for (const el of [document.documentElement, document.body]) {
+    el.style.overflow = '';
+    el.style.position = '';
+  }
+  const consent = '#onetrust-consent-sdk,#onetrust-banner-sdk,#CybotCookiebotDialog,.cky-consent-container,.cc-window,[id*="cookie" i],[class*="cookie" i],[id*="consent" i],[class*="consent" i],[class*="gdpr" i],[aria-label*="cookie" i]';
+  document.querySelectorAll(consent).forEach((el) => {
+    const s = getComputedStyle(el);
+    if (s.position === 'fixed' || s.position === 'sticky' || el.getBoundingClientRect().height >= 60) el.remove();
+  });
+  const modal = '[role="dialog"],[aria-modal="true"],[class*="modal" i],[class*="popup" i],[class*="overlay" i],[class*="backdrop" i]';
+  document.querySelectorAll(modal).forEach((el) => {
+    const s = getComputedStyle(el);
+    if (s.position === 'fixed' && el.getBoundingClientRect().height >= 120) el.remove();
+  });
+} catch (e) {}
+`.trim();
+
+// Run in the live browser before the screenshot fires: let the page settle,
+// close generic modals (Escape closes focus-trapped dialogs without needing a
+// selector), strip surviving consent/overlay layers, then settle once more.
+// Ordering matters — many popups appear *after* initial load, so dismissal must
+// come after the first wait, and the trailing wait lets layout reflow.
+const PREP_ACTIONS: ActionOption[] = [
+  { type: 'wait', milliseconds: 2000 },
+  { type: 'press', key: 'Escape' },
+  { type: 'executeJavascript', script: DISMISS_OVERLAYS },
+  { type: 'wait', milliseconds: 600 },
+];
+
 export async function scrapeUrl(url: string): Promise<ScrapeResult> {
-  // blockAds skips third-party trackers and speeds first paint.
-  // waitFor gives web fonts and hero animations time to settle so the
-  // viewport screenshot captures styled content. No scroll actions —
-  // the scroll dance saved lazy-loads below the fold but added ~3.6s of
-  // hard waits; Firecrawl's branding extractor runs on the full render
-  // tree regardless of scroll position, so the only cost was latency.
-  // screenshot (viewport) replaces screenshot@fullPage: the hero area
-  // is the primary brand signal for Gemini; full-page mode forces
-  // Firecrawl to capture every pixel of a potentially very tall page.
+  // blockAds skips third-party trackers and speeds first paint. waitFor +
+  // PREP_ACTIONS let web fonts/hero animations settle and dismiss cookie
+  // banners and modal popups so the screenshot captures clean, styled content
+  // instead of a blank frame or an overlay. No scroll actions — Firecrawl's
+  // branding extractor runs on the full render tree regardless of scroll
+  // position, so scrolling only added latency. screenshot uses a viewport
+  // capture (not @fullPage): the hero area is the primary brand signal for
+  // Gemini; full-page mode forces capture of every pixel of a very tall page.
   //
-  // Two-pass strategy: try with full features (screenshot + branding +
-  // html) at 22s. If Firecrawl times out on a JS-heavy site, retry
-  // once with markdown only and a tighter timeout — slower sites still
-  // produce usable data for Gemini text extraction even without screenshot.
+  // Retry cascade off the rich (actions + 1440×900 viewport) capture:
+  //   • bot-block (403/429/challenge) → one stealth-proxy retry
+  //   • timeout (JS-heavy site)       → fast markdown-only pass
+  //   • anything else (e.g. a plan that gates executeJavascript) → retry once
+  //     without actions, so we never regress below a plain screenshot.
   //
   // v2 JSON-format syntax: when extract is enabled we pass a JsonFormat
   // object `{ type: 'json', prompt }` inside the formats array. The
   // response surfaces the result on `doc.json`. (v1 used a sibling
   // `extract: { prompt }` top-level option — that path is gone.)
   const primaryFormats: FormatOption[] = EXTRACT_ENABLED
-    ? ['markdown', 'html', 'screenshot', 'branding', { type: 'json', prompt: EXTRACT_PROMPT }]
-    : ['markdown', 'html', 'screenshot', 'branding'];
+    ? ['markdown', 'html', SCREENSHOT_FORMAT, 'branding', { type: 'json', prompt: EXTRACT_PROMPT }]
+    : ['markdown', 'html', SCREENSHOT_FORMAT, 'branding'];
+
+  // Rich capture: dismiss-overlay actions + a real desktop viewport. waitFor is
+  // the pre-action settle; PREP_ACTIONS add ~2.6s more of wait/dismiss. timeout
+  // bumped 25s→30s to cover the extra action time — still far under the 120s
+  // FIRECRAWL_BUDGET_MS in scrapeUrlSmart and the 174s worker watchdog.
+  const richOpts = {
+    formats: primaryFormats,
+    waitFor: 1_000,
+    timeout: 30_000,
+    actions: PREP_ACTIONS,
+  };
 
   try {
-    return await scrapeUrlOnce(url, {
-      formats: primaryFormats,
-      waitFor: 800,
-      timeout: 25_000,
-    });
+    return await scrapeUrlOnce(url, richOpts);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    if (!/408|timed out|timeout/i.test(msg)) throw err;
-    console.warn(`[firecrawl] Primary scrape timed out for ${url}; retrying markdown-only.`);
-    // Fallback never requests json/branding — keep the retry path fast.
-    return await scrapeUrlOnce(url, {
-      formats: ['markdown', 'html'],
-      waitFor: 0,
-      timeout: 10_000,
-    });
+
+    // Bot-challenge pages render blank/garbage. One stealth-proxy retry (still
+    // with dismiss actions + viewport) usually returns the real page. Stealth is
+    // slower, so give it a wider timeout. If it also fails, surface the original.
+    if (/\b40[13]\b|\b429\b|forbidden|blocked|denied|captcha|challenge/i.test(msg)) {
+      console.warn(`[firecrawl] ${url} looks bot-blocked; retrying with stealth proxy.`);
+      try {
+        return await scrapeUrlOnce(url, { ...richOpts, timeout: 35_000, proxy: 'stealth' });
+      } catch (stealthErr) {
+        console.warn(
+          `[firecrawl] stealth retry failed for ${url}: ${stealthErr instanceof Error ? stealthErr.message : stealthErr}`,
+        );
+        throw err;
+      }
+    }
+
+    // Timed out (often JS-heavy sites): drop screenshot/branding/actions and grab
+    // text fast so Gemini still has something to work with.
+    if (/408|timed out|timeout/i.test(msg)) {
+      console.warn(`[firecrawl] Primary scrape timed out for ${url}; retrying markdown-only.`);
+      return await scrapeUrlOnce(url, { formats: ['markdown', 'html'], waitFor: 0, timeout: 10_000 });
+    }
+
+    // Any other failure (e.g. a Firecrawl plan that gates the executeJavascript
+    // action) — retry once WITHOUT actions so we never regress below the old
+    // plain-screenshot behavior. Keeps the viewport + branding + screenshot.
+    console.warn(
+      `[firecrawl] scrape with actions failed for ${url} (${msg.slice(0, 80)}); retrying without actions.`,
+    );
+    return await scrapeUrlOnce(url, { formats: primaryFormats, waitFor: 1_500, timeout: 25_000 });
   }
 }
 
@@ -372,12 +452,13 @@ export async function scrapeScreenshot(url: string): Promise<string> {
   const doc = await withClientTimeout(
     () =>
       client().scrape(url, {
-        formats: ['screenshot'],
+        formats: [SCREENSHOT_FORMAT],
+        actions: PREP_ACTIONS,
         waitFor: 1_000,
-        timeout: 25_000,
+        timeout: 30_000,
         blockAds: true,
       }),
-    33_000,
+    38_000,
     `firecrawl screenshot(${url})`,
   );
   const shot = doc.screenshot;
@@ -387,7 +468,13 @@ export async function scrapeScreenshot(url: string): Promise<string> {
 
 async function scrapeUrlOnce(
   url: string,
-  opts: { formats: FormatOption[]; waitFor: number; timeout: number },
+  opts: {
+    formats: FormatOption[];
+    waitFor: number;
+    timeout: number;
+    actions?: ActionOption[];
+    proxy?: ScrapeOptions['proxy'];
+  },
 ): Promise<ScrapeResult> {
   const scrapeOpts: ScrapeOptions = {
     // 'branding' requests Firecrawl's renderer-extracted design tokens
@@ -400,6 +487,10 @@ async function scrapeUrlOnce(
     waitFor: opts.waitFor,
     timeout: opts.timeout,
     blockAds: true,
+    // actions (overlay dismissal) run before formats are captured, so the
+    // screenshot/branding reflect the cleaned, settled DOM.
+    ...(opts.actions ? { actions: opts.actions } : {}),
+    ...(opts.proxy ? { proxy: opts.proxy } : {}),
   };
 
   // Cap the local promise at server timeout + 8s grace. If Firecrawl's

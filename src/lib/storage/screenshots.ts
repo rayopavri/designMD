@@ -39,8 +39,11 @@ export async function captureAndStoreScreenshot({
 
     const sharpMod = (await import('sharp')).default;
     const webp = await sharpMod(input)
-      // ~16:10 above-the-fold crop, top-aligned. Firecrawl's viewport capture
-      // is already hero-shaped, so this is a light normalize, not a full-page cut.
+      // Normalize to the 1200×750 (16:10) hero card. Firecrawl captures at a
+      // matching 1440×900 (16:10) viewport, so `cover` is a clean proportional
+      // downscale — it never slices the left/right edges. `position: 'top'`
+      // keeps the above-the-fold hero if a source ever arrives taller than 16:10
+      // (cropping the bottom, never the sides).
       .resize(1200, 750, { fit: 'cover', position: 'top' })
       .webp({ quality: 80 })
       .toBuffer();
