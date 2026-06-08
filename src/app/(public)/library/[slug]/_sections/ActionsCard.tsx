@@ -8,6 +8,7 @@ import {
   BORDER,
   INK,
   INK_ON_LIGHT,
+  LIME,
   MONO,
   MUTED,
   SUB,
@@ -61,8 +62,8 @@ export function ActionsCard({
   const bundle = item.bundle;
 
   return (
-    <aside className="w-full lg:w-[28%] lg:shrink-0">
-      <div className="rounded-xl border p-4" style={{ borderColor: BORDER, background: SURFACE }}>
+    <aside className="w-full lg:w-[28%] lg:shrink-0 lg:overflow-hidden">
+      <div className="rounded-xl border p-4 lg:h-full lg:flex lg:flex-col" style={{ borderColor: BORDER, background: SURFACE }}>
         {/* Identity */}
         <div
           className="text-[9.5px] uppercase tracking-[0.18em] mb-2 inline-flex items-center gap-1.5 flex-wrap"
@@ -111,6 +112,22 @@ export function ActionsCard({
         <div className="mt-3">
           <AttributionRow attr={item.attribution} />
         </div>
+
+        {/* Coverage stat */}
+        <div
+          className="mt-3 pt-3 border-t flex items-center justify-between text-[10.5px]"
+          style={{ borderColor: BORDER, fontFamily: MONO, color: MUTED }}
+        >
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-1.5 w-1.5 rounded-full" style={{ background: LIME }} />
+            <span style={{ color: INK }}>{bundle.coverage}%</span>
+            {" "}coverage
+          </span>
+          <span>{item.updatedAgo}</span>
+        </div>
+
+        {/* Spacer pushes CTAs to bottom on desktop */}
+        <div className="flex-1" />
 
         {/* Tool picker */}
         <div className="mt-4">
