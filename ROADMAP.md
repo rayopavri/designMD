@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-06-08** (Fix screenshot upload appearing unchanged + surface storage errors)
+> Last updated: **2026-06-08** (Hide screenshot Re-capture/Upload buttons outside edit mode)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -256,6 +256,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-06-08** - Hide screenshot Re-capture/Upload buttons outside edit mode (b348aaf)
 - [x] **2026-06-08** - Fix screenshot upload appearing unchanged + surface storage errors (5365b74)
 - [x] **2026-06-08** - Make screenshot backfill resilient to Firecrawl rate limits (770524a)
 - [x] **2026-06-08** - Fix admin recapture: screenshot-only scrape + surface real error (6a1eff4)
