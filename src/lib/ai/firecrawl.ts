@@ -362,6 +362,29 @@ export async function scrapeUrl(url: string): Promise<ScrapeResult> {
   }
 }
 
+/**
+ * Minimal screenshot-only scrape. Used by the admin recapture action where
+ * markdown/branding/html are not needed — skipping them cuts latency by ~50%
+ * and avoids the branding extractor stalling on sites that block headless JS.
+ * Returns the short-lived Firecrawl screenshot URL, or throws on failure.
+ */
+export async function scrapeScreenshot(url: string): Promise<string> {
+  const doc = await withClientTimeout(
+    () =>
+      client().scrape(url, {
+        formats: ['screenshot'],
+        waitFor: 1_000,
+        timeout: 25_000,
+        blockAds: true,
+      }),
+    33_000,
+    `firecrawl screenshot(${url})`,
+  );
+  const shot = doc.screenshot;
+  if (!shot) throw new Error('Firecrawl returned no screenshot URL');
+  return shot;
+}
+
 async function scrapeUrlOnce(
   url: string,
   opts: { formats: FormatOption[]; waitFor: number; timeout: number },

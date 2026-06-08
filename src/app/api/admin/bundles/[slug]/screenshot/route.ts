@@ -16,7 +16,7 @@ import { requireEditor } from '@/lib/auth/session';
 import { db } from '@/lib/db/client';
 import { bundles } from '@/lib/db/schema';
 import { env } from '@/lib/env';
-import { scrapeUrl } from '@/lib/ai/firecrawl';
+import { scrapeScreenshot } from '@/lib/ai/firecrawl';
 import { captureAndStoreScreenshot } from '@/lib/storage/screenshots';
 
 export const runtime = 'nodejs';
@@ -101,17 +101,13 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
     );
   }
 
-  let screenshotUrl: string | null = null;
+  let screenshotUrl: string;
   try {
-    const scrape = await scrapeUrl(bundle.sourceUrl);
-    screenshotUrl = scrape.screenshotUrl;
+    screenshotUrl = await scrapeScreenshot(bundle.sourceUrl);
   } catch (err) {
-    console.error('[admin screenshot recapture] scrape failed:', err instanceof Error ? err.message : err);
-    return NextResponse.json({ error: 'Firecrawl scrape failed' }, { status: 502 });
-  }
-
-  if (!screenshotUrl) {
-    return NextResponse.json({ error: 'Firecrawl returned no screenshot' }, { status: 502 });
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('[admin screenshot recapture] scrape failed:', msg);
+    return NextResponse.json({ error: `Firecrawl: ${msg}` }, { status: 502 });
   }
 
   const url = await captureAndStoreScreenshot({ screenshotUrl, key: bundle.id });
