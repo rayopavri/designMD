@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { SectionLabel } from "@/components/ui/Shell";
 import { BrandLogo } from "@/components/ui/BrandLogo";
+import { compressImageForUpload } from "@/lib/image/compress";
 import {
   BG,
   BORDER,
@@ -1856,7 +1857,7 @@ function DetailEditor(props: DetailEditorProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "recapture" }),
       });
-      const body = (await res.json()) as { previewImageUrl?: string; error?: string };
+      const body = await res.json().catch(() => ({ error: res.statusText })) as { previewImageUrl?: string; error?: string };
       if (!res.ok) {
         setScreenshotError(body.error ?? `Error ${res.status}`);
       } else {
@@ -1873,13 +1874,16 @@ function DetailEditor(props: DetailEditorProps) {
     setScreenshotBusy("upload");
     setScreenshotError(null);
     try {
+      // Compress before upload to stay under Vercel's ~4.5 MB request-body cap.
+      // Screenshots are often 10-20 MB PNGs; compress.ts brings them to ~1 MB WebP.
+      const { file: compressed } = await compressImageForUpload(file);
       const fd = new FormData();
-      fd.append("file", file);
+      fd.append("file", compressed);
       const res = await fetch(`/api/admin/bundles/${detail.slug}/screenshot`, {
         method: "POST",
         body: fd,
       });
-      const body = (await res.json()) as { previewImageUrl?: string; error?: string };
+      const body = await res.json().catch(() => ({ error: res.statusText })) as { previewImageUrl?: string; error?: string };
       if (!res.ok) {
         setScreenshotError(body.error ?? `Error ${res.status}`);
       } else {
