@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-06-08** (Send branded sign-in emails via Resend)
+> Last updated: **2026-06-08** (Related design skills filtered by category with See All link)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -256,6 +256,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-06-08** - Related design skills filtered by category with See All link (19108c4)
 - [x] **2026-06-08** - Send branded sign-in emails via Resend (fixes magic-link spam + sender) (39327c9)
 - [x] **2026-06-08** - Revert coverage % to original size (24px) (546b53b)
 - [x] **2026-06-08** - Right panel: match screenshot height, add separator below coverage (cdf5653)
