@@ -1846,7 +1846,13 @@ function DetailEditor(props: DetailEditorProps) {
 
   const [screenshotBusy, setScreenshotBusy] = useState<"recapture" | "upload" | null>(null);
   const [screenshotError, setScreenshotError] = useState<string | null>(null);
+  const [screenshotSaved, setScreenshotSaved] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  function markScreenshotSaved() {
+    setScreenshotSaved(true);
+    setTimeout(() => setScreenshotSaved(false), 3000);
+  }
 
   async function handleRecapture() {
     setScreenshotBusy("recapture");
@@ -1865,6 +1871,7 @@ function DetailEditor(props: DetailEditorProps) {
         // The DB stores the clean URL; the bust is only for this session's display.
         const url = body.previewImageUrl;
         props.onScreenshotUpdate(url ? `${url}?v=${Date.now()}` : null);
+        markScreenshotSaved();
       }
     } catch (err) {
       setScreenshotError(err instanceof Error ? err.message : "Network error");
@@ -1893,6 +1900,7 @@ function DetailEditor(props: DetailEditorProps) {
         // Cache-bust so the browser re-fetches the replaced image immediately.
         const url = body.previewImageUrl;
         props.onScreenshotUpdate(url ? `${url}?v=${Date.now()}` : null);
+        markScreenshotSaved();
       }
     } catch (err) {
       setScreenshotError(err instanceof Error ? err.message : "Network error");
@@ -2229,6 +2237,11 @@ function DetailEditor(props: DetailEditorProps) {
                 e.target.value = "";
               }}
             />
+            {screenshotSaved && (
+              <span className="text-[11px] ml-1" style={{ color: LIME, fontFamily: MONO }}>
+                screenshot saved
+              </span>
+            )}
             {screenshotError && (
               <span className="text-[11px] ml-1" style={{ color: PEACH, fontFamily: MONO }}>
                 {screenshotError}
