@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-06-08** (Use versioned storage key for admin screenshot replacements)
+> Last updated: **2026-06-08** (Improve Firecrawl screenshot capture: dismiss overlays, fix viewport/crop)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -256,6 +256,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-06-08** - Improve Firecrawl screenshot capture: dismiss overlays, fix viewport/crop (36a4dcc)
 - [x] **2026-06-08** - Use versioned storage key for admin screenshot replacements (b7c8cf5)
 - [x] **2026-06-08** - Show 'screenshot saved' confirmation after upload/recapture (ceac2d2)
 - [x] **2026-06-08** - Hide screenshot Re-capture/Upload buttons outside edit mode (b348aaf)
