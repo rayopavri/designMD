@@ -241,17 +241,41 @@ export async function mockSignInEmail(email: string): Promise<void> {
   ensureInitialized();
   setState({ loading: true });
   try {
-    await sendSignInLinkToEmail(clientAuth(), email, {
-      url: `${window.location.origin}/auth/callback`,
-      handleCodeInApp: true,
-    });
+    // Prefer our branded email (Resend, via /api/auth/email-link). The endpoint
+    // returns { fallback: true } when Resend isn't configured yet; we also fall
+    // back on any error, so sign-in keeps working with Firebase's built-in
+    // (unbranded) send until the Resend domain is verified.
+    let useFirebaseFallback = false;
+    try {
+      const res = await fetch('/api/auth/email-link', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      if (res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { fallback?: boolean };
+        if (data.fallback) useFirebaseFallback = true;
+      } else {
+        useFirebaseFallback = true;
+      }
+    } catch (err) {
+      console.error('[auth] branded email-link request failed; falling back:', err);
+      useFirebaseFallback = true;
+    }
+
+    if (useFirebaseFallback) {
+      await sendSignInLinkToEmail(clientAuth(), email, {
+        url: `${window.location.origin}/auth/callback`,
+        handleCodeInApp: true,
+      });
+    }
+
     window.localStorage.setItem(EMAIL_LINK_STORAGE_KEY, email);
     setState({ loading: false });
   } catch (err) {
-    // Log the real Firebase error (e.g. auth/operation-not-allowed when
-    // email-link sign-in is disabled in the console) so failures are
-    // diagnosable instead of silently surfacing a generic UI message.
-    console.error('[auth] sendSignInLinkToEmail failed:', err);
+    // Log the real error (e.g. Firebase auth/operation-not-allowed) so failures
+    // are diagnosable instead of silently surfacing a generic UI message.
+    console.error('[auth] email sign-in send failed:', err);
     setState({ loading: false });
     throw err;
   }

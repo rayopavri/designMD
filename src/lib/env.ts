@@ -31,6 +31,10 @@ const EnvSchema = z.object({
 
   // Email
   RESEND_API_KEY: z.string().min(1).optional(),
+  // Sender identity for transactional email (sign-in links, notifications).
+  // Must be on a domain verified in Resend (SPF/DKIM/DMARC) or mail lands in
+  // spam / is rejected. Change this once uiuxskills.com is verified.
+  EMAIL_FROM: z.string().min(1).default('UIUXskills <hello@uiuxskills.com>'),
 
   // Rate limiting
   UPSTASH_REDIS_REST_URL: z.string().url().optional(),
