@@ -16,8 +16,9 @@ import {
   VIOLET,
 } from "@/lib/ui-data/tokens";
 import { type Bundle } from "@/lib/ui-data/bundles";
+import { PreviewPane } from "./PreviewPane";
 
-export type CompanionTab = "design.md" | "companion";
+export type CompanionTab = "design.md" | "companion" | "preview";
 
 /**
  * The two-file reader: design.md spec + companion prompt, behind a tab toggle.
@@ -60,8 +61,9 @@ export function CompanionSection({
               className="inline-flex items-center gap-1 rounded-full border p-1 mb-6"
               style={{ borderColor: BORDER, background: SURFACE_2 }}
             >
-              {(["design.md", "companion"] as CompanionTab[]).map((t) => {
+              {(["design.md", "companion", "preview"] as CompanionTab[]).map((t) => {
                 const isActive = tab === t;
+                const label = t === "design.md" ? "design.md" : t === "companion" ? "companion prompt" : "preview";
                 return (
                   <button
                     key={t}
@@ -73,7 +75,7 @@ export function CompanionSection({
                       fontFamily: t === "design.md" ? MONO : undefined,
                     }}
                   >
-                    {t === "design.md" ? "design.md" : "companion prompt"}
+                    {label}
                   </button>
                 );
               })}
@@ -83,7 +85,9 @@ export function CompanionSection({
               <StatusBanner status={bundle.lifecycleStatus} />
             ) : null}
 
-            {tab === "design.md" ? (
+            {tab === "preview" ? (
+              <PreviewPane bundle={bundle} />
+            ) : tab === "design.md" ? (
               <CodePanel
                 title={`${bundle.name.toLowerCase()} / design.md`}
                 language="yaml"
