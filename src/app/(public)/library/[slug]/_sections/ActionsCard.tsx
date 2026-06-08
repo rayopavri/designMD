@@ -1,7 +1,7 @@
 "use client";
 
 import { type ReactNode } from "react";
-import { ChevronRight, Download, GitFork, Heart } from "lucide-react";
+import { ChevronRight, Download, Heart } from "lucide-react";
 import { BrandLogo } from "@/components/ui/BrandLogo";
 import { VoteWidget } from "@/components/ui/VoteWidget";
 import { AttributionRow } from "@/components/ui/AttributionRow";
@@ -145,7 +145,6 @@ export function ActionsCard({
               value={`${bundle.tokens.toLocaleString()} · ${bundle.components}`}
             />
           ) : null}
-          <Stat label="forks" value={`${bundle.forks}`} icon={<GitFork className="h-3 w-3" />} />
         </div>
 
         {/* The two files */}
