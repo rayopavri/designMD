@@ -73,10 +73,11 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
       return NextResponse.json({ error: 'Empty file' }, { status: 400 });
     }
 
-    const url = await storeBuffer(input, bundle.id);
-    if (!url) {
-      return NextResponse.json({ error: 'Failed to store screenshot' }, { status: 500 });
+    const stored = await storeBuffer(input, bundle.id);
+    if (!stored.url) {
+      return NextResponse.json({ error: stored.error ?? 'Failed to store screenshot' }, { status: 500 });
     }
+    const url = stored.url;
 
     await db.update(bundles).set({ previewImageUrl: url }).where(eq(bundles.id, bundle.id));
     return NextResponse.json({ previewImageUrl: url });
@@ -120,10 +121,10 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
 }
 
 // Processes a raw image buffer: resize to 1200×750 WebP and upload to Supabase.
-async function storeBuffer(input: Buffer, bundleId: string): Promise<string | null> {
+async function storeBuffer(input: Buffer, bundleId: string): Promise<{ url: string; error?: never } | { url?: never; error: string }> {
   const base = env.SUPABASE_URL?.replace(/\/$/, '');
   const serviceKey = env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!base || !serviceKey) return null;
+  if (!base || !serviceKey) return { error: 'Supabase env vars not configured' };
 
   try {
     const sharpMod = (await import('sharp')).default;
@@ -147,12 +148,15 @@ async function storeBuffer(input: Buffer, bundleId: string): Promise<string | nu
       signal: AbortSignal.timeout(10_000),
     });
     if (!up.ok) {
-      console.error('[admin screenshot upload] storage error', up.status);
-      return null;
+      const detail = (await up.text().catch(() => '')).slice(0, 200);
+      const msg = `Supabase storage ${up.status}${detail ? `: ${detail}` : ''}`;
+      console.error('[admin screenshot upload]', msg);
+      return { error: msg };
     }
-    return `${base}/storage/v1/object/public/bundle-screenshots/${path}`;
+    return { url: `${base}/storage/v1/object/public/bundle-screenshots/${path}` };
   } catch (err) {
-    console.error('[admin screenshot upload] failed:', err instanceof Error ? err.message : err);
-    return null;
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('[admin screenshot upload] failed:', msg);
+    return { error: msg };
   }
 }

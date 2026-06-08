@@ -1861,7 +1861,10 @@ function DetailEditor(props: DetailEditorProps) {
       if (!res.ok) {
         setScreenshotError(body.error ?? `Error ${res.status}`);
       } else {
-        props.onScreenshotUpdate(body.previewImageUrl ?? null);
+        // Append a cache-bust so the <img> always fetches the newly stored file.
+        // The DB stores the clean URL; the bust is only for this session's display.
+        const url = body.previewImageUrl;
+        props.onScreenshotUpdate(url ? `${url}?v=${Date.now()}` : null);
       }
     } catch (err) {
       setScreenshotError(err instanceof Error ? err.message : "Network error");
@@ -1887,7 +1890,9 @@ function DetailEditor(props: DetailEditorProps) {
       if (!res.ok) {
         setScreenshotError(body.error ?? `Error ${res.status}`);
       } else {
-        props.onScreenshotUpdate(body.previewImageUrl ?? null);
+        // Cache-bust so the browser re-fetches the replaced image immediately.
+        const url = body.previewImageUrl;
+        props.onScreenshotUpdate(url ? `${url}?v=${Date.now()}` : null);
       }
     } catch (err) {
       setScreenshotError(err instanceof Error ? err.message : "Network error");
