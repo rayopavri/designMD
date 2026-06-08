@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-06-08** (Remove auto-discovered badge, timestamps, and forks from bundle detail card)
+> Last updated: **2026-06-08** (Add admin reject/restore, creator attribution, and one-free-generation gate)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -256,6 +256,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-06-08** - Add admin reject/restore, creator attribution, and one-free-generation gate (3776f2e)
 - [x] **2026-06-08** - Remove auto-discovered badge, timestamps, and forks from bundle detail card (04dbeac)
 - [x] **2026-06-06** - Add temporary public storage-health debug endpoint (df918c5)
 - [x] **2026-06-06** - Surface the Supabase host in the storage health-check (77a27c0)
