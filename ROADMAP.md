@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-06-10** (Add Supabase MCP server config and agent skills)
+> Last updated: **2026-06-11** (Rewrite backfill scripts to use Supabase REST API instead of Drizzle)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -256,6 +256,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-06-11** - Rewrite backfill scripts to use Supabase REST API instead of Drizzle (2b1315c)
 - [x] **2026-06-10** - Add Supabase MCP server config and agent skills (25bce7e)
 - [x] **2026-06-10** - Fix DESIGN.md section order + strengthen companion content guardrails (a86fa7a)
 - [x] **2026-06-10** - Add "Reject selected" bulk action to admin bundles screen (ab6be14)
