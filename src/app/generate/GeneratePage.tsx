@@ -39,6 +39,8 @@ interface JobPollResult {
   errorStep: string | null;
   resultBundleId: string | null;
   resultBundleSlug: string | null;
+  companionStartedAt: string | null;
+  companionDoneAt: string | null;
 }
 
 type PipelineStep = {
@@ -95,9 +97,17 @@ const BUNDLE_STEPS_URL: PipelineStep[] = [
     durationMs: 2000,
     steps: ["linting", "scoring"],
   },
+  {
+    id: "companion",
+    label: "Companion prompt",
+    tool: "Claude Sonnet",
+    detail: "System prompt for applying design tokens in AI tools",
+    durationMs: 15000,
+    steps: [],
+  },
 ];
 
-/** Upload variant — same 4-phase shape, image-only first phase. */
+/** Upload variant — same 5-phase shape, image-only first phase. */
 const BUNDLE_STEPS_UPLOAD: PipelineStep[] = [
   {
     id: "process",
@@ -130,6 +140,14 @@ const BUNDLE_STEPS_UPLOAD: PipelineStep[] = [
     detail: "Lint, WCAG check, coverage scoring",
     durationMs: 2000,
     steps: ["linting", "scoring"],
+  },
+  {
+    id: "companion",
+    label: "Companion prompt",
+    tool: "Claude Sonnet",
+    detail: "System prompt for applying design tokens in AI tools",
+    durationMs: 15000,
+    steps: [],
   },
 ];
 
@@ -167,6 +185,8 @@ function GenerateContent() {
   const [jobId, setJobId] = useState<string | null>(null);
   const [existingSlug, setExistingSlug] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [companionStartedAt, setCompanionStartedAt] = useState<string | null>(null);
+  const [companionDoneAt, setCompanionDoneAt] = useState<string | null>(null);
   const pollRef = useRef<number | null>(null);
   // Per-step start times keyed by step index. Captured every time stepIdx
   // advances. Used to compute real elapsed for done steps + live elapsed
@@ -467,6 +487,8 @@ function GenerateContent() {
   }
 
   function applyJobUpdate(job: JobPollResult) {
+    if (job.companionStartedAt) setCompanionStartedAt(job.companionStartedAt);
+    if (job.companionDoneAt) setCompanionDoneAt(job.companionDoneAt);
     const step = job.currentStep;
     if (!step) return;
     if (step === "ready_for_review" || step === "held_as_draft") {
@@ -493,6 +515,8 @@ function GenerateContent() {
     setJobId(null);
     setExistingSlug(null);
     setErrorMsg(null);
+    setCompanionStartedAt(null);
+    setCompanionDoneAt(null);
     // Keep bundleMode + uploadFile + brandName so a "Try another" doesn't
     // wipe what the user just configured; they can clear manually.
   }
@@ -774,8 +798,25 @@ function GenerateContent() {
             <SectionLabel n="02" t={`${meta.label} pipeline`} />
             <div className="mt-6 space-y-1.5">
               {steps.map((s, i) => {
-                const state: "done" | "active" | "pending" =
-                  stepIdx > i ? "done" : stepIdx === i ? "active" : "pending";
+                const isCompanion = s.id === "companion";
+                const state: "done" | "active" | "pending" = isCompanion
+                  ? companionDoneAt
+                    ? "done"
+                    : companionStartedAt
+                      ? "active"
+                      : "pending"
+                  : stepIdx > i
+                    ? "done"
+                    : stepIdx === i
+                      ? "active"
+                      : "pending";
+                const companionEntry: { startedAt: number; endedAt: number | null } | undefined =
+                  isCompanion && companionStartedAt
+                    ? {
+                        startedAt: new Date(companionStartedAt).getTime(),
+                        endedAt: companionDoneAt ? new Date(companionDoneAt).getTime() : null,
+                      }
+                    : undefined;
                 const isCompliance = s.id === "compliance";
                 return (
                   <div
@@ -845,7 +886,7 @@ function GenerateContent() {
                         color: state === "done" ? LIME : state === "active" ? meta.accent : MUTED,
                       }}
                     >
-                      {formatStepElapsed(stepTimes[i], state)}
+                      {formatStepElapsed(isCompanion ? companionEntry : stepTimes[i], state)}
                     </span>
                   </div>
                 );

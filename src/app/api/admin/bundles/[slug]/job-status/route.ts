@@ -53,6 +53,8 @@ export async function GET(_req: NextRequest, ctx: RouteContext) {
       geminiExtractDoneAt: generationJobs.geminiExtractDoneAt,
       designMdDoneAt: generationJobs.designMdDoneAt,
       lintDoneAt: generationJobs.lintDoneAt,
+      companionStartedAt: generationJobs.companionStartedAt,
+      companionDoneAt: generationJobs.companionDoneAt,
     })
     .from(generationJobs)
     .where(eq(generationJobs.targetBundleId, bundle.id))

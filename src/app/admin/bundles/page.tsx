@@ -191,6 +191,12 @@ const RERUN_PHASES: RerunPhase[] = [
     tool: "@google/design.md",
     steps: ["linting", "scoring"],
   },
+  {
+    id: "companion",
+    label: "Companion prompt",
+    tool: "Claude Sonnet",
+    steps: [],
+  },
 ];
 
 function rerunPhaseIndex(currentStep: string | null): number {
@@ -339,6 +345,8 @@ export default function AdminBundlesPage() {
     geminiExtractDoneAt: string | null;
     designMdDoneAt: string | null;
     lintDoneAt: string | null;
+    companionStartedAt: string | null;
+    companionDoneAt: string | null;
   };
   const [latestJob, setLatestJob] = useState<LatestJob | null>(null);
 
@@ -1620,6 +1628,8 @@ interface DetailEditorProps {
     geminiExtractDoneAt: string | null;
     designMdDoneAt: string | null;
     lintDoneAt: string | null;
+    companionStartedAt: string | null;
+    companionDoneAt: string | null;
   } | null;
   onScreenshotUpdate: (url: string | null) => void;
   onSave: () => void | Promise<void>;
@@ -1651,6 +1661,8 @@ function RerunProgress({
   geminiExtractDoneAt,
   designMdDoneAt,
   lintDoneAt,
+  companionStartedAt,
+  companionDoneAt,
 }: {
   step: string | null;
   status: "queued" | "running" | "completed" | "failed" | null;
@@ -1659,6 +1671,8 @@ function RerunProgress({
   geminiExtractDoneAt: string | null;
   designMdDoneAt: string | null;
   lintDoneAt: string | null;
+  companionStartedAt: string | null;
+  companionDoneAt: string | null;
 }) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -1679,12 +1693,40 @@ function RerunProgress({
     lintDoneAt ? new Date(lintDoneAt).getTime() : null,
   ];
 
+  const compStartMs = companionStartedAt ? new Date(companionStartedAt).getTime() : null;
+  const compDoneMs = companionDoneAt ? new Date(companionDoneAt).getTime() : null;
+
+  const phaseState: Array<"done" | "active" | "pending" | "failed"> = RERUN_PHASES.map((_, i) => {
+    if (i < 4) {
+      return failed && i === phaseIdx
+        ? "failed"
+        : i < phaseIdx
+          ? "done"
+          : i === phaseIdx
+            ? "active"
+            : "pending";
+    }
+    return compDoneMs !== null
+      ? "done"
+      : failed && compStartMs !== null
+        ? "failed"
+        : compStartMs !== null
+          ? "active"
+          : "pending";
+  });
+
   const phaseElapsed = RERUN_PHASES.map((_, i) => {
-    const start = boundaries[i];
-    const end = boundaries[i + 1];
-    if (start === null) return null;
-    if (end !== null) return fmtElapsed(end - start);
-    if (i === phaseIdx) return fmtElapsed(now - start) + " ↑";
+    if (i < 4) {
+      const start = boundaries[i];
+      const end = boundaries[i + 1];
+      if (start === null) return null;
+      if (end !== null) return fmtElapsed(end - start);
+      if (i === phaseIdx) return fmtElapsed(now - start) + " ↑";
+      return null;
+    }
+    if (compStartMs === null) return null;
+    if (compDoneMs !== null) return fmtElapsed(compDoneMs - compStartMs);
+    if (phaseState[4] === "active") return fmtElapsed(now - compStartMs) + " ↑";
     return null;
   });
 
@@ -1706,16 +1748,9 @@ function RerunProgress({
           {totalElapsed ?? step ?? "queued"}
         </span>
       </div>
-      <div className="grid grid-cols-4 gap-1.5">
+      <div className="grid grid-cols-5 gap-1.5">
         {RERUN_PHASES.map((phase, i) => {
-          const state =
-            failed && i === phaseIdx
-              ? "failed"
-              : i < phaseIdx
-                ? "done"
-                : i === phaseIdx
-                  ? "active"
-                  : "pending";
+          const state = phaseState[i];
           const fill =
             state === "done"
               ? LIME
@@ -2393,6 +2428,8 @@ function DetailEditor(props: DetailEditorProps) {
             geminiExtractDoneAt={latestJob?.geminiExtractDoneAt ?? null}
             designMdDoneAt={latestJob?.designMdDoneAt ?? null}
             lintDoneAt={latestJob?.lintDoneAt ?? null}
+            companionStartedAt={latestJob?.companionStartedAt ?? null}
+            companionDoneAt={latestJob?.companionDoneAt ?? null}
           />
         ) : null}
         {isStuck ? (

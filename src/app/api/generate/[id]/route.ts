@@ -70,5 +70,7 @@ export async function GET(_req: NextRequest, ctx: RouteContext) {
     resultBundleSlug,
     createdAt: job.createdAt,
     updatedAt: job.updatedAt,
+    companionStartedAt: job.companionStartedAt,
+    companionDoneAt: job.companionDoneAt,
   });
 }
