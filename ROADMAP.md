@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-06-09** (Extract shared isAutoCapturedScreenshot SQL + isRunning local)
+> Last updated: **2026-06-09** (Add companion prompt step to all pipeline progress UIs)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -256,6 +256,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-06-09** - Add companion prompt step to all pipeline progress UIs (991e9ed)
 - [x] **2026-06-09** - Extract shared isAutoCapturedScreenshot SQL expression + isRunning local (760beb3)
 - [x] **2026-06-09** - Improve URL input placeholder to guide users (308f8d9)
 - [x] **2026-06-08** - Make preview the default, first tab in the bundle reader (f88f7ab)
