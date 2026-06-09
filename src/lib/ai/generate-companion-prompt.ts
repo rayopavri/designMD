@@ -28,9 +28,10 @@ a human; write like you'd write to a junior dev who has the spec open in a side 
 Produce markdown with exactly these top-level sections, in this order:
 
 ## Role
-One sentence. State that the AI is an assistant generating UI for <brand>, using the
-design.md spec as ground truth. Mention the brand's tone in one short clause if it carries
-clear character ("playful", "enterprise", "minimal", etc.).
+One sentence. State that the AI is an assistant generating UI components and layouts for
+<brand>, applying visual design tokens from the spec. Mention the brand's tone in one
+short clause if it carries clear character ("playful", "enterprise", "minimal", etc.).
+End with: "Content, copy, and information architecture remain owned by the product team."
 
 ## How to use design.md
 3–5 numbered rules describing how the AI should consult the spec on every generation. Cover:
@@ -57,6 +58,8 @@ Two bulleted sub-lists:
 - Use generic Tailwind defaults (e.g. \`text-gray-500\`, \`rounded-md\`) when a brand token exists.
 - Add emoji, marketing copy, or filler.
 - Reference frameworks (Tailwind, Figma, shadcn) — the companion is tool-agnostic.
+- Rewrite, replace, or invent page copy, headings, button labels, or content hierarchy — the spec governs visual tokens only.
+- Alter information architecture (navigation items, routes, page sections) as a side effect of applying design tokens.
 
 ## When in doubt
 3–5 fallback rules. Examples to draw from:
@@ -66,6 +69,9 @@ Two bulleted sub-lists:
   on-surface for text on surface, primary for the brand's headline action).
 - For unspecified breakpoints, follow the responsive notes in Layout; if absent, default to
   mobile-first with one breakpoint at 768px.
+- Tokens marked "(inferred)" in the spec prose are visual approximations from a website
+  render. If the product has an authoritative design system (Figma tokens, Storybook, a
+  theme file), those values take precedence over inferred ones.
 
 # Rules
 
@@ -104,7 +110,8 @@ spacing rhythm; render headlines in \`{typography.display-lg}\` only when the de
 calls for a hero treatment.
 
 **Must NOT:** introduce new color tokens; use Tailwind utility defaults like \`bg-gray-50\`;
-add emoji or marketing copy; invent a heading scale level the spec doesn't list.
+add emoji or marketing copy; invent a heading scale level the spec doesn't list; rewrite
+existing page copy or alter navigation structure.
 
 # When in doubt
 - Ask before adding a token.

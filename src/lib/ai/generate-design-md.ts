@@ -93,6 +93,16 @@ elevationNotes states the values were inferred, note that briefly.>
 
 <1-2 paragraphs on radius philosophy. Reference the rounded scale.>
 
+## Components
+
+> **Note:** This spec was generated from a website scrape and contains visual approximations.
+> For production use, add a deep reference to each component pointing to its authoritative
+> source (Storybook story, metadata file, or component spec):
+> \`→ Deep reference: src/components/Button/metadata.ts\`
+
+<For each major component listed in the YAML, 2-3 sentences on its anatomy, states, and
+"use when" rule. Use ### subheadings for each component.>
+
 ## Do's and Don'ts
 
 <A 2-column table with at least 8 data rows. Every row MUST reference at least one
@@ -106,11 +116,6 @@ and spacing patterns visible in the YAML.>
 | --- | --- |
 | <specific rule> | <opposite> |
 | ... | ... |
-
-## Components
-
-<For each major component listed in the YAML, 2-3 sentences on its anatomy, states, and
-"use when" rule. Use ### subheadings for each component.>
 
 ## Content Style
 
@@ -135,7 +140,7 @@ RULES:
   values whenever possible — the YAML is the source of truth.
 - The reader is an LLM; write like you'd write to a junior dev.
 - Section order is fixed: Overview → Colors → Typography → Layout → Elevation & Depth →
-  Shapes → Do's and Don'ts → Components → Content Style → Imagery & Icons.
+  Shapes → Components → Do's and Don'ts → Content Style → Imagery & Icons.
 - DO NOT output YAML or --- delimiters. Just the markdown body.
 
 BEFORE YOU FINISH, verify your output contains ALL EIGHT of these headings,
@@ -149,8 +154,8 @@ REQUIRED HEADINGS CHECKLIST:
   [ ] ## Layout
   [ ] ## Elevation & Depth
   [ ] ## Shapes
-  [ ] ## Do's and Don'ts
   [ ] ## Components
+  [ ] ## Do's and Don'ts
 
 If voiceAndContent or imageryStyle are provided in the brand context, ALSO include:
   [ ] ## Content Style
