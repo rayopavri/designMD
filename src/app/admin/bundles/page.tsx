@@ -302,6 +302,9 @@ export default function AdminBundlesPage() {
   // require deliberate intent each session.
   const [selectedSlugs, setSelectedSlugs] = useState<Set<string>>(new Set());
   const [bulkDeleteState, setBulkDeleteState] = useState<'idle' | 'deleting'>('idle');
+  const [bulkRejectState, setBulkRejectState] = useState<'idle' | 'rejecting'>('idle');
+  const [showBulkRejectPanel, setShowBulkRejectPanel] = useState(false);
+  const [bulkRejectReason, setBulkRejectReason] = useState('');
 
   // Bulk re-run persistent state. `bulkRerunSince` (ISO timestamp) is stored in
   // localStorage so the button stays disabled across page reloads while jobs are
@@ -1125,6 +1128,43 @@ export default function AdminBundlesPage() {
     }
   };
 
+  const onBulkRejectSelected = async () => {
+    if (!bulkRejectReason.trim()) return;
+    const slugsArr = Array.from(selectedSlugs);
+    if (!window.confirm(`Reject ${slugsArr.length} bundle(s)?`)) return;
+    setBulkRejectState('rejecting');
+    try {
+      const res = await fetch('/api/admin/bundles/bulk-reject', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slugs: slugsArr, reviewNotes: bulkRejectReason.trim() }),
+      });
+      const body = (await res.json()) as {
+        ok?: boolean;
+        rejected?: number;
+        skipped?: number;
+        notFound?: string[];
+        error?: string;
+      };
+      if (!res.ok) {
+        alert(body.error || `Reject failed (${res.status})`);
+        return;
+      }
+      setShowBulkRejectPanel(false);
+      setBulkRejectReason('');
+      const rejectedSet = new Set(slugsArr.filter((s) => !(body.notFound ?? []).includes(s)));
+      if (selectedSlug && rejectedSet.has(selectedSlug)) {
+        await loadDetail(selectedSlug);
+      }
+      setSelectedSlugs(new Set());
+      await loadList();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Network error');
+    } finally {
+      setBulkRejectState('idle');
+    }
+  };
+
   // True while the bulk re-run button should stay disabled: during the
   // enqueue API call, or while polled jobs are still queued / running.
   const bulkRerunActive =
@@ -1206,7 +1246,7 @@ export default function AdminBundlesPage() {
           </span>
           <button
             type="button"
-            onClick={() => setSelectedSlugs(new Set())}
+            onClick={() => { setSelectedSlugs(new Set()); setShowBulkRejectPanel(false); setBulkRejectReason(''); }}
             className="h-5 w-5 rounded-full flex items-center justify-center opacity-60 hover:opacity-100 transition-opacity"
             style={{ color: MUTED }}
             aria-label="Clear selection"
@@ -1217,7 +1257,7 @@ export default function AdminBundlesPage() {
             <button
               type="button"
               onClick={() => void onBulkRerunSelected()}
-              disabled={bulkRerunActive || bulkDeleteState === 'deleting'}
+              disabled={bulkRerunActive || bulkDeleteState === 'deleting' || bulkRejectState === 'rejecting'}
               className="h-8 rounded-full border px-3 text-[12px] inline-flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
               style={{ borderColor: `${VIOLET}66`, color: VIOLET, fontFamily: MONO }}
             >
@@ -1226,8 +1266,22 @@ export default function AdminBundlesPage() {
             </button>
             <button
               type="button"
+              onClick={() => setShowBulkRejectPanel((v) => !v)}
+              disabled={bulkRejectState === 'rejecting' || bulkDeleteState === 'deleting' || bulkRerunActive}
+              className="h-8 rounded-full border px-3 text-[12px] inline-flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{ borderColor: `${PEACH}66`, color: PEACH, fontFamily: MONO }}
+            >
+              {bulkRejectState === 'rejecting' ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <X className="h-3 w-3" />
+              )}
+              Reject selected
+            </button>
+            <button
+              type="button"
               onClick={() => void onBulkDeleteSelected()}
-              disabled={bulkDeleteState === 'deleting' || bulkRerunActive}
+              disabled={bulkDeleteState === 'deleting' || bulkRerunActive || bulkRejectState === 'rejecting'}
               className="h-8 rounded-full border px-3 text-[12px] inline-flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
               style={{ borderColor: '#ff5a5a66', color: '#ff7070', fontFamily: MONO }}
             >
@@ -1237,6 +1291,65 @@ export default function AdminBundlesPage() {
                 <Trash2 className="h-3 w-3" />
               )}
               Delete selected
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk reject reason panel — visible when "Reject selected" is toggled */}
+      {showBulkRejectPanel && selectedSlugs.size > 0 && (
+        <div
+          className="mb-5 rounded-xl border p-4 flex flex-col gap-2.5"
+          style={{ borderColor: `${PEACH}55`, background: SURFACE_2 }}
+        >
+          <div className="flex items-center gap-2">
+            <X className="h-3.5 w-3.5" style={{ color: PEACH }} />
+            <span
+              className="text-[10.5px] uppercase tracking-[0.22em]"
+              style={{ color: PEACH, fontFamily: MONO }}
+            >
+              reject {selectedSlugs.size} selected bundle{selectedSlugs.size !== 1 ? 's' : ''}
+            </span>
+          </div>
+          <p className="text-[11.5px] leading-[1.55]" style={{ color: SUB }}>
+            Each bundle leaves the public library and search but stays in the creator&apos;s account. Give a reason the creators can act on.
+          </p>
+          <textarea
+            value={bulkRejectReason}
+            onChange={(e) => setBulkRejectReason(e.target.value)}
+            rows={3}
+            maxLength={2000}
+            placeholder="e.g. The palette doesn't match the source site — re-run with the correct brand colors."
+            className="w-full resize-y rounded-md border px-2.5 py-2 text-[12px] outline-none"
+            style={{ color: INK, background: SURFACE, borderColor: BORDER, fontFamily: MONO }}
+          />
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={bulkRejectState === 'rejecting' || bulkRejectReason.trim() === ''}
+              onClick={() => void onBulkRejectSelected()}
+              className="h-8 rounded-full px-3.5 text-[12px] font-medium inline-flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{
+                background: INK,
+                color: INK_ON_LIGHT,
+                boxShadow: `0 0 0 1px ${PEACH}55, 0 10px 28px -12px ${PEACH}66`,
+              }}
+            >
+              {bulkRejectState === 'rejecting' ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <X className="h-3.5 w-3.5" />
+              )}
+              Confirm rejection
+            </button>
+            <button
+              type="button"
+              disabled={bulkRejectState === 'rejecting'}
+              onClick={() => { setShowBulkRejectPanel(false); setBulkRejectReason(''); }}
+              className="h-8 rounded-full px-3.5 text-[12px] inline-flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{ background: SURFACE_2, color: SUB, border: `1px solid ${BORDER}` }}
+            >
+              Cancel
             </button>
           </div>
         </div>
