@@ -19,10 +19,11 @@
  */
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
-import { and, eq, isNull, or, sql } from 'drizzle-orm';
+import { and, eq, isNull, or } from 'drizzle-orm';
 import { assertTaskAuth, enqueueTask } from '@/lib/queue';
 import { db } from '@/lib/db/client';
 import { bundles } from '@/lib/db/schema';
+import { isAutoCapturedScreenshot } from '@/lib/db/queries/bundles';
 import { scrapeScreenshot } from '@/lib/ai/firecrawl';
 import { captureAndStoreScreenshot } from '@/lib/storage/screenshots';
 
@@ -126,10 +127,7 @@ export async function POST(req: NextRequest) {
     // still-empty row (a re-run/generation wins cleanly). Recapture overwrites,
     // but still bails if an admin upload/recapture (versioned) landed meanwhile.
     const guard = recapture
-      ? or(
-          isNull(bundles.previewImageUrl),
-          sql`${bundles.previewImageUrl} LIKE '%/' || ${bundles.id}::text || '.webp'`,
-        )
+      ? or(isNull(bundles.previewImageUrl), isAutoCapturedScreenshot)
       : isNull(bundles.previewImageUrl);
     await db
       .update(bundles)

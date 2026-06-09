@@ -16,6 +16,7 @@ import { db } from '@/lib/db/client';
 import { bundles } from '@/lib/db/schema';
 import { enqueueTask } from '@/lib/queue';
 import { probeScreenshotStorage } from '@/lib/storage/screenshots';
+import { isAutoCapturedScreenshot } from '@/lib/db/queries/bundles';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -28,13 +29,6 @@ const MAX_BATCH = 250;
 const STAGGER_SECONDS = 15;
 const ENQUEUE_CONCURRENCY = 6;
 
-// A screenshot stored at the unversioned `{id}.webp` path was produced by an
-// auto-capture path (new generation or a prior backfill). Admin uploads AND
-// admin Re-captures both write a versioned `{id}-{timestamp}.webp` path — so
-// matching the unversioned path lets a recapture refresh auto-captures while
-// leaving every admin-touched image (manual uploads + past recaptures) alone.
-const isAutoCaptured = sql`${bundles.previewImageUrl} LIKE '%/' || ${bundles.id}::text || '.webp'`;
-
 // recaptureAll=false → only bundles missing a screenshot (the original behavior).
 // recaptureAll=true  → missing OR auto-captured; never an admin-touched upload.
 function needsCapture(recaptureAll: boolean) {
@@ -43,7 +37,7 @@ function needsCapture(recaptureAll: boolean) {
     isNotNull(bundles.sourceUrl),
     notLike(bundles.sourceUrl, 'upload://%'),
     recaptureAll
-      ? or(isNull(bundles.previewImageUrl), isAutoCaptured)
+      ? or(isNull(bundles.previewImageUrl), isAutoCapturedScreenshot)
       : isNull(bundles.previewImageUrl),
   );
 }

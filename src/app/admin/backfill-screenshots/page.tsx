@@ -73,6 +73,7 @@ export default function BackfillScreenshotsPage() {
     }
   }
 
+  const isRunning = running !== null;
   const mins = result ? Math.max(1, Math.ceil(result.etaSeconds / 60)) : 0;
 
   return (
@@ -101,13 +102,13 @@ export default function BackfillScreenshotsPage() {
       <div className="mt-7 flex flex-wrap items-center gap-3">
         <button
           onClick={() => void run("fill")}
-          disabled={running !== null}
+          disabled={isRunning}
           className="h-11 rounded-full px-6 text-[13px] font-medium inline-flex items-center gap-2"
           style={{
             background: INK,
             color: INK_ON_LIGHT,
-            opacity: running !== null ? 0.6 : 1,
-            cursor: running !== null ? "not-allowed" : "pointer",
+            opacity: isRunning ? 0.6 : 1,
+            cursor: isRunning ? "not-allowed" : "pointer",
             boxShadow: `0 0 0 1px ${VIOLET}55, 0 10px 36px -10px ${VIOLET}88`,
           }}
         >
@@ -121,14 +122,14 @@ export default function BackfillScreenshotsPage() {
 
         <button
           onClick={() => void run("recapture")}
-          disabled={running !== null}
+          disabled={isRunning}
           className="h-11 rounded-full px-6 text-[13px] font-medium inline-flex items-center gap-2 border"
           style={{
             background: SURFACE,
             color: INK,
             borderColor: BORDER,
-            opacity: running !== null ? 0.6 : 1,
-            cursor: running !== null ? "not-allowed" : "pointer",
+            opacity: isRunning ? 0.6 : 1,
+            cursor: isRunning ? "not-allowed" : "pointer",
           }}
         >
           {running === "recapture" ? (

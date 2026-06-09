@@ -618,3 +618,9 @@ export async function listPublishedForIndex(): Promise<BundleIndexItem[]> {
     .where(eq(bundles.status, 'published'));
   return rows;
 }
+
+// Auto-captured screenshots (new generation + backfill) live at the unversioned
+// `{id}.webp` path. Admin uploads and recaptures write `{id}-{timestamp}.webp`.
+// Matching this pattern lets recapture jobs refresh auto-captured images while
+// leaving every admin-touched screenshot alone.
+export const isAutoCapturedScreenshot = sql`${bundles.previewImageUrl} LIKE '%/' || ${bundles.id}::text || '.webp'`;
