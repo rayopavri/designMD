@@ -671,7 +671,7 @@ function GenerateContent() {
                     setUrl(e.target.value);
                     setValidation(null);
                   }}
-                  placeholder="linear.app  ·  stripe.com  ·  vercel.com"
+                  placeholder="Paste a brand URL — e.g. stripe.com, linear.app"
                   className="flex-1 h-9 bg-transparent text-[13.5px] px-1 min-w-0"
                   style={{ color: INK, fontFamily: MONO }}
                   disabled={status === "running"}
