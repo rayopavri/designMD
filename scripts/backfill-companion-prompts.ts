@@ -53,31 +53,50 @@ async function pLimit<T>(tasks: Array<() => Promise<T>>, concurrency: number): P
   return results;
 }
 
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+async function sbGet(query: string) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${query}`, {
+    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
+  });
+  if (!res.ok) throw new Error(`Supabase GET failed: ${res.status} ${await res.text()}`);
+  return res.json();
+}
+
+async function sbPatch(id: string, data: Record<string, unknown>) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/bundles?id=eq.${id}`, {
+    method: 'PATCH',
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${SUPABASE_KEY}`,
+      'Content-Type': 'application/json',
+      Prefer: 'return=minimal',
+    },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error(`Supabase PATCH failed: ${res.status} ${await res.text()}`);
+}
+
 async function main() {
-  const { db } = await import('../src/lib/db/client');
-  const { bundles } = await import('../src/lib/db/schema');
-  const { eq, isNotNull, and } = await import('drizzle-orm');
   const { generateCompanionPromptFromSpec } = await import(
     '../src/lib/ai/generate-companion-prompt'
   );
 
-  const rows = await db
-    .select({
-      id: bundles.id,
-      slug: bundles.slug,
-      title: bundles.title,
-      designMd: bundles.designMd,
-      designStyle: bundles.designStyle,
-      companionStatus: bundles.companionStatus,
-    })
-    .from(bundles)
-    .where(
-      SLUG
-        ? eq(bundles.slug, SLUG)
-        : and(isNotNull(bundles.designMd), eq(bundles.companionStatus as any, 'ready')),
-    );
+  const query = SLUG
+    ? `bundles?select=id,slug,title,design_md,design_style,companion_status&slug=eq.${SLUG}`
+    : `bundles?select=id,slug,title,design_md,design_style,companion_status&companion_status=eq.ready&design_md=not.is.null&limit=1000`;
 
-  const eligible = rows.filter((r) => r.designMd && r.designMd.trim());
+  const rows: Array<{
+    id: string;
+    slug: string;
+    title: string | null;
+    design_md: string | null;
+    design_style: string[];
+    companion_status: string;
+  }> = await sbGet(query);
+
+  const eligible = rows.filter((r) => r.design_md && r.design_md.trim());
   console.log(
     `Mode: ${WRITE ? 'WRITE' : 'DRY-RUN'}${SLUG ? ` (slug=${SLUG})` : ''} | batch=${BATCH}`,
   );
@@ -99,18 +118,15 @@ async function main() {
     try {
       const companion = await generateCompanionPromptFromSpec({
         brandName,
-        designMd: b.designMd!,
-        designStyles: b.designStyle ?? [],
+        designMd: b.design_md!,
+        designStyles: b.design_style ?? [],
       });
 
-      await db
-        .update(bundles)
-        .set({
-          companionPrompt: companion,
-          companionPromptUpdatedAt: new Date(),
-          updatedAt: new Date(),
-        })
-        .where(eq(bundles.id, b.id));
+      await sbPatch(b.id, {
+        companion_prompt: companion,
+        companion_prompt_updated_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
 
       ok += 1;
       console.log(`  ✓ ${b.slug}`);

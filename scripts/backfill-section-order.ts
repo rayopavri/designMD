@@ -123,24 +123,43 @@ function injectDeepRefPreamble(md: string): { result: string; injected: boolean 
   return { result, injected: true };
 }
 
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+async function sbGet(query: string) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${query}`, {
+    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
+  });
+  if (!res.ok) throw new Error(`Supabase GET failed: ${res.status} ${await res.text()}`);
+  return res.json();
+}
+
+async function sbPatch(id: string, data: Record<string, unknown>) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/bundles?id=eq.${id}`, {
+    method: 'PATCH',
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${SUPABASE_KEY}`,
+      'Content-Type': 'application/json',
+      Prefer: 'return=minimal',
+    },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error(`Supabase PATCH failed: ${res.status} ${await res.text()}`);
+}
+
 async function main() {
-  const { db } = await import('../src/lib/db/client');
-  const { bundles } = await import('../src/lib/db/schema');
-  const { eq, isNotNull } = await import('drizzle-orm');
   const { lintDesignMd } = await import('../src/lib/generator/lint-design-md');
   const { scoreFromLint } = await import('../src/lib/generator/coverage');
 
-  const rows = await db
-    .select({
-      id: bundles.id,
-      slug: bundles.slug,
-      designMd: bundles.designMd,
-      coverageScore: bundles.coverageScore,
-    })
-    .from(bundles)
-    .where(SLUG ? eq(bundles.slug, SLUG) : isNotNull(bundles.designMd));
+  const query = SLUG
+    ? `bundles?select=id,slug,design_md,coverage_score&slug=eq.${SLUG}`
+    : `bundles?select=id,slug,design_md,coverage_score&design_md=not.is.null&limit=1000`;
 
-  const withMd = rows.filter((r) => r.designMd && r.designMd.trim());
+  const rows: Array<{ id: string; slug: string; design_md: string | null; coverage_score: number | null }> =
+    await sbGet(query);
+
+  const withMd = rows.filter((r) => r.design_md && r.design_md.trim());
   console.log(
     `Mode: ${WRITE ? 'WRITE' : 'DRY-RUN'}${PREAMBLE ? ' +preamble' : ''}` +
       `${SLUG ? ` (slug=${SLUG})` : ''}`,
@@ -159,7 +178,7 @@ async function main() {
   let unchanged = 0;
 
   for (const b of withMd) {
-    let md = b.designMd!;
+    let md = b.design_md!;
     let swapped = false;
     let preambleInjected = false;
 
@@ -190,7 +209,7 @@ async function main() {
       continue;
     }
 
-    const scoreBefore = b.coverageScore ?? 0;
+    const scoreBefore = b.coverage_score ?? 0;
     const action = !changed
       ? 'no change'
       : `${WRITE ? 'UPDATE' : 'would update'}${swapped ? ' +reorder' : ''}${preambleInjected ? ' +preamble' : ''}`;
@@ -209,21 +228,18 @@ async function main() {
     }
 
     if (WRITE) {
-      await db
-        .update(bundles)
-        .set({
-          designMd: md,
-          coverageScore: cov.overall,
-          coverageColors: cov.colors,
-          coverageTypography: cov.typography,
-          coverageLayout: cov.layout,
-          coverageElevation: cov.elevation,
-          coverageShapes: cov.shapes,
-          coverageComponents: cov.components,
-          coverageDosDonts: cov.dosDonts,
-          updatedAt: new Date(),
-        })
-        .where(eq(bundles.id, b.id));
+      await sbPatch(b.id, {
+        design_md: md,
+        coverage_score: cov.overall,
+        coverage_colors: cov.colors,
+        coverage_typography: cov.typography,
+        coverage_layout: cov.layout,
+        coverage_elevation: cov.elevation,
+        coverage_shapes: cov.shapes,
+        coverage_components: cov.components,
+        coverage_dos_donts: cov.dosDonts,
+        updated_at: new Date().toISOString(),
+      });
       updated += 1;
     }
   }
