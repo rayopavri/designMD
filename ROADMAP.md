@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-06-12** (feat: initialise Firebase Analytics with measurementId)
+> Last updated: **2026-06-12** (Remove Settings from user dropdown menu)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -256,6 +256,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-06-12** - Remove Settings from user dropdown menu (4def235)
 - [x] **2026-06-12** - Initialise Firebase Analytics with measurementId (0373edf)
 - [x] **2026-06-12** - Proxy /__/auth/* to Firebase for custom authDomain support (5862db4)
 - [x] **2026-06-12** - Wire inline search into the header, replacing the fake search link (73ce0b2)
