@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { BORDER, MONO, MUTED, SURFACE, VIOLET } from "@/lib/ui-data/tokens";
 import {
   parseDesignMd,
@@ -9,6 +9,7 @@ import {
   type ParsedTokens,
 } from "@/lib/ui-data/parse-design-md";
 import { type Bundle } from "@/lib/ui-data/bundles";
+import { googleFontHrefs, fontFamilyWithFallback } from "@/lib/ui-data/google-fonts";
 
 // ─── Preview section label ────────────────────────────────────────────────────
 function PreviewSectionLabel({ label, muted, isDark }: { label: string; muted: string; isDark: boolean }) {
@@ -34,6 +35,14 @@ function PreviewSectionLabel({ label, muted, isDark }: { label: string; muted: s
  */
 export function PreviewPane({ bundle }: { bundle: Bundle }) {
   const parsed: ParsedTokens = parseDesignMd(bundle.designMd ?? "");
+
+  // Web-font <link> hrefs for every family the type scale uses. React 19 hoists
+  // these to <head>; keyed on designMd so they're stable across re-renders.
+  const fontHrefs = useMemo(
+    () => googleFontHrefs(parsed.typography),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [bundle.designMd],
+  );
 
   // Default to the brand's native color scheme
   const [mode, setMode] = useState<"dark" | "light">(
@@ -160,6 +169,12 @@ export function PreviewPane({ bundle }: { bundle: Bundle }) {
       className="rounded-xl border p-6"
       style={{ borderColor: BORDER, background: SURFACE }}
     >
+      {/* Web fonts for the rendered type scale. React 19 hoists rel="stylesheet"
+          links to <head>; `precedence` dedupes them across PreviewPane instances. */}
+      {fontHrefs.map((href) => (
+        <link key={href} rel="stylesheet" href={href} precedence="default" />
+      ))}
+
       {/* ── Header: label + toggle ── */}
       <div className="flex items-center justify-between mb-5">
         <div className="text-[10.5px] uppercase tracking-[0.22em]" style={{ fontFamily: MONO, color: MUTED }}>
@@ -237,7 +252,7 @@ export function PreviewPane({ bundle }: { bundle: Bundle }) {
                     <span
                       className="truncate leading-tight"
                       style={{
-                        fontFamily: t!.fontFamily,
+                        fontFamily: fontFamilyWithFallback(t!.fontFamily),
                         fontSize: `${displayPx}px`,
                         fontWeight: t!.fontWeight ?? 400,
                         letterSpacing: t!.letterSpacing ?? undefined,
