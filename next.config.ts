@@ -26,6 +26,14 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ['@google/design.md', '@mendable/firecrawl-js'],
   // Also include the pnpm-real path explicitly so Vercel ships the
   // assets next to the resolved module.
+  async rewrites() {
+    return [
+      {
+        source: '/__/auth/:path*',
+        destination: 'https://designmd-2ff95.firebaseapp.com/__/auth/:path*',
+      },
+    ];
+  },
   outputFileTracingIncludes: {
     // Lint moved here in the Phase 1/Phase 2 split — the spec yaml files
     // must be traced for this function or runtime fails with ENOENT.
