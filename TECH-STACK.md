@@ -120,6 +120,29 @@ Only Vercel is on a paid tier (Pro, for the raised function limits); everything 
 - Server-side ID-token verification via Admin SDK.
 - Authorized domains: `localhost`, `designmd-2ff95.firebaseapp.com`, `design-md-chi.vercel.app`, `uiuxskills.com`, `www.uiuxskills.com`.
 
+#### Sign-in display name (the `…firebaseapp.com` in the Google popup)
+The Google sign-in popup shows the **Firebase project / auth domain** (e.g.
+"to continue to `designmd-2ff95.firebaseapp.com`"), which looks unfinished. This
+string is **not set anywhere in this repo** — it comes from Google Cloud / Firebase
+console configuration. Two changes fix it, both console/DNS (no code change):
+
+1. **Rename the OAuth consent-screen app name** (controls the name in the popup):
+   Google Cloud Console → **APIs & Services → OAuth consent screen** → set
+   **App name** to `UIUXskills` (and set the support email / logo while there).
+   Project: `designmd-2ff95`. This is the highest-impact, lowest-effort fix.
+2. **(Optional) Custom auth domain** (removes the `firebaseapp.com` URL entirely so
+   the popup reads "to continue to `uiuxskills.com`"):
+   - Firebase Console → **Authentication → Settings → Authorized domains**: ensure
+     `uiuxskills.com` is listed (it already is, per the list above).
+   - Serve Firebase's `__/auth/handler` from `uiuxskills.com` (Firebase Hosting
+     custom-domain or an equivalent reverse-proxy/rewrite), then set the Vercel env
+     var `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=uiuxskills.com` (currently
+     `designmd-2ff95.firebaseapp.com`, read in `src/lib/auth/firebase-client.ts`).
+     Redeploy so the client SDK initializes against the custom domain.
+
+The **magic-link email** is already branded (sent via Resend from a verified domain,
+`src/lib/email/sign-in-email.ts`) — this only concerns the Google popup.
+
 ### GitHub Actions (Free for public repos)
 - Workflow at `.github/workflows/warm-db.yml`. Runs every 5 minutes.
 - **Two side effects per tick:**
