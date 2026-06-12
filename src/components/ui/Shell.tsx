@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter, usePathname } from "next/navigation";
-import { Command, Loader2 } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { Loader2 } from "lucide-react";
 import { useActiveGenJob } from "@/hooks/useActiveGenJob";
 import { BG_SOFT_HEADER } from "@/lib/ui-data/constants";
 import {
@@ -27,6 +27,7 @@ import { AdminNav } from "./AdminNav";
 import { AuthModal } from "./AuthModal";
 import { UserMenu } from "./UserMenu";
 import { ClaimBundlesBanner } from "./ClaimBundlesBanner";
+import { HeaderSearch, MobileSearchTrigger, MobileSearchSheet, type HeaderSearchHandle } from "./HeaderSearch";
 
 type NavItem = { label: string; href: string; matches: (path: string) => boolean };
 
@@ -103,18 +104,23 @@ function GenPill() {
 export function Header() {
   const location = usePathname();
   const { user } = useAuth();
-  const router = useRouter();
+  const headerSearchRef = useRef<HeaderSearchHandle>(null);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
-        router.push('/library');
+        if (window.matchMedia('(min-width: 1024px)').matches) {
+          headerSearchRef.current?.focus();
+        } else {
+          setMobileSearchOpen(true);
+        }
       }
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [router]);
+  }, []);
 
   return (
     <header
@@ -153,16 +159,8 @@ export function Header() {
         </div>
         <div className="flex items-center gap-3" style={{ fontFamily: SANS }}>
           <GenPill />
-          <Link
-            href="/library"
-            aria-label="Search design skills (Cmd/Ctrl+K)"
-            className="hidden lg:flex h-7 items-center gap-2 rounded-md border px-2 text-[11.5px]"
-            style={{ borderColor: BORDER, color: MUTED, background: SURFACE }}
-          >
-            <Command className="h-3 w-3" aria-hidden="true" />
-            <span style={{ color: SUB }}>K</span>
-            <span className="ml-1">Search design skills</span>
-          </Link>
+          <HeaderSearch controlRef={headerSearchRef} />
+          <MobileSearchTrigger onOpen={() => setMobileSearchOpen(true)} />
           {user ? (
             <>
               <Link
@@ -204,6 +202,7 @@ export function Header() {
           )}
         </div>
       </div>
+      <MobileSearchSheet open={mobileSearchOpen} onClose={() => setMobileSearchOpen(false)} />
     </header>
   );
 }
