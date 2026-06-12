@@ -14,6 +14,7 @@ import {
   setPersistence,
   browserLocalPersistence,
 } from 'firebase/auth';
+import { getAnalytics, isSupported } from 'firebase/analytics';
 
 const clientConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
@@ -22,11 +23,14 @@ const clientConfig = {
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET!,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID!,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID!,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
 function clientApp(): FirebaseApp {
   if (getApps().length > 0) return getApp();
-  return initializeApp(clientConfig);
+  const app = initializeApp(clientConfig);
+  isSupported().then((yes) => { if (yes) getAnalytics(app); });
+  return app;
 }
 
 let cachedAuth: Auth | null = null;
