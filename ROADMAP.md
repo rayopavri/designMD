@@ -256,6 +256,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-06-14** - Keep polling bundle detail until the hero screenshot lands (c85e8d9)
 - [x] **2026-06-14** - Derive pipeline model label from the active provider (9216fef)
 - [x] **2026-06-14** - Show Gemini 3.5 Flash in pipeline UI labels (041319c)
 - [x] **2026-06-14** - Harden anti-crawl handling with enhanced-proxy escalation (fb51f04)
