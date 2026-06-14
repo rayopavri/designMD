@@ -370,6 +370,28 @@ const PREP_ACTIONS: ActionOption[] = [
   { type: 'wait', milliseconds: 600 },
 ];
 
+// ─── Soft-block / anti-bot detection ─────────────────────────
+//
+// Cloudflare / Turnstile / DataDome challenge pages frequently return HTTP 200
+// with challenge HTML or near-empty content rather than a 4xx, so the
+// error-message checks in scrapeUrl()'s catch never see them. looksBlocked()
+// catches those: a blocking status code, known challenge markers, or thin
+// content with no renderer-extracted branding to fall back on.
+const BLOCKED_STATUS = new Set([401, 403, 429, 503, 520, 522]);
+const CHALLENGE_MARKERS =
+  /just a moment|checking your browser|cf-browser-verification|challenge-platform|cf-turnstile|challenges\.cloudflare\.com|datadome|captcha-delivery|px-captcha|enable javascript and cookies|attention required/i;
+
+function looksBlocked(
+  result: Pick<ScrapeResult, 'statusCode' | 'markdown' | 'html' | 'branding'>,
+): boolean {
+  if (result.statusCode != null && BLOCKED_STATUS.has(result.statusCode)) return true;
+  if (CHALLENGE_MARKERS.test(`${result.markdown ?? ''}\n${result.html ?? ''}`)) return true;
+  // Thin content is only a block signal when the renderer also extracted no
+  // branding — a visual landing page can be text-thin yet still scrape fine.
+  if ((result.markdown ?? '').trim().length < 200 && !result.branding) return true;
+  return false;
+}
+
 export async function scrapeUrl(url: string): Promise<ScrapeResult> {
   // blockAds skips third-party trackers and speeds first paint. waitFor +
   // PREP_ACTIONS let web fonts/hero animations settle and dismiss cookie
@@ -405,41 +427,68 @@ export async function scrapeUrl(url: string): Promise<ScrapeResult> {
     actions: PREP_ACTIONS,
   };
 
+  let result: ScrapeResult;
+  let escalated = false;
   try {
-    return await scrapeUrlOnce(url, richOpts);
+    result = await scrapeUrlOnce(url, richOpts);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
 
-    // Bot-challenge pages render blank/garbage. One stealth-proxy retry (still
-    // with dismiss actions + viewport) usually returns the real page. Stealth is
-    // slower, so give it a wider timeout. If it also fails, surface the original.
+    // Hard bot-block (4xx/429/challenge surfaced as an error). Retry once on the
+    // enhanced proxy — Firecrawl's strongest anti-bot path, better than stealth
+    // on Cloudflare/DataDome. If it also fails, surface the original error.
     if (/\b40[13]\b|\b429\b|forbidden|blocked|denied|captcha|challenge/i.test(msg)) {
-      console.warn(`[firecrawl] ${url} looks bot-blocked; retrying with stealth proxy.`);
+      console.warn(`[firecrawl] ${url} looks bot-blocked; retrying with enhanced proxy.`);
       try {
-        return await scrapeUrlOnce(url, { ...richOpts, timeout: 35_000, proxy: 'stealth' });
-      } catch (stealthErr) {
+        result = await scrapeUrlOnce(url, { ...richOpts, timeout: 35_000, proxy: 'enhanced' });
+        escalated = true;
+      } catch (enhancedErr) {
         console.warn(
-          `[firecrawl] stealth retry failed for ${url}: ${stealthErr instanceof Error ? stealthErr.message : stealthErr}`,
+          `[firecrawl] enhanced retry failed for ${url}: ${enhancedErr instanceof Error ? enhancedErr.message : enhancedErr}`,
         );
         throw err;
       }
-    }
-
-    // Timed out (often JS-heavy sites): drop screenshot/branding/actions and grab
-    // text fast so Gemini still has something to work with.
-    if (/408|timed out|timeout/i.test(msg)) {
+    } else if (/408|timed out|timeout/i.test(msg)) {
+      // Timed out (often JS-heavy sites): drop screenshot/branding/actions and
+      // grab text fast so Gemini still has something to work with.
       console.warn(`[firecrawl] Primary scrape timed out for ${url}; retrying markdown-only.`);
       return await scrapeUrlOnce(url, { formats: ['markdown', 'html'], waitFor: 0, timeout: 10_000 });
+    } else {
+      // Any other failure (e.g. a Firecrawl plan that gates executeJavascript) —
+      // retry once WITHOUT actions so we never regress below a plain screenshot.
+      console.warn(
+        `[firecrawl] scrape with actions failed for ${url} (${msg.slice(0, 80)}); retrying without actions.`,
+      );
+      return await scrapeUrlOnce(url, { formats: primaryFormats, waitFor: 1_500, timeout: 25_000 });
     }
-
-    // Any other failure (e.g. a Firecrawl plan that gates the executeJavascript
-    // action) — retry once WITHOUT actions so we never regress below the old
-    // plain-screenshot behavior. Keeps the viewport + branding + screenshot.
-    console.warn(
-      `[firecrawl] scrape with actions failed for ${url} (${msg.slice(0, 80)}); retrying without actions.`,
-    );
-    return await scrapeUrlOnce(url, { formats: primaryFormats, waitFor: 1_500, timeout: 25_000 });
   }
+
+  // Soft-block detection: challenge pages return HTTP 200 with challenge HTML /
+  // thin content, so the catch above never sees them. Escalate once to the
+  // enhanced proxy; if it's STILL blocked (or we already escalated), fail with a
+  // SITE_BLOCKED tag so the worker can tell the user to upload a screenshot
+  // instead of burning the extraction budget on a challenge page.
+  if (looksBlocked(result)) {
+    if (!escalated) {
+      console.warn(
+        `[firecrawl] ${url} returned a soft-block/challenge page; retrying with enhanced proxy.`,
+      );
+      try {
+        result = await scrapeUrlOnce(url, { ...richOpts, timeout: 35_000, proxy: 'enhanced' });
+      } catch (enhancedErr) {
+        throw new Error(
+          `SITE_BLOCKED: ${url} blocks automated access (anti-bot challenge; enhanced-proxy retry failed: ${enhancedErr instanceof Error ? enhancedErr.message : String(enhancedErr)})`,
+        );
+      }
+    }
+    if (looksBlocked(result)) {
+      throw new Error(
+        `SITE_BLOCKED: ${url} blocks automated access (anti-bot challenge detected after enhanced-proxy retry)`,
+      );
+    }
+  }
+
+  return result;
 }
 
 /**

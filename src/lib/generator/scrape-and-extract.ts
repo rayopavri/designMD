@@ -179,6 +179,20 @@ export async function runScrapeAndExtract(payload: ScrapeAndExtractPayload): Pro
     try {
       scrape = await scrapeUrlSmart(job.url, { searchQuery });
     } catch (err) {
+      // An anti-bot block (Cloudflare/Turnstile/DataDome) is not a transient
+      // failure — surface an actionable message pointing at the manual
+      // screenshot-upload path instead of the raw scrape error.
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('SITE_BLOCKED')) {
+        return failJob(
+          jobId,
+          'scraping-blocked',
+          new Error(
+            'This site blocks automated access (anti-bot protection). Upload a screenshot instead to generate from an image.',
+          ),
+          job.batchId,
+        );
+      }
       return failJob(jobId, 'scraping', err, job.batchId);
     }
 
