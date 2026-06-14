@@ -155,15 +155,15 @@ const BUNDLE_STEPS_UPLOAD: PipelineStep[] = [
  * the draft body itself is blurred until they sign in. Keeping a single
  * component (no signed-out branch with different hook count) means hook
  * order stays stable across the signed-out → signed-in transition. */
-function Generate() {
+function Generate({ modelLabel = "Gemini 3.5 Flash" }: { modelLabel?: string }) {
   return (
     <Suspense fallback={null}>
-      <GenerateContent />
+      <GenerateContent modelLabel={modelLabel} />
     </Suspense>
   );
 }
 
-function GenerateContent() {
+function GenerateContent({ modelLabel }: { modelLabel: string }) {
   const _router = useRouter();
   const navigate = (path: string) => _router.push(path);
   const search = useSearchParams().toString();
@@ -218,11 +218,22 @@ function GenerateContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Steps for the visual pipeline — URL vs upload variant.
-  const steps = useMemo(
-    () => (bundleMode === "upload" ? BUNDLE_STEPS_UPLOAD : BUNDLE_STEPS_URL),
-    [bundleMode],
-  );
+  // Steps for the visual pipeline — URL vs upload variant. The model-driven
+  // phases (extract/author) show the live provider's model label so the copy
+  // always matches what actually runs (see activeModelLabel()).
+  const steps = useMemo(() => {
+    const base = bundleMode === "upload" ? BUNDLE_STEPS_UPLOAD : BUNDLE_STEPS_URL;
+    return base.map((s) =>
+      s.id === "extract" || s.id === "author"
+        ? {
+            ...s,
+            tool: modelLabel,
+            detail:
+              s.id === "author" ? `${modelLabel} · write canonical DESIGN.md` : s.detail,
+          }
+        : s,
+    );
+  }, [bundleMode, modelLabel]);
   const meta = TYPE_META.bundle;
   const bundleSteps = steps;
 

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import GeneratePage from './GeneratePage';
+import { activeModelLabel } from '@/lib/ai/active-model';
 
 export const metadata: Metadata = {
   title: 'Generate a Design Skill',
@@ -16,4 +17,6 @@ export const metadata: Metadata = {
   },
 };
 
-export default GeneratePage;
+export default function Page() {
+  return <GeneratePage modelLabel={activeModelLabel()} />;
+}
