@@ -29,6 +29,15 @@ const EnvSchema = z.object({
   GEMINI_API_KEY: z.string().min(1).optional(),
   FIRECRAWL_API_KEY: z.string().min(1).optional(),
 
+  // AI provider switch — temporary OpenRouter fallback for the Gemini calls
+  // (see src/lib/ai/openrouter.ts). Default 'google' keeps the direct-Gemini
+  // path untouched; set AI_PROVIDER='openrouter' + OPENROUTER_API_KEY to route
+  // extraction/authoring through OpenRouter while the Google project is denied.
+  AI_PROVIDER: z.enum(['google', 'openrouter']).default('google'),
+  OPENROUTER_API_KEY: z.string().min(1).optional(),
+  OPENROUTER_MODEL: z.string().min(1).default('google/gemini-3.5-flash'),
+  OPENROUTER_REASONING_EFFORT: z.enum(['low', 'medium', 'high']).default('medium'),
+
   // Email
   RESEND_API_KEY: z.string().min(1).optional(),
   // Sender identity for transactional email (sign-in links, notifications).

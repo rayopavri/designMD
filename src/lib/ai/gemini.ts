@@ -31,6 +31,7 @@ import {
   inferredElevationNote,
 } from '@/lib/generator/infer-elevation';
 import { perf } from '@/lib/generator/perf-log';
+import { openRouterEnabled, openRouterGenerate } from '@/lib/ai/openrouter';
 
 let _client: GoogleGenAI | null = null;
 
@@ -801,6 +802,17 @@ export interface GeminiExtractionInput {
   userFeedback?: string;
 }
 
+/** Parse the model's JSON extraction output, with a clear error on non-JSON. */
+function parseExtractionJson(text: string): ExtractedBrand {
+  try {
+    return JSON.parse(text) as ExtractedBrand;
+  } catch (err) {
+    throw new Error(
+      `Gemini returned non-JSON: ${err instanceof Error ? err.message : String(err)}\nRaw: ${text.slice(0, 300)}`,
+    );
+  }
+}
+
 export async function extractBrandFromMarkdown(
   input: GeminiExtractionInput,
 ): Promise<ExtractedBrand> {
@@ -896,6 +908,30 @@ export async function extractBrandFromMarkdown(
     }
   }
 
+  if (openRouterEnabled()) {
+    const genStartedAt = Date.now();
+    const r = await withGeminiRetry('extract', () =>
+      openRouterGenerate({
+        system: SYSTEM_PROMPT,
+        parts,
+        responseSchema: EXTRACTION_SCHEMA,
+        temperature: 0.2,
+        timeoutMs: GEMINI_TIMEOUT_MS,
+      }),
+    ).catch((err: unknown) => {
+      perf('extract.openrouter', 'err', Date.now() - genStartedAt, {
+        timeoutMs: GEMINI_TIMEOUT_MS,
+        error: err instanceof Error ? err.message.slice(0, 80) : String(err).slice(0, 80),
+      });
+      throw err;
+    });
+    perf('extract.openrouter', 'ok', Date.now() - genStartedAt, {
+      prompt: r.usage?.prompt_tokens,
+      output: r.usage?.completion_tokens,
+    });
+    return sanitize(parseExtractionJson(r.text));
+  }
+
   const cacheStartedAt = Date.now();
   const cachedName = await getCachedSystemInstruction(MODEL, SYSTEM_PROMPT);
   const cacheMs = Date.now() - cacheStartedAt;
@@ -934,17 +970,7 @@ export async function extractBrandFromMarkdown(
     output: u?.candidatesTokenCount,
   });
 
-  const text = result.text ?? '';
-  let parsed: ExtractedBrand;
-  try {
-    parsed = JSON.parse(text) as ExtractedBrand;
-  } catch (err) {
-    throw new Error(
-      `Gemini returned non-JSON: ${err instanceof Error ? err.message : String(err)}\nRaw: ${text.slice(0, 300)}`,
-    );
-  }
-
-  return sanitize(parsed);
+  return sanitize(parseExtractionJson(result.text ?? ''));
 }
 
 const IMAGE_SYSTEM_PROMPT = `You are a design system researcher. Given ONLY a screenshot of a brand's
@@ -1027,6 +1053,32 @@ export async function extractBrandFromImage(
     { text: textPrompt },
   ];
 
+  if (openRouterEnabled()) {
+    const genStartedAt = Date.now();
+    const r = await withGeminiRetry('extract-image', () =>
+      openRouterGenerate({
+        system: IMAGE_SYSTEM_PROMPT,
+        parts,
+        responseSchema: EXTRACTION_SCHEMA,
+        temperature: 0.2,
+        timeoutMs: GEMINI_TIMEOUT_MS,
+      }),
+    ).catch((err: unknown) => {
+      perf('extract-image.openrouter', 'err', Date.now() - genStartedAt, {
+        timeoutMs: GEMINI_TIMEOUT_MS,
+        error: err instanceof Error ? err.message.slice(0, 80) : String(err).slice(0, 80),
+      });
+      throw err;
+    });
+    perf('extract-image.openrouter', 'ok', Date.now() - genStartedAt, {
+      prompt: r.usage?.prompt_tokens,
+      output: r.usage?.completion_tokens,
+    });
+    const parsed = parseExtractionJson(r.text);
+    if (!parsed.name) parsed.name = input.brandName;
+    return sanitize(parsed);
+  }
+
   const cacheStartedAt = Date.now();
   const cachedName = await getCachedSystemInstruction(MODEL, IMAGE_SYSTEM_PROMPT);
   const cacheMs = Date.now() - cacheStartedAt;
@@ -1063,16 +1115,7 @@ export async function extractBrandFromImage(
     output: u?.candidatesTokenCount,
   });
 
-  const text = result.text ?? '';
-  let parsed: ExtractedBrand;
-  try {
-    parsed = JSON.parse(text) as ExtractedBrand;
-  } catch (err) {
-    throw new Error(
-      `Gemini returned non-JSON: ${err instanceof Error ? err.message : String(err)}\nRaw: ${text.slice(0, 300)}`,
-    );
-  }
-
+  const parsed = parseExtractionJson(result.text ?? '');
   // Backfill the brand name so downstream slugging and titling have it.
   if (!parsed.name) parsed.name = input.brandName;
   return sanitize(parsed);
@@ -1111,6 +1154,34 @@ export interface GeminiTextResult {
  */
 export async function generateTextFromGemini(input: GeminiTextInput): Promise<GeminiTextResult> {
   const startedAt = Date.now();
+
+  if (openRouterEnabled()) {
+    const r = await withGeminiRetry('author-text', () =>
+      openRouterGenerate({
+        system: input.systemPrompt,
+        parts: [{ text: input.userPrompt }],
+        temperature: input.temperature ?? 0.4,
+        maxOutputTokens: input.maxOutputTokens ?? 6144,
+        timeoutMs: input.timeoutMs,
+      }),
+    ).catch((err: unknown) => {
+      perf('author.openrouter', 'err', Date.now() - startedAt, {
+        timeoutMs: input.timeoutMs,
+        error: err instanceof Error ? err.message.slice(0, 80) : String(err).slice(0, 80),
+      });
+      throw err;
+    });
+    perf('author.openrouter', 'ok', Date.now() - startedAt, {
+      prompt: r.usage?.prompt_tokens,
+      output: r.usage?.completion_tokens,
+    });
+    const content = r.text;
+    if (!content.trim()) {
+      throw new Error(`OpenRouter returned empty content (model=${env.OPENROUTER_MODEL})`);
+    }
+    return { content, modelUsed: env.OPENROUTER_MODEL, latencyMs: Date.now() - startedAt };
+  }
+
   const cachedName = await getCachedSystemInstruction(MODEL, input.systemPrompt);
   const cacheMs = Date.now() - startedAt;
   const genStartedAt = Date.now();
@@ -1225,19 +1296,34 @@ export async function extractBrandNamesQuick(
     '```',
   ].join('\n');
 
-  const result = await client().models.generateContent({
-    model: MODEL,
-    contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
-    config: {
-      systemInstruction: QUICK_NAMES_SYSTEM_PROMPT,
-      responseMimeType: 'application/json',
-      responseSchema: QUICK_NAMES_SCHEMA,
+  let text: string;
+  if (openRouterEnabled()) {
+    // Best-effort: no retry wrapper and no responseSchema (the top-level-array
+    // schema is the riskiest converter case; the prompt already demands a JSON
+    // array, and callers fall back to metadata names if this throws). reasoning
+    // is disabled to keep this mechanical call inside its tight timeout budget.
+    const r = await openRouterGenerate({
+      system: QUICK_NAMES_SYSTEM_PROMPT,
+      parts: [{ text: userPrompt }],
       temperature: 0,
-      abortSignal: AbortSignal.timeout(timeoutMs),
-    },
-  });
-
-  const text = result.text ?? '';
+      timeoutMs,
+      reasoning: false,
+    });
+    text = r.text;
+  } else {
+    const result = await client().models.generateContent({
+      model: MODEL,
+      contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+      config: {
+        systemInstruction: QUICK_NAMES_SYSTEM_PROMPT,
+        responseMimeType: 'application/json',
+        responseSchema: QUICK_NAMES_SCHEMA,
+        temperature: 0,
+        abortSignal: AbortSignal.timeout(timeoutMs),
+      },
+    });
+    text = result.text ?? '';
+  }
   const parsed = JSON.parse(text) as unknown;
   if (!Array.isArray(parsed)) {
     throw new Error('extractBrandNamesQuick: expected a JSON array');
