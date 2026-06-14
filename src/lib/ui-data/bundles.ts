@@ -56,6 +56,10 @@ export type Bundle = {
    * until that backfill runs, in which case the hero falls back to the live
    * token-rendered PreviewPane. */
   previewImageUrl?: string;
+  /** ISO timestamp of the bundle's last write. Used by the detail page to
+   * decide whether the async screenshot capture could still be in flight
+   * (and thus whether to keep polling for `previewImageUrl`). */
+  updatedAt?: string;
 };
 
 const linear = `---
