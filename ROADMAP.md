@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-06-14** (show Gemini 3.5 Flash in pipeline UI labels)
+> Last updated: **2026-06-14** (derive pipeline model label from the active provider)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -256,6 +256,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-06-14** - Derive pipeline model label from the active provider (9216fef)
 - [x] **2026-06-14** - Show Gemini 3.5 Flash in pipeline UI labels (041319c)
 - [x] **2026-06-14** - Harden anti-crawl handling with enhanced-proxy escalation (fb51f04)
 - [x] **2026-06-12** - Remove Settings from user dropdown menu (4def235)
