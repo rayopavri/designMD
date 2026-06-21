@@ -87,7 +87,7 @@ export function ItemCard({ item }: { item: Item }) {
           <span className="whitespace-nowrap">
             {item.tools.length} {item.tools.length === 1 ? "tool" : "tools"}
           </span>
-          <span className="mx-1.5" aria-hidden>·</span>
+          <span className="mx-1.5" aria-hidden="true">·</span>
           <span className="whitespace-nowrap">{item.updatedAgo}</span>
         </span>
       </div>

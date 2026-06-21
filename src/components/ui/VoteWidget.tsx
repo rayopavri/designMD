@@ -195,7 +195,7 @@ export function VoteWidget({ bundleSlug, initialVoteCount, initialPositiveVoteRa
         <button
           onClick={handleUp}
           disabled={pending}
-          title={user ? (isUp ? "Remove vote" : "This worked for me") : "Sign in to vote"}
+          aria-label={user ? (isUp ? "Remove vote" : "This worked for me") : "Sign in to vote"}
           className="inline-flex items-center gap-1.5 text-[12px] transition-colors disabled:opacity-50"
           style={{ color: isUp ? LIME : SUB }}
         >
@@ -210,7 +210,7 @@ export function VoteWidget({ bundleSlug, initialVoteCount, initialPositiveVoteRa
         <button
           onClick={handleDown}
           disabled={pending}
-          title={user ? (isDown ? "Remove vote" : "This didn't work") : "Sign in to vote"}
+          aria-label={user ? (isDown ? "Remove vote" : "This didn't work") : "Sign in to vote"}
           className="inline-flex items-center gap-1 text-[12px] transition-colors disabled:opacity-50"
           style={{ color: isDown ? MUTED : SUB }}
         >

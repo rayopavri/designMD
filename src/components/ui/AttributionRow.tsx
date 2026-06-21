@@ -31,11 +31,11 @@ export function AttributionRow({ attr }: { attr: Attribution }) {
         style={{ borderColor: BORDER, background: SURFACE, color: INK }}
       >
         <span>{host}</span>
-        <ArrowUpRight className="h-3 w-3" style={{ color: SUB }} />
+        <ArrowUpRight className="h-3 w-3" style={{ color: SUB }} aria-hidden="true" />
       </a>
-      <span style={{ color: BORDER }}>·</span>
+      <span style={{ color: BORDER }} aria-hidden="true">·</span>
       <span style={{ color: SUB }}>by {attr.author}</span>
-      <span style={{ color: BORDER }}>·</span>
+      <span style={{ color: BORDER }} aria-hidden="true">·</span>
       <span
         className="inline-flex items-center h-5 rounded px-1.5 text-[10px] uppercase tracking-[0.18em]"
         style={{ background: SURFACE_2, border: `1px solid ${BORDER}`, color: SUB }}

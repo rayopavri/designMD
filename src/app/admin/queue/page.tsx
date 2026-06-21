@@ -725,12 +725,14 @@ function DetailView({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div className="flex flex-col gap-2">
             <label
+              htmlFor="approve-note-input"
               className="text-[10.5px] uppercase tracking-[0.22em]"
               style={{ color: MUTED, fontFamily: MONO }}
             >
               approve note (optional)
             </label>
             <input
+              id="approve-note-input"
               type="text"
               value={approveNotes}
               onChange={(e) => setApproveNotes(e.target.value)}
@@ -765,12 +767,14 @@ function DetailView({
           </div>
           <div className="flex flex-col gap-2">
             <label
+              htmlFor="reject-reason-input"
               className="text-[10.5px] uppercase tracking-[0.22em]"
               style={{ color: MUTED, fontFamily: MONO }}
             >
               reject reason (required)
             </label>
             <input
+              id="reject-reason-input"
               type="text"
               value={rejectNotes}
               onChange={(e) => setRejectNotes(e.target.value)}

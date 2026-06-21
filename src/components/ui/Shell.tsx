@@ -149,6 +149,7 @@ export function Header() {
                   href={n.href}
                   className="relative inline-flex items-center gap-1.5"
                   style={{ color: isActive ? INK : SUB }}
+                  aria-current={isActive ? "page" : undefined}
                 >
                   {isActive ? <span className="h-1 w-1 rounded-full" style={{ background: VIOLET }} /> : null}
                   {n.label}
@@ -244,10 +245,17 @@ export function Shell({ children }: { children: React.ReactNode }) {
   useAuthStorageSync();
   return (
     <div className="min-h-screen flex flex-col" style={{ background: BG, color: INK, fontFamily: SANS }}>
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:z-[200] focus:m-3 focus:rounded-md focus:px-4 focus:py-2 focus:text-sm focus:font-medium"
+        style={{ background: INK, color: INK_ON_LIGHT }}
+      >
+        Skip to content
+      </a>
       <Header />
       <AdminNav />
       <ClaimBundlesBanner />
-      <main className="flex-1">{children}</main>
+      <main id="main-content" className="flex-1">{children}</main>
       <Footer />
       <AuthModal />
     </div>

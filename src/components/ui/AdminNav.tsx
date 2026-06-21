@@ -35,7 +35,7 @@ export function AdminNav() {
         >
           admin
         </span>
-        <nav className="flex items-center gap-6 text-[12.5px]" style={{ fontFamily: MONO }}>
+        <nav className="flex items-center gap-6 text-[12.5px]" style={{ fontFamily: MONO }} aria-label="Admin navigation">
           {TABS.map((tab) => {
             const isActive = tab.match(pathname);
             return (
@@ -44,6 +44,7 @@ export function AdminNav() {
                 href={tab.href}
                 className="relative inline-flex items-center gap-1.5"
                 style={{ color: isActive ? INK : SUB }}
+                aria-current={isActive ? "page" : undefined}
               >
                 {isActive ? (
                   <span className="h-1 w-1 rounded-full" style={{ background: VIOLET }} />

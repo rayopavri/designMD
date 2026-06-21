@@ -100,7 +100,7 @@ export function HomeHero() {
             className="mx-auto max-w-[520px] lg:max-w-none lg:whitespace-nowrap text-[17px] leading-[1.65] mb-10"
             style={{ color: SUB }}
           >
-            The world's best design systems, formatted for AI. Pick a brand and paste it in.
+            The world&apos;s best design systems, formatted for AI. Pick a brand and paste it in.
           </p>
 
           {/* CTAs — generate is primary USP */}

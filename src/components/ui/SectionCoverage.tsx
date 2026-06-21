@@ -34,13 +34,18 @@ export function SectionCoverage({ coverage }: { coverage: Coverage }) {
           const s = status(n);
           return (
             <li key={key} className="flex items-center gap-2 text-[11.5px]">
-              <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: s.color }} />
+              <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: s.color }} aria-hidden="true" />
               <span style={{ color: INK }} className="min-w-[64px]">{label}</span>
               <div
                 className="flex-1 h-1 rounded-sm overflow-hidden"
                 style={{ background: SURFACE_2, border: `1px solid ${BORDER}` }}
               >
                 <span
+                  role="progressbar"
+                  aria-valuenow={Math.max(0, Math.min(100, n))}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-label={`${label} coverage: ${s.label}`}
                   className="block h-full"
                   style={{ width: `${Math.max(0, Math.min(100, n))}%`, background: s.color }}
                 />
