@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-06-14** (derive pipeline model label from the active provider)
+> Last updated: **2026-06-21** (accessibility test and fixes — WCAG 2.1 AA pass)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -256,6 +256,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-06-21** - a11y: accessibility test and fixes — WCAG 2.1 AA pass (d73f224)
 - [x] **2026-06-14** - Keep polling bundle detail until the hero screenshot lands (c85e8d9)
 - [x] **2026-06-14** - Derive pipeline model label from the active provider (9216fef)
 - [x] **2026-06-14** - Show Gemini 3.5 Flash in pipeline UI labels (041319c)
