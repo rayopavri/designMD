@@ -5,7 +5,7 @@
  * filter/sort logic from the upcoming search index build and admin views.
  */
 import { cache } from 'react';
-import { and, asc, desc, eq, ilike, inArray, ne, or, sql, type SQL } from 'drizzle-orm';
+import { and, arrayOverlaps, asc, desc, eq, ilike, inArray, ne, or, sql, type SQL } from 'drizzle-orm';
 import { db } from '@/lib/db/client';
 import { bundles, categories } from '@/lib/db/schema';
 
@@ -64,15 +64,12 @@ export async function listPublishedBundles(
     conditions.push(eq(bundles.type, filters.type));
   }
   if (filters.designStyle?.length) {
-    // array && array → true if they overlap
-    conditions.push(
-      sql`${bundles.designStyle} && ${sql.raw(`ARRAY[${filters.designStyle.map((s) => `'${s.replace(/'/g, "''")}'`).join(',')}]::text[]`)}`
-    );
+    // array && array → true if they overlap. arrayOverlaps parameterizes the
+    // values, so no manual quote-escaping / injection surface.
+    conditions.push(arrayOverlaps(bundles.designStyle, filters.designStyle));
   }
   if (filters.tools?.length) {
-    conditions.push(
-      sql`${bundles.compatibleTools} && ${sql.raw(`ARRAY[${filters.tools.map((s) => `'${s.replace(/'/g, "''")}'`).join(',')}]::text[]`)}`
-    );
+    conditions.push(arrayOverlaps(bundles.compatibleTools, filters.tools));
   }
   if (filters.q) {
     const term = `%${filters.q.trim()}%`;
@@ -183,14 +180,10 @@ export async function listAdminBundles(
     conditions.push(eq(bundles.type, filters.type));
   }
   if (filters.designStyle?.length) {
-    conditions.push(
-      sql`${bundles.designStyle} && ${sql.raw(`ARRAY[${filters.designStyle.map((s) => `'${s.replace(/'/g, "''")}'`).join(',')}]::text[]`)}`,
-    );
+    conditions.push(arrayOverlaps(bundles.designStyle, filters.designStyle));
   }
   if (filters.tools?.length) {
-    conditions.push(
-      sql`${bundles.compatibleTools} && ${sql.raw(`ARRAY[${filters.tools.map((s) => `'${s.replace(/'/g, "''")}'`).join(',')}]::text[]`)}`,
-    );
+    conditions.push(arrayOverlaps(bundles.compatibleTools, filters.tools));
   }
   if (filters.q) {
     const term = `%${filters.q.trim()}%`;
@@ -538,14 +531,10 @@ export async function getRelatedBundles(
     matchConditions.push(eq(bundles.primaryCategoryId, source.primaryCategoryId));
   }
   if (source.designStyle.length) {
-    matchConditions.push(
-      sql`${bundles.designStyle} && ${sql.raw(`ARRAY[${source.designStyle.map((s) => `'${s.replace(/'/g, "''")}'`).join(',')}]::text[]`)}`,
-    );
+    matchConditions.push(arrayOverlaps(bundles.designStyle, source.designStyle));
   }
   if (source.compatibleTools.length) {
-    matchConditions.push(
-      sql`${bundles.compatibleTools} && ${sql.raw(`ARRAY[${source.compatibleTools.map((s) => `'${s.replace(/'/g, "''")}'`).join(',')}]::text[]`)}`,
-    );
+    matchConditions.push(arrayOverlaps(bundles.compatibleTools, source.compatibleTools));
   }
 
   // Nothing to relate on (no category, no styles, no tools).

@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
     // Anonymous: consume the single free generation only when a job was
     // actually created (202), so validation 400s / dedupe 409s don't burn it.
     if (!userId && res.status === 202) {
-      await markFreeGenerationUsed(anonToken, req);
+      await markFreeGenerationUsed(req);
     }
 
     if (isNew && anonToken) attachAnonToken(res, anonToken);

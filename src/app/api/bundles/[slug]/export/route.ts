@@ -11,6 +11,7 @@ import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '@/lib/db/client';
 import { bundles } from '@/lib/db/schema';
+import { rateLimitByIp, tooManyRequests } from '@/lib/rate-limit/by-ip';
 
 export const runtime = 'nodejs';
 
@@ -23,6 +24,9 @@ const QuerySchema = z.object({
 });
 
 export async function GET(req: NextRequest, ctx: RouteContext) {
+  const rl = await rateLimitByIp(req, { limit: 20, window: '1 m', prefix: 'rl:export' });
+  if (!rl.ok) return tooManyRequests(rl);
+
   const { slug } = await ctx.params;
   if (!slug || slug.length > 200) {
     return NextResponse.json({ error: 'Invalid slug' }, { status: 400 });
