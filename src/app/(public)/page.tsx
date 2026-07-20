@@ -45,6 +45,52 @@ async function Home() {
         url: 'https://uiuxskills.com',
         name: 'UIUXskills',
         publisher: { '@id': 'https://uiuxskills.com/#organization' },
+        potentialAction: {
+          '@type': 'SearchAction',
+          target: {
+            '@type': 'EntryPoint',
+            urlTemplate: 'https://uiuxskills.com/library?q={search_term_string}',
+          },
+          'query-input': 'required name=search_term_string',
+        },
+      },
+      {
+        '@type': 'FAQPage',
+        '@id': 'https://uiuxskills.com/#faq',
+        mainEntity: [
+          {
+            '@type': 'Question',
+            name: 'What is a design skill (DESIGN.md)?',
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: 'A design skill is a structured DESIGN.md spec of a brand’s design system — color palette, typography, spacing, components, and dos and don’ts — paired with a companion system prompt. Together they give an AI tool the context it needs to generate on-brand UI.',
+            },
+          },
+          {
+            '@type': 'Question',
+            name: 'Which AI tools do design skills work with?',
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: 'Claude, Cursor, Lovable, and Figma Make. Copy the DESIGN.md and companion prompt into any of them before you ask for UI.',
+            },
+          },
+          {
+            '@type': 'Question',
+            name: 'How do I use a design skill?',
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: 'Open any skill in the library, copy the DESIGN.md and companion prompt (or download the bundle), and drop them into your AI coding tool. The tool then ships UI that matches that brand’s design system.',
+            },
+          },
+          {
+            '@type': 'Question',
+            name: 'Can I create a design skill for any brand?',
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: 'Yes. Paste any URL on the Generate page and an AI pipeline scrapes the site, extracts the brand’s design tokens, and writes a validated DESIGN.md plus a companion prompt for you.',
+            },
+          },
+        ],
       },
     ],
   };

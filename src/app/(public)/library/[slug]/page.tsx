@@ -67,6 +67,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     },
     alternates: {
       canonical: `https://uiuxskills.com/library/${slug}`,
+      // Point AI crawlers / agents at the clean-markdown representation of this
+      // spec (see /library/[slug]/raw). llms.txt links to the same endpoints.
+      types: {
+        'text/markdown': `https://uiuxskills.com/library/${slug}/raw`,
+      },
     },
     // Drafts / non-published bundles are reachable (owners preview them) and now
     // server-rendered, so explicitly keep them out of the index. Only published
@@ -89,6 +94,21 @@ export default async function Page({ params }: Props) {
   // are in the first HTML payload — the content Google indexes and non-JS AI
   // crawlers (GPTBot, ClaudeBot, PerplexityBot, …) actually see.
   const initialItem = detailToBundleItem(serializeDetail(bundle));
+
+  // Genuine user-vote ratings → star rich-results in Google. positiveVoteRate
+  // is a 0–100 percentage; map it onto a 0–5 scale. Only emit when there are
+  // real votes so we never claim an unrated bundle has a rating.
+  const rate = Number(bundle.positiveVoteRate);
+  const aggregateRating =
+    bundle.voteCount > 0 && !Number.isNaN(rate)
+      ? {
+          '@type': 'AggregateRating',
+          ratingValue: Math.round((rate / 20) * 10) / 10,
+          bestRating: 5,
+          worstRating: 0,
+          ratingCount: bundle.voteCount,
+        }
+      : undefined;
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -121,6 +141,7 @@ export default async function Page({ params }: Props) {
         datePublished: bundle.publishedAt?.toISOString(),
         dateModified: bundle.updatedAt.toISOString(),
         sameAs: bundle.sourceUrl ?? undefined,
+        aggregateRating,
         creator: {
           '@type': 'Organization',
           name: 'UIUXskills',
