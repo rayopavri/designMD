@@ -32,13 +32,23 @@ ALTER TABLE "verification_applications" ENABLE ROW LEVEL SECURITY;--> statement-
 -- from the migration history.
 ALTER TABLE "bundles" ADD COLUMN IF NOT EXISTS "preview_image_url" text;--> statement-breakpoint
 -- ── Defense in depth: strip the Supabase Data API role grants ───────────────
--- Supabase auto-grants `anon` + `authenticated` table privileges on objects
--- created by `postgres`, exposing them through PostgREST/GraphQL. RLS above
--- already denies these roles every row (no policies), but we also remove the
--- grants so the API surface stays closed even if a policy is ever added, and
--- set default privileges so FUTURE tables are covered too. Guarded by role
--- existence so this is a clean no-op on a plain (non-Supabase) Postgres used
--- for local development, where `anon`/`authenticated` do not exist.
+-- Supabase auto-grants `anon` + `authenticated` privileges on objects created
+-- by `postgres`, exposing them through PostgREST/GraphQL. RLS above already
+-- denies these roles every table row (no policies); this additionally removes
+-- their table/sequence/function grants and sets default privileges so FUTURE
+-- postgres-owned tables are covered too. Guarded by role existence so it is a
+-- clean no-op on a plain (non-Supabase) Postgres used for local development.
+--
+-- Scope notes (intentional, see docs/DATABASE-SECURITY.md):
+--   1. The real data protection is RLS on the tables above — these REVOKEs are
+--      belt-and-suspenders on top of that.
+--   2. EXECUTE on public functions granted to PUBLIC (which anon/authenticated
+--      inherit) is deliberately left as-is: the only functions in this schema
+--      are input validators and triggers that read no table data, so a blanket
+--      REVOKE ... FROM PUBLIC would add untestable risk for no data-exposure gain.
+--   3. ALTER DEFAULT PRIVILEGES is scoped to grantor `postgres`, which creates
+--      every table in this app; after applying, verify no residual anon/
+--      authenticated grants remain under another grantor (query in the doc).
 DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
