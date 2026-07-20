@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-07-20** (feat: server-render bundle content for SEO crawlers)
+> Last updated: **2026-07-20** (feat: llms.txt, raw-markdown endpoint, rich-result structured data)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -256,6 +256,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-07-20** - feat: llms.txt, raw-markdown endpoint, rich-result structured data (c87f4bc)
 - [x] **2026-07-20** - feat: server-render bundle content + list pages for crawlers (5e20aed)
 - [x] **2026-07-20** - docs: AGENTS improvements — commands reference, fix stale facts, expand migration mechanics (bea77ae)
 - [x] **2026-07-20** - docs: database security guide + RLS migration refinements (8ac78da)
