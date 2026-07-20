@@ -141,7 +141,7 @@ export const users = pgTable(
     index('idx_users_email').on(table.email),
     index('idx_users_firebase_uid').on(table.firebaseUid),
   ],
-);
+).enableRLS();
 
 // ============================================================
 // CATEGORIES
@@ -163,7 +163,7 @@ export const categories = pgTable(
     check('chk_level', sql`${table.level} IN (1, 2)`),
     check('chk_level2_has_parent', sql`${table.level} = 1 OR ${table.parentId} IS NOT NULL`),
   ],
-);
+).enableRLS();
 
 // ============================================================
 // BUNDLES
@@ -303,7 +303,7 @@ export const bundles = pgTable(
         sql`${table.sourceUrlNormalized} IS NOT NULL AND ${table.status} IN ('personal', 'pending_review', 'published', 'flagged')`,
       ),
   ],
-);
+).enableRLS();
 
 // ============================================================
 // BUNDLE VOTES
@@ -333,7 +333,7 @@ export const bundleVotes = pgTable(
     index('idx_votes_bundle').on(table.bundleId),
     index('idx_votes_user').on(table.userId),
   ],
-);
+).enableRLS();
 
 // ============================================================
 // USER FAVORITES
@@ -356,7 +356,7 @@ export const userFavorites = pgTable(
     index('idx_favorites_bundle').on(table.bundleId),
     index('idx_favorites_user').on(table.userId),
   ],
-);
+).enableRLS();
 
 // ============================================================
 // COLLECTIONS
@@ -381,7 +381,7 @@ export const collections = pgTable(
   (table) => [
     check('chk_col_design_style', sql`all_valid_design_styles(${table.designStyle})`),
   ],
-);
+).enableRLS();
 
 export const collectionItems = pgTable(
   'collection_items',
@@ -400,7 +400,7 @@ export const collectionItems = pgTable(
     uniqueIndex('uq_collection_bundle').on(table.collectionId, table.bundleId),
     check('chk_role', sql`${table.role} IN ('design_md','skill','agent')`),
   ],
-);
+).enableRLS();
 
 // ============================================================
 // BUNDLE REQUESTS
@@ -419,7 +419,7 @@ export const bundleRequests = pgTable('bundle_requests', {
   completedBundleId: uuid('completed_bundle_id').references(() => bundles.id),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-});
+}).enableRLS();
 
 // ============================================================
 // GENERATION JOBS
@@ -518,7 +518,7 @@ export const generationJobs = pgTable(
     index('idx_jobs_image_hash').on(table.imageHash, table.userId),
     index('idx_jobs_batch_id').on(table.batchId),
   ],
-);
+).enableRLS();
 
 // ============================================================
 // DISCOVERY (Phase 2)
@@ -572,7 +572,7 @@ export const discoveryCandidates = pgTable(
     index('idx_candidates_status').on(table.status),
     index('idx_candidates_fingerprint').on(table.contentFingerprint),
   ],
-);
+).enableRLS();
 
 export const discoverySourceState = pgTable('discovery_source_state', {
   source: text('source').primaryKey(),
@@ -582,7 +582,7 @@ export const discoverySourceState = pgTable('discovery_source_state', {
   itemsFound: integer('items_found').notNull().default(0),
   itemsClassified: integer('items_classified').notNull().default(0),
   errors: text('errors'),
-});
+}).enableRLS();
 
 // ============================================================
 // GUARDRAILS
@@ -605,7 +605,7 @@ export const domainBlocklist = pgTable(
     ),
     index('idx_blocklist_category').on(table.category),
   ],
-);
+).enableRLS();
 
 export const abuseSignals = pgTable(
   'abuse_signals',
@@ -618,7 +618,7 @@ export const abuseSignals = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [index('idx_abuse_user_date').on(table.userId, table.createdAt)],
-);
+).enableRLS();
 
 export const bannedUsers = pgTable('banned_users', {
   userId: uuid('user_id')
@@ -628,7 +628,7 @@ export const bannedUsers = pgTable('banned_users', {
   bannedAt: timestamp('banned_at', { withTimezone: true }).notNull().defaultNow(),
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
   bannedBy: uuid('banned_by').references(() => users.id),
-});
+}).enableRLS();
 
 export const guardrailRejections = pgTable(
   'guardrail_rejections',
@@ -644,7 +644,7 @@ export const guardrailRejections = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [check('chk_workflow', sql`${table.workflow} IN ('generator','discovery')`)],
-);
+).enableRLS();
 
 // ============================================================
 // VERIFIED CREATOR APPLICATIONS
@@ -668,7 +668,7 @@ export const verificationApplications = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [check('chk_app_status', sql`${table.status} IN ('pending','approved','rejected')`)],
-);
+).enableRLS();
 
 // ============================================================
 // RELATIONS (for type-safe queries with .with())
