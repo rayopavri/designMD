@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
 import { getVisibleBundleBySlug } from '@/lib/db/queries/bundles';
 import type { BundleDetail } from '@/lib/db/queries/bundles';
+import { detailToBundleItem, serializeDetail } from '@/lib/ui-data/bundleDetailAdapter';
 import BundleDetailClient from './BundleDetailClient';
 
 function buildKeywords(bundle: Pick<BundleDetail, 'primaryCategoryName' | 'compatibleTools'>): string {
@@ -66,70 +68,81 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     alternates: {
       canonical: `https://uiuxskills.com/library/${slug}`,
     },
+    // Drafts / non-published bundles are reachable (owners preview them) and now
+    // server-rendered, so explicitly keep them out of the index. Only published
+    // bundles should be crawled and ranked.
+    robots: bundle.status === 'published' ? undefined : { index: false, follow: true },
   };
 }
 
 export default async function Page({ params }: Props) {
   const { slug } = await params;
   const bundle = await getVisibleBundleBySlug(slug);
+  // Real 404 for unknown/archived slugs instead of a 200 soft-404: the server
+  // component previously rendered the client shell regardless, so bad URLs
+  // returned 200 and could be indexed. `notFound()` renders not-found.tsx with
+  // a proper 404 status.
+  if (!bundle) notFound();
 
-  const jsonLd = bundle
-    ? {
-        '@context': 'https://schema.org',
-        '@graph': [
+  // Pre-convert the bundle to the UI shape on the server and hand it to the
+  // client component so the DESIGN.md, companion prompt, palette, and coverage
+  // are in the first HTML payload — the content Google indexes and non-JS AI
+  // crawlers (GPTBot, ClaudeBot, PerplexityBot, …) actually see.
+  const initialItem = detailToBundleItem(serializeDetail(bundle));
+
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
           {
-            '@type': 'BreadcrumbList',
-            itemListElement: [
-              {
-                '@type': 'ListItem',
-                position: 1,
-                name: 'Design Skills',
-                item: 'https://uiuxskills.com/library',
-              },
-              {
-                '@type': 'ListItem',
-                position: 2,
-                name: bundle.title,
-                item: `https://uiuxskills.com/library/${slug}`,
-              },
-            ],
+            '@type': 'ListItem',
+            position: 1,
+            name: 'Design Skills',
+            item: 'https://uiuxskills.com/library',
           },
           {
-            '@type': 'CreativeWork',
-            '@id': `https://uiuxskills.com/library/${slug}`,
-            name: `${bundle.title} Design System`,
-            description: `Design skill for ${bundle.title}. Brand tokens, color palette, typography, and component specs for Claude, Cursor, and Lovable.`,
-            url: `https://uiuxskills.com/library/${slug}`,
-            encodingFormat: 'text/markdown',
-            keywords: buildKeywords(bundle),
-            datePublished: bundle.publishedAt?.toISOString(),
-            dateModified: bundle.updatedAt.toISOString(),
-            sameAs: bundle.sourceUrl ?? undefined,
-            creator: {
-              '@type': 'Organization',
-              name: 'UIUXskills',
-              url: 'https://uiuxskills.com',
-            },
-            isPartOf: {
-              '@type': 'CollectionPage',
-              '@id': 'https://uiuxskills.com/library',
-              name: 'UIUXskills Design Library',
-              url: 'https://uiuxskills.com/library',
-            },
+            '@type': 'ListItem',
+            position: 2,
+            name: bundle.title,
+            item: `https://uiuxskills.com/library/${slug}`,
           },
         ],
-      }
-    : null;
+      },
+      {
+        '@type': 'CreativeWork',
+        '@id': `https://uiuxskills.com/library/${slug}`,
+        name: `${bundle.title} Design System`,
+        description: `Design skill for ${bundle.title}. Brand tokens, color palette, typography, and component specs for Claude, Cursor, and Lovable.`,
+        url: `https://uiuxskills.com/library/${slug}`,
+        encodingFormat: 'text/markdown',
+        keywords: buildKeywords(bundle),
+        datePublished: bundle.publishedAt?.toISOString(),
+        dateModified: bundle.updatedAt.toISOString(),
+        sameAs: bundle.sourceUrl ?? undefined,
+        creator: {
+          '@type': 'Organization',
+          name: 'UIUXskills',
+          url: 'https://uiuxskills.com',
+        },
+        isPartOf: {
+          '@type': 'CollectionPage',
+          '@id': 'https://uiuxskills.com/library',
+          name: 'UIUXskills Design Library',
+          url: 'https://uiuxskills.com/library',
+        },
+      },
+    ],
+  };
 
   return (
     <>
-      {jsonLd && (
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-        />
-      )}
-      <BundleDetailClient />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <BundleDetailClient initialItem={initialItem} />
     </>
   );
 }

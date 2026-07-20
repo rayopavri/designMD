@@ -1,4 +1,6 @@
 import type { Metadata } from 'next';
+import { listAllPublishedBundles } from '@/lib/db/queries/bundles';
+import { apiToBundleItem, serializeListItem } from '@/lib/ui-data/bundleListAdapter';
 import LibraryClient from './LibraryClient';
 
 export const metadata: Metadata = {
@@ -36,14 +38,21 @@ const collectionJsonLd = {
   },
 };
 
-export default function LibraryPage() {
+export default async function LibraryPage() {
+  // Server-render the full grid so every bundle link is in the first HTML
+  // payload (crawlable). The client component still handles search, filtering,
+  // and sorting interactively on top of this seed.
+  const initialItems = (await listAllPublishedBundles()).map((b) =>
+    apiToBundleItem(serializeListItem(b)),
+  );
+
   return (
     <>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionJsonLd) }}
       />
-      <LibraryClient />
+      <LibraryClient initialItems={initialItems} />
     </>
   );
 }

@@ -16,11 +16,12 @@ import {
 } from '@/lib/ui-data/tokens';
 import { useBundleItems } from '@/hooks/useBundleItems';
 import { ItemCard } from '@/components/ui/ItemCard';
+import type { BundleItem } from '@/lib/ui-data/items';
 
 const TOP_N = 20;
 
-export function HomeFeaturedBundles() {
-  const { items, loading, error } = useBundleItems();
+export function HomeFeaturedBundles({ initialItems }: { initialItems?: BundleItem[] }) {
+  const { items, loading, error } = useBundleItems(initialItems);
 
   const top20 = useMemo(() => {
     const bundles = items.filter((i) => i.type === 'bundle');

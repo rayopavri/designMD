@@ -3,270 +3,23 @@
  * /api/bundles/[slug] and maps it into the UI's BundleItem shape so the
  * existing library detail components keep working unchanged.
  *
- * Mirrors the converter in useBundleItems but adds the detail-only
- * fields: design.md body, companion prompt, and the per-section
- * coverage breakdown.
+ * The row → UI conversion lives in `@/lib/ui-data/bundleDetailAdapter` (a
+ * server-safe module) so the detail Server Component can pre-convert the
+ * bundle and pass it here as `initialItem`. When seeded, the hook renders the
+ * full spec immediately (no loading spinner) — which is what lands in the SSR
+ * HTML for Google and non-JS AI crawlers — and skips the redundant initial
+ * fetch. The polling leg still runs to upgrade a freshly-generated bundle
+ * whose companion prompt / screenshot land after first paint.
  */
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { type BundleItem } from '@/lib/ui-data/items';
 import {
-  type BundleItem,
-  type DiscoveryMethod,
-  type Tool,
-  TYPE_META,
-} from '@/lib/ui-data/items';
-import type { Bundle as UiBundle, SectionCoverage } from '@/lib/ui-data/bundles';
-
-interface ApiBundleDetail {
-  id: string;
-  slug: string;
-  title: string;
-  description: string;
-  type: string;
-  status: string;
-  designMd: string | null;
-  companionPrompt: string;
-  companionPromptVersion: number;
-  coverageScore: number | null;
-  coverageColors: number | null;
-  coverageTypography: number | null;
-  coverageLayout: number | null;
-  coverageElevation: number | null;
-  coverageShapes: number | null;
-  coverageComponents: number | null;
-  coverageDosDonts: number | null;
-  primaryCategorySlug: string | null;
-  primaryCategoryName: string | null;
-  designStyle: string[];
-  compatibleTools: string[];
-  paletteColors: string[];
-  brandLogoUrl: string | null;
-  previewImageUrl: string | null;
-  brandInitial: string | null;
-  brandColor: string | null;
-  voteCount: number;
-  positiveVoteCount: number;
-  positiveVoteRate: string;
-  copyCount: number;
-  downloadCount: number;
-  cliInstallCount: number;
-  isFeatured: boolean;
-  isCurated: boolean;
-  sourceDomain: string | null;
-  sourceUrl: string | null;
-  authorName: string | null;
-  authorUrl: string | null;
-  license: string | null;
-  attributionStatement: string | null;
-  accessibilityNotes: string | null;
-  companionStatus: string;
-  publishedAt: string | null;
-  updatedAt: string;
-}
-
-// ─── Reverse mappers (DB → UI) ──────────────────────────────
-// NOTE: these mirror useBundleItems.ts. Keep them in sync; future cleanup
-// can extract them into a shared adapter module.
-
-type UiFeel = UiBundle['feel'];
-type UiCategory = UiBundle['category'];
-type ItemCategory = BundleItem['category'];
-
-function feelFromDesignStyle(styles: string[]): UiFeel {
-  const s = styles[0];
-  switch (s) {
-    case 'dark-mode':
-      return 'Dark';
-    case 'minimal':
-      return 'Editorial';
-    case 'bold':
-      return 'Bold';
-    case 'playful':
-      return 'Playful';
-    case 'enterprise':
-    case 'accessible':
-      return 'Corporate';
-    default:
-      return 'Editorial';
-  }
-}
-
-function uiCategoryFromSlug(slug: string | null, bundleSlug: string): UiCategory {
-  const override: Record<string, UiCategory> = {
-    linear: 'Devtools',
-    stripe: 'Finance',
-    notion: 'Editorial',
-    carbon: 'Enterprise',
-    arc: 'Consumer',
-    vercel: 'Devtools',
-    ramp: 'Finance',
-    atlassian: 'Enterprise',
-  };
-  if (override[bundleSlug]) return override[bundleSlug];
-  switch (slug) {
-    case 'marketing-sites':
-      return 'Marketing';
-    case 'mobile-apps':
-      return 'Consumer';
-    default:
-      return 'Devtools';
-  }
-}
-
-function toolsFromCompatible(tools: string[]): UiBundle['worksWith'] {
-  const out: UiBundle['worksWith'] = [];
-  for (const t of tools) {
-    if (t === 'claude') out.push('Claude');
-    else if (t === 'cursor') out.push('Cursor');
-    else if (t === 'lovable') out.push('Lovable');
-    else if (t === 'figma-make') out.push('Figma Make');
-  }
-  return out;
-}
-
-function itemToolsFromCompatible(tools: string[]): Tool[] {
-  const out: Tool[] = [];
-  for (const t of tools) {
-    if (t === 'claude') out.push('Claude');
-    else if (t === 'cursor') out.push('Cursor');
-    else if (t === 'lovable') out.push('Lovable');
-    else if (t === 'figma-make') out.push('Figma Make');
-  }
-  return out;
-}
-
-function isWithinLastMinutes(iso: string | undefined, minutes: number): boolean {
-  if (!iso) return false;
-  const t = new Date(iso).getTime();
-  if (Number.isNaN(t)) return false;
-  return Date.now() - t < minutes * 60_000;
-}
-
-function relativeAgo(iso: string): string {
-  const then = new Date(iso).getTime();
-  const diffMs = Date.now() - then;
-  const h = Math.floor(diffMs / (60 * 60 * 1000));
-  if (h < 1) return 'just now';
-  if (h < 24) return `${h}h ago`;
-  const d = Math.floor(h / 24);
-  if (d < 7) return `${d}d ago`;
-  const w = Math.floor(d / 7);
-  if (w < 5) return `${w}w ago`;
-  const mo = Math.floor(d / 30);
-  if (mo < 12) return `${mo}mo ago`;
-  const y = Math.floor(d / 365);
-  return `${y}y ago`;
-}
-
-const ITEM_CATEGORY_BY_SLUG: Record<string, ItemCategory> = {
-  linear: 'Developer Tools & IDEs',
-  stripe: 'Fintech & Crypto',
-  notion: 'Productivity & SaaS',
-  carbon: 'Database & DevOps',
-  arc: 'Media & Consumer Tech',
-  vercel: 'Developer Tools & IDEs',
-  ramp: 'Fintech & Crypto',
-  atlassian: 'Productivity & SaaS',
-};
-
-function itemCategoryFor(bundleSlug: string): ItemCategory {
-  return ITEM_CATEGORY_BY_SLUG[bundleSlug] ?? 'Productivity & SaaS';
-}
-
-function detailToBundleItem(row: ApiBundleDetail): BundleItem {
-  const coverage = row.coverageScore ?? 0;
-  const voteRate = parseFloat(row.positiveVoteRate);
-  const palette = row.paletteColors.length > 0 ? row.paletteColors : ['#5E6AD2'];
-  const worksWith = toolsFromCompatible(row.compatibleTools);
-  const itemTools = itemToolsFromCompatible(row.compatibleTools);
-
-  const sectionCoverage: SectionCoverage = {
-    colors: row.coverageColors ?? 0,
-    typography: row.coverageTypography ?? 0,
-    spacing: row.coverageLayout ?? 0, // UI calls it spacing, DB calls it layout
-    elevation: row.coverageElevation ?? 0,
-    shapes: row.coverageShapes ?? 0,
-    components: row.coverageComponents ?? 0,
-    dosDonts: row.coverageDosDonts ?? 0,
-  };
-
-  const tagSet = new Set<string>();
-  if (row.primaryCategoryName) tagSet.add(row.primaryCategoryName);
-  for (const s of row.designStyle) tagSet.add(s);
-  const tags = Array.from(tagSet);
-
-  const updatedAgo = relativeAgo(row.updatedAt);
-
-  const uiBundle: UiBundle = {
-    id: row.slug,
-    num: '—',
-    name: row.title,
-    tagline: row.description.split('.')[0]?.slice(0, 60) ?? row.title,
-    description: row.description,
-    category: uiCategoryFromSlug(row.primaryCategorySlug, row.slug),
-    feel: feelFromDesignStyle(row.designStyle),
-    palette,
-    brandLogoUrl: row.brandLogoUrl ?? undefined,
-    previewImageUrl: row.previewImageUrl ?? undefined,
-    updatedAt: row.updatedAt,
-    coverage,
-    sectionCoverage,
-    tokens: 0,
-    components: 0,
-    voteRate: isNaN(voteRate) ? 0 : voteRate,
-    voteCount: row.voteCount,
-    forks: row.copyCount + row.downloadCount + row.cliInstallCount,
-    updatedAgo,
-    url: row.sourceUrl ?? (row.sourceDomain ? `https://${row.sourceDomain}` : ''),
-    license: row.license ?? 'MIT',
-    maintainer: row.authorName ?? '',
-    version: `1.0.${row.companionPromptVersion}`,
-    worksWith,
-    tags,
-    designMd: row.designMd ?? '',
-    companionPrompt: row.companionPrompt,
-    scores: [],
-    accessibilityNotes: row.accessibilityNotes ?? undefined,
-    companionStatus:
-      row.companionStatus === 'pending' || row.companionStatus === 'failed'
-        ? row.companionStatus
-        : 'ready',
-    lifecycleStatus:
-      row.status === 'personal' ||
-      row.status === 'pending_review' ||
-      row.status === 'published' ||
-      row.status === 'flagged' ||
-      row.status === 'rejected'
-        ? row.status
-        : 'published',
-  };
-
-  return {
-    id: row.slug,
-    type: 'bundle',
-    num: '—',
-    name: row.title,
-    tagline: uiBundle.tagline,
-    description: row.description,
-    tags,
-    tools: itemTools,
-    relatedIds: [],
-    updatedAgo,
-    accent: TYPE_META.bundle.accent,
-    icon: TYPE_META.bundle.icon,
-    category: itemCategoryFor(row.slug),
-    attribution: {
-      sourceUrl: row.sourceUrl ?? (row.sourceDomain ? `https://${row.sourceDomain}` : ''),
-      author: row.authorName ?? '',
-      license: row.license ?? 'MIT',
-      discoveryMethod: (row.isCurated ? 'Editorial' : 'Auto-discovered') as DiscoveryMethod,
-      discoveredAt: updatedAgo,
-      verifiedAt: updatedAgo,
-    },
-    bundle: uiBundle,
-  };
-}
+  type ApiBundleDetail,
+  detailToBundleItem,
+  isWithinLastMinutes,
+} from '@/lib/ui-data/bundleDetailAdapter';
 
 // ─── Hook ───────────────────────────────────────────────────
 
@@ -277,16 +30,31 @@ interface UseBundleDetailResult {
   error: Error | null;
 }
 
-export function useBundleDetail(slug: string | undefined): UseBundleDetailResult {
-  const [item, setItem] = useState<BundleItem | null>(null);
-  const [loading, setLoading] = useState(true);
+export function useBundleDetail(
+  slug: string | undefined,
+  initialItem?: BundleItem | null,
+): UseBundleDetailResult {
+  const [item, setItem] = useState<BundleItem | null>(initialItem ?? null);
+  const [loading, setLoading] = useState(!initialItem);
   const [notFound, setNotFound] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+
+  // Slug we were SSR-seeded with. The initial fetch is skipped for this slug
+  // (the server already gave us correct, rendered data), but a client-side
+  // navigation to a *different* slug still fetches normally.
+  const seededSlugRef = useRef<string | null>(initialItem ? (slug ?? null) : null);
 
   useEffect(() => {
     if (!slug) {
       setLoading(false);
       setNotFound(true);
+      return;
+    }
+    if (seededSlugRef.current === slug) {
+      // Consume the seed once so a later refetch (e.g. same-slug remount) still
+      // works, but we don't flash a spinner over already-rendered SSR content.
+      seededSlugRef.current = null;
+      setLoading(false);
       return;
     }
     let cancelled = false;

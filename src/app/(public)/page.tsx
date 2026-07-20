@@ -1,4 +1,6 @@
 import type { Metadata } from 'next';
+import { listAllPublishedBundles } from '@/lib/db/queries/bundles';
+import { apiToBundleItem, serializeListItem } from '@/lib/ui-data/bundleListAdapter';
 import { HomeHero } from "./HomeHero";
 import { HomeFeaturedBundles } from "./HomeFeaturedBundles";
 import { HomeSignIn } from "./HomeSignIn";
@@ -19,7 +21,14 @@ export const metadata: Metadata = {
   },
 };
 
-function Home() {
+async function Home() {
+  // Server-render the featured grid so the bundle links are in the first HTML
+  // payload — crawlable by Google + non-JS AI crawlers, and no client fetch
+  // waterfall for the LCP content.
+  const initialItems = (await listAllPublishedBundles()).map((b) =>
+    apiToBundleItem(serializeListItem(b)),
+  );
+
   const jsonLd = {
     '@context': 'https://schema.org',
     '@graph': [
@@ -47,7 +56,7 @@ function Home() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <HomeHero />
-      <HomeFeaturedBundles />
+      <HomeFeaturedBundles initialItems={initialItems} />
       <HomeSignIn />
     </>
   );

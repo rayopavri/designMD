@@ -136,6 +136,28 @@ export async function listPublishedBundles(
   return { items: items as BundleListItem[], nextCursor };
 }
 
+/**
+ * Every published bundle, in the same shape and order the client list hook
+ * expects (recent-first). Used by the home + library Server Components to
+ * seed `useBundleItems` so the first HTML payload contains all bundle links
+ * (crawlable by Google + non-JS AI crawlers). Pages through
+ * `listPublishedBundles` so it reuses the exact same select/sort logic.
+ */
+export async function listAllPublishedBundles(): Promise<BundleListItem[]> {
+  const all: BundleListItem[] = [];
+  let cursor: string | undefined;
+  do {
+    const { items, nextCursor } = await listPublishedBundles({
+      sort: 'recent',
+      limit: MAX_LIMIT,
+      cursor,
+    });
+    all.push(...items);
+    cursor = nextCursor ?? undefined;
+  } while (cursor);
+  return all;
+}
+
 // ─── Admin list query ─────────────────────────────────────────
 // Mirrors listPublishedBundles but does NOT clamp to status='published'.
 // Editors use this to see every bundle across all lifecycle states.

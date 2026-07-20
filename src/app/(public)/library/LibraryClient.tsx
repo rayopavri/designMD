@@ -20,7 +20,7 @@ import {
   VIOLET,
 } from "@/lib/ui-data/tokens";
 
-import { type Item } from "@/lib/ui-data/items";
+import { type Item, type BundleItem } from "@/lib/ui-data/items";
 import { useBundleItems } from "@/hooks/useBundleItems";
 
 type Sort = "popular" | "coverage" | "recent" | "alpha";
@@ -37,7 +37,7 @@ function recentRank(ago: string): number {
   return 24 * 365 * (n + 12);
 }
 
-function Library() {
+function Library({ initialItems }: { initialItems?: BundleItem[] }) {
   const search = useSearchParams().toString();
   const initialQ = useMemo(() => new URLSearchParams(search).get("q") ?? "", [search]);
   const [query, setQuery] = useState(initialQ);
@@ -54,7 +54,7 @@ function Library() {
     reset();
   };
 
-  const { items: dbBundleItems } = useBundleItems();
+  const { items: dbBundleItems } = useBundleItems(initialItems);
 
   // Orama search: fetch slug-set from /api/search when query >= 2 chars.
   const [searchSlugs, setSearchSlugs] = useState<Set<string> | null>(null);
@@ -308,10 +308,10 @@ function SortSelect({ value, onChange }: { value: Sort; onChange: (s: Sort) => v
   );
 }
 
-export default function LibraryClient() {
+export default function LibraryClient({ initialItems }: { initialItems?: BundleItem[] }) {
   return (
     <Suspense fallback={null}>
-      <Library />
+      <Library initialItems={initialItems} />
     </Suspense>
   );
 }

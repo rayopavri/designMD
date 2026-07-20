@@ -20,11 +20,11 @@ import { InstallSection } from "./_sections/InstallSection";
 import { OverviewSection } from "./_sections/OverviewSection";
 import { RelatedSkills } from "./_sections/RelatedSkills";
 
-function BundleDetail() {
+function BundleDetail({ initialItem }: { initialItem?: BundleItem | null }) {
   const params = useParams<{ slug: string }>();
   const slug = params?.slug;
 
-  const { item: dbBundle, loading, notFound, error } = useBundleDetail(slug);
+  const { item: dbBundle, loading, notFound, error } = useBundleDetail(slug, initialItem);
 
   if (loading) {
     return (
@@ -251,10 +251,10 @@ function Breadcrumb({ item }: { item: BundleItem }) {
   );
 }
 
-export default function BundleDetailClient() {
+export default function BundleDetailClient({ initialItem }: { initialItem?: BundleItem | null }) {
   return (
     <Suspense fallback={null}>
-      <BundleDetail />
+      <BundleDetail initialItem={initialItem} />
     </Suspense>
   );
 }
