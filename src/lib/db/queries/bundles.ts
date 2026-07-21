@@ -137,17 +137,21 @@ export async function listPublishedBundles(
 }
 
 /**
- * Every published bundle, in the same shape and order the client list hook
- * expects (recent-first). Used by the home + library Server Components to
- * seed `useBundleItems` so the first HTML payload contains all bundle links
- * (crawlable by Google + non-JS AI crawlers). Pages through
- * `listPublishedBundles` so it reuses the exact same select/sort logic.
+ * Every published bundle matching the (optional) filters, recent-first, in the
+ * shape the client list hook expects. Used by the home + library Server
+ * Components to seed `useBundleItems` — and by the category/tool landing pages
+ * — so the first HTML payload contains all matching bundle links (crawlable by
+ * Google + non-JS AI crawlers). Pages through `listPublishedBundles` so it
+ * reuses the exact same select/sort logic.
  */
-export async function listAllPublishedBundles(): Promise<BundleListItem[]> {
+export async function listAllPublishedBundles(
+  extra: Pick<BundleListFilters, 'category' | 'type' | 'designStyle' | 'tools' | 'q'> = {},
+): Promise<BundleListItem[]> {
   const all: BundleListItem[] = [];
   let cursor: string | undefined;
   do {
     const { items, nextCursor } = await listPublishedBundles({
+      ...extra,
       sort: 'recent',
       limit: MAX_LIMIT,
       cursor,
@@ -157,6 +161,36 @@ export async function listAllPublishedBundles(): Promise<BundleListItem[]> {
   } while (cursor);
   return all;
 }
+
+export interface CategoryWithCount {
+  slug: string;
+  name: string;
+  count: number;
+}
+
+/**
+ * Categories that have at least one published bundle, with counts, most-
+ * populated first. Powers the category landing pages, their sitemap entries,
+ * and the "browse by category" internal-link strip.
+ */
+export const listCategoriesWithPublishedCounts = cache(
+  async (): Promise<CategoryWithCount[]> => {
+    const rows = await db
+      .select({
+        slug: categories.slug,
+        name: categories.name,
+        count: sql<number>`count(${bundles.id})::int`,
+      })
+      .from(categories)
+      .innerJoin(
+        bundles,
+        and(eq(bundles.primaryCategoryId, categories.id), eq(bundles.status, 'published')),
+      )
+      .groupBy(categories.slug, categories.name)
+      .orderBy(desc(sql`count(${bundles.id})`), asc(categories.name));
+    return rows;
+  },
+);
 
 // ─── Admin list query ─────────────────────────────────────────
 // Mirrors listPublishedBundles but does NOT clamp to status='published'.

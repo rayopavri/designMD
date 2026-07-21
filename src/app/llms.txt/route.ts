@@ -9,6 +9,9 @@
  */
 import { listAllPublishedBundles } from '@/lib/db/queries/bundles';
 
+// Refresh hourly so newly published skills appear in the listing.
+export const revalidate = 3600;
+
 const BASE = 'https://uiuxskills.com';
 
 function truncate(text: string, max = 160): string {

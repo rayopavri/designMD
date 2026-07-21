@@ -23,6 +23,7 @@ import {
   VIOLET,
 } from "@/lib/ui-data/tokens";
 import { openAuthModal, useAuth, useAuthStorageSync } from "@/lib/ui-data/mockAuth";
+import { TOOL_LANDINGS } from "@/lib/ui-data/landing";
 import { AdminNav } from "./AdminNav";
 import { AuthModal } from "./AuthModal";
 import { UserMenu } from "./UserMenu";
@@ -232,6 +233,11 @@ export function Footer() {
         <div className="flex items-center gap-5 flex-wrap">
           <Link href="/library">design skills</Link>
           <Link href="/generate">generate</Link>
+          {TOOL_LANDINGS.map((t) => (
+            <Link key={t.slug} href={`/for/${t.slug}`}>
+              for {t.name.toLowerCase()}
+            </Link>
+          ))}
           <Link href="/legal/terms">terms</Link>
           <Link href="/legal/privacy">privacy</Link>
           <Link href="/legal/attribution">attribution</Link>

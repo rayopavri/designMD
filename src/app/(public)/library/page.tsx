@@ -3,6 +3,10 @@ import { listAllPublishedBundles } from '@/lib/db/queries/bundles';
 import { apiToBundleItem, serializeListItem } from '@/lib/ui-data/bundleListAdapter';
 import LibraryClient from './LibraryClient';
 
+// ISR: server-render the grid for crawlers, refresh periodically so newly
+// published bundles appear without a redeploy.
+export const revalidate = 300;
+
 export const metadata: Metadata = {
   title: 'Design Skills',
   description:

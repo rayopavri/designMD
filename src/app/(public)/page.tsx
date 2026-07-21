@@ -5,6 +5,11 @@ import { HomeHero } from "./HomeHero";
 import { HomeFeaturedBundles } from "./HomeFeaturedBundles";
 import { HomeSignIn } from "./HomeSignIn";
 
+// ISR: server-render for crawlers, but refresh periodically so newly published
+// bundles appear without waiting for a redeploy (the client no longer refetches
+// when seeded from the server).
+export const revalidate = 300;
+
 export const metadata: Metadata = {
   title: 'Design Systems for AI Tools',
   description:

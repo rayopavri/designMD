@@ -9,6 +9,9 @@
  */
 import { getVisibleBundleBySlug } from '@/lib/db/queries/bundles';
 
+// Refresh hourly; the underlying spec changes infrequently.
+export const revalidate = 3600;
+
 interface RouteContext {
   params: Promise<{ slug: string }>;
 }

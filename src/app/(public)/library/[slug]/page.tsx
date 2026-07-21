@@ -5,6 +5,10 @@ import type { BundleDetail } from '@/lib/db/queries/bundles';
 import { detailToBundleItem, serializeDetail } from '@/lib/ui-data/bundleDetailAdapter';
 import BundleDetailClient from './BundleDetailClient';
 
+// ISR: cache the server-rendered spec, refresh periodically. A freshly
+// generated bundle's companion/screenshot still upgrade client-side via polling.
+export const revalidate = 300;
+
 function buildKeywords(bundle: Pick<BundleDetail, 'primaryCategoryName' | 'compatibleTools'>): string {
   return [bundle.primaryCategoryName, ...bundle.compatibleTools, 'design system', 'DESIGN.md']
     .filter(Boolean)
