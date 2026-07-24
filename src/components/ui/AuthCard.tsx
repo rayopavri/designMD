@@ -74,9 +74,25 @@ export function AuthCard({ variant = "compact", onSuccess, intent, onSkip, title
       const user = await mockSignInGoogle();
       if (!mountedRef.current) return; // user cancelled — ignore
       onSuccess(user);
-    } catch (e) {
+    } catch (err) {
       if (!mountedRef.current) return;
-      setError("Couldn't sign in. Try again.");
+      const code =
+        err && typeof err === "object" && "code" in err
+          ? String((err as { code: unknown }).code)
+          : null;
+      // The user closed the popup or opened a second one — not a failure,
+      // don't scare them with an error banner.
+      if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {
+        setLoadingProvider(null);
+        return;
+      }
+      if (code === "auth/account-exists-with-different-credential") {
+        setError("An account already exists with this email using a different sign-in method. Try \"Continue with email\" instead.");
+      } else if (code === "auth/popup-blocked") {
+        setError("Your browser blocked the sign-in popup. Allow popups for this site and try again.");
+      } else {
+        setError(code ? `Couldn't sign in (${code}). Try again.` : "Couldn't sign in. Try again.");
+      }
       setLoadingProvider(null);
     }
   }

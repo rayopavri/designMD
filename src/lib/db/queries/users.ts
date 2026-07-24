@@ -24,33 +24,73 @@ function nameFromEmail(email: string): string {
   return cleaned.slice(0, 32) || 'Designer';
 }
 
+function isEmailUniqueViolation(err: unknown): boolean {
+  return (
+    !!err &&
+    typeof err === 'object' &&
+    'code' in err &&
+    (err as { code?: unknown }).code === '23505' &&
+    'constraint_name' in err &&
+    (err as { constraint_name?: unknown }).constraint_name === 'users_email_unique'
+  );
+}
+
 export async function upsertUserFromFirebase(input: FirebaseUserInput): Promise<User> {
   const displayName = input.displayName ?? nameFromEmail(input.email);
 
-  const [row] = await db
-    .insert(users)
-    .values({
-      firebaseUid: input.firebaseUid,
-      email: input.email,
-      emailVerified: input.emailVerified,
-      authProvider: input.authProvider,
-      displayName,
-      avatarUrl: input.avatarUrl,
-    })
-    .onConflictDoUpdate({
-      target: users.firebaseUid,
-      set: {
+  try {
+    const [row] = await db
+      .insert(users)
+      .values({
+        firebaseUid: input.firebaseUid,
         email: input.email,
         emailVerified: input.emailVerified,
-        displayName: sql`coalesce(${users.displayName}, ${displayName})`,
-        avatarUrl: sql`coalesce(${users.avatarUrl}, ${input.avatarUrl})`,
-        lastSeenAt: sql`now()`,
-      },
-    })
-    .returning();
+        authProvider: input.authProvider,
+        displayName,
+        avatarUrl: input.avatarUrl,
+      })
+      .onConflictDoUpdate({
+        target: users.firebaseUid,
+        set: {
+          email: input.email,
+          emailVerified: input.emailVerified,
+          displayName: sql`coalesce(${users.displayName}, ${displayName})`,
+          avatarUrl: sql`coalesce(${users.avatarUrl}, ${input.avatarUrl})`,
+          lastSeenAt: sql`now()`,
+        },
+      })
+      .returning();
 
-  if (!row) throw new Error('Failed to upsert user');
-  return row;
+    if (!row) throw new Error('Failed to upsert user');
+    return row;
+  } catch (err) {
+    // The Firebase UID is new (first sign-in with this provider) but the
+    // email is already registered under a *different* UID — e.g. the user
+    // signed up via magic link earlier, then hit "Continue with Google"
+    // with the same address. Firebase treats these as separate identities
+    // unless account linking is forced, so the `onConflictDoUpdate` above
+    // (keyed on firebaseUid) can't catch it and the insert trips the
+    // `email` unique constraint instead. Link the new provider to the
+    // existing row rather than leaving the account permanently unable to
+    // sign in with the other provider.
+    if (!isEmailUniqueViolation(err)) throw err;
+
+    const [existing] = await db.select().from(users).where(eq(users.email, input.email)).limit(1);
+    if (!existing) throw err;
+
+    const [row] = await db
+      .update(users)
+      .set({
+        firebaseUid: input.firebaseUid,
+        emailVerified: input.emailVerified || existing.emailVerified,
+        lastSeenAt: sql`now()`,
+      })
+      .where(eq(users.id, existing.id))
+      .returning();
+
+    if (!row) throw new Error('Failed to link user');
+    return row;
+  }
 }
 
 export async function getUserByFirebaseUid(firebaseUid: string): Promise<User | null> {

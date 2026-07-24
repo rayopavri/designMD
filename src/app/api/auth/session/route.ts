@@ -52,14 +52,20 @@ export async function POST(req: NextRequest) {
   // 3. Upsert the DB row so we have a local user record.
   const firebaseUser = await auth.getUser(decoded.uid);
   const providerId = firebaseUser.providerData[0]?.providerId;
-  const user = await upsertUserFromFirebase({
-    firebaseUid: decoded.uid,
-    email: firebaseUser.email ?? decoded.email ?? '',
-    emailVerified: firebaseUser.emailVerified,
-    displayName: firebaseUser.displayName ?? null,
-    avatarUrl: firebaseUser.photoURL ?? null,
-    authProvider: deriveProvider(providerId),
-  });
+  let user;
+  try {
+    user = await upsertUserFromFirebase({
+      firebaseUid: decoded.uid,
+      email: firebaseUser.email ?? decoded.email ?? '',
+      emailVerified: firebaseUser.emailVerified,
+      displayName: firebaseUser.displayName ?? null,
+      avatarUrl: firebaseUser.photoURL ?? null,
+      authProvider: deriveProvider(providerId),
+    });
+  } catch (err) {
+    console.error('[auth/session] failed to upsert user row:', err);
+    return NextResponse.json({ error: 'Failed to create user record' }, { status: 500 });
+  }
 
   // 4. Set the session cookie.
   const res = NextResponse.json({ user });
