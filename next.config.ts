@@ -54,7 +54,14 @@ const nextConfig: NextConfig = {
       "object-src 'none'",
       "base-uri 'self'",
       "form-action 'self'",
-      "frame-ancestors 'none'",
+      // 'self' rather than 'none': Firebase's redirect sign-in loads Google's
+      // gapi.iframes library (apis.google.com/js/api.js), which opens
+      // same-origin relay iframes as part of its cross-window messaging
+      // setup. A blanket 'none' blocked that self-framing outright, which
+      // left Google redirect sign-in unable to complete. Still blocks every
+      // cross-origin (clickjacking) framing attempt — the actual threat this
+      // header defends against.
+      "frame-ancestors 'self'",
     ].join('; ');
 
     return [
@@ -67,7 +74,8 @@ const nextConfig: NextConfig = {
           },
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-          { key: 'X-Frame-Options', value: 'DENY' },
+          // SAMEORIGIN rather than DENY — see the frame-ancestors comment above.
+          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
           { key: 'Content-Security-Policy-Report-Only', value: csp },
         ],
       },
