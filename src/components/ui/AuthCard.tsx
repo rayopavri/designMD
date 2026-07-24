@@ -17,14 +17,18 @@ import {
   SURFACE_2,
   VIOLET,
 } from "@/lib/ui-data/tokens";
-import { mockSignInEmail, mockSignInGoogle, type AuthUser } from "@/lib/ui-data/mockAuth";
+import {
+  clearGoogleSignInError,
+  mockSignInEmail,
+  mockSignInGoogle,
+  useAuth,
+} from "@/lib/ui-data/mockAuth";
 
 type Step = "providers" | "email" | "sent";
 
 export type AuthCardProps = {
   /** Compact = used in modal. Full = used on /login page. */
   variant?: "compact" | "full";
-  onSuccess: (user: AuthUser) => void;
   /** Extra heading copy used in modal to explain *why* the prompt appeared. */
   intent?: string | null;
   /** When provided, renders a "Skip for now" link below the provider
@@ -34,7 +38,20 @@ export type AuthCardProps = {
   /** Override the default heading. Defaults to "Sign in to UIUXskills"
    * (variant=full) or "Sign in" (variant=compact). */
   title?: string;
+  /** Where to land after a Google sign-in that requires a full-page
+   * redirect round trip. Only needed by callers that don't already react
+   * to the signed-in `user` state themselves (the auth modal, which can be
+   * open on any page) — omit it to just let the browser land back on
+   * whatever page initiated sign-in. */
+  returnTo?: string | null;
 };
+
+function describeGoogleError(code: string | null): string {
+  if (code === "auth/account-exists-with-different-credential") {
+    return 'An account already exists with this email using a different sign-in method. Try "Continue with email" instead.';
+  }
+  return code ? `Couldn't sign in (${code}). Try again.` : "Couldn't sign in. Try again.";
+}
 
 const GoogleMark = () => (
   <svg viewBox="0 0 18 18" className="h-4 w-4" aria-hidden="true">
@@ -45,7 +62,7 @@ const GoogleMark = () => (
   </svg>
 );
 
-export function AuthCard({ variant = "compact", onSuccess, intent, onSkip, title }: AuthCardProps) {
+export function AuthCard({ variant = "compact", intent, onSkip, title, returnTo }: AuthCardProps) {
   const [step, setStep] = useState<Step>("providers");
   const [email, setEmail] = useState("");
   const [loadingProvider, setLoadingProvider] = useState<"google" | "email" | null>(null);
@@ -53,6 +70,7 @@ export function AuthCard({ variant = "compact", onSuccess, intent, onSkip, title
   const emailRef = useRef<HTMLInputElement>(null);
   const mountedRef = useRef(true);
   const timersRef = useRef<number[]>([]);
+  const { googleSignInError } = useAuth();
 
   useEffect(() => {
     if (step === "email") emailRef.current?.focus();
@@ -67,32 +85,32 @@ export function AuthCard({ variant = "compact", onSuccess, intent, onSkip, title
     };
   }, []);
 
+  // Surfaces failures from a Google redirect that only become known once
+  // the browser comes back from accounts.google.com — the click that
+  // started the redirect happened on a page load that's long gone.
+  useEffect(() => {
+    if (!googleSignInError) return;
+    setError(describeGoogleError(googleSignInError));
+    setLoadingProvider(null);
+    clearGoogleSignInError();
+  }, [googleSignInError]);
+
   async function handleGoogle() {
     setError(null);
     setLoadingProvider("google");
     try {
-      const user = await mockSignInGoogle();
-      if (!mountedRef.current) return; // user cancelled — ignore
-      onSuccess(user);
+      // Redirects the whole page to accounts.google.com — this call does
+      // not resolve in this tab on success. Completion (and errors that
+      // only surface after the round trip) are handled by the auth store
+      // and picked up by the effect above.
+      await mockSignInGoogle(returnTo);
     } catch (err) {
       if (!mountedRef.current) return;
       const code =
         err && typeof err === "object" && "code" in err
           ? String((err as { code: unknown }).code)
           : null;
-      // The user closed the popup or opened a second one — not a failure,
-      // don't scare them with an error banner.
-      if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {
-        setLoadingProvider(null);
-        return;
-      }
-      if (code === "auth/account-exists-with-different-credential") {
-        setError("An account already exists with this email using a different sign-in method. Try \"Continue with email\" instead.");
-      } else if (code === "auth/popup-blocked") {
-        setError("Your browser blocked the sign-in popup. Allow popups for this site and try again.");
-      } else {
-        setError(code ? `Couldn't sign in (${code}). Try again.` : "Couldn't sign in. Try again.");
-      }
+      setError(describeGoogleError(code));
       setLoadingProvider(null);
     }
   }

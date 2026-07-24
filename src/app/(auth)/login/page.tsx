@@ -81,10 +81,7 @@ function Login() {
           className="w-full max-w-[420px] mx-auto rounded-xl border p-7"
           style={{ background: SURFACE, borderColor: BORDER_SOFT, color: INK }}
         >
-          <AuthCard
-            variant="full"
-            onSuccess={() => navigate(postAuthDestination(returnTo))}
-          />
+          <AuthCard variant="full" />
         </div>
       </div>
     </section>

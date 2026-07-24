@@ -1,16 +1,14 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { X } from "lucide-react";
 import { AuthCard } from "./AuthCard";
-import { closeAuthModal, postAuthDestination, useAuthModal } from "@/lib/ui-data/mockAuth";
+import { closeAuthModal, useAuthModal } from "@/lib/ui-data/mockAuth";
 import { BORDER, INK, MUTED, SURFACE } from "@/lib/ui-data/tokens";
 
 export function AuthModal() {
   const { isOpen, returnTo, intent } = useAuthModal();
-  const _router = useRouter();
-  const navigate = (path: string) => _router.push(path);
   const panelRef = useRef<HTMLDivElement>(null);
   const lastFocusRef = useRef<HTMLElement | null>(null);
 
@@ -101,11 +99,7 @@ export function AuthModal() {
           variant="compact"
           intent={intent}
           onSkip={() => closeAuthModal()}
-          onSuccess={(_user) => {
-            // Auth store closes the modal automatically; route now.
-            // postAuthDestination reads the fresh user from the store at call time.
-            queueMicrotask(() => navigate(postAuthDestination(returnTo)));
-          }}
+          returnTo={returnTo}
         />
       </div>
     </div>

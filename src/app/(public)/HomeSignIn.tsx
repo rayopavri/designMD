@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { ArrowRight } from "lucide-react";
 import { AuthCard } from "@/components/ui/AuthCard";
 import {
@@ -18,7 +17,6 @@ import {
 import { useAuth } from "@/lib/ui-data/mockAuth";
 
 export function HomeSignIn() {
-  const router = useRouter();
   const { user } = useAuth();
 
   if (user) {
@@ -94,11 +92,7 @@ export function HomeSignIn() {
               boxShadow: `0 0 0 1px ${VIOLET}11, 0 32px 64px -32px ${VIOLET}33`,
             }}
           >
-            <AuthCard
-              variant="compact"
-              title="Sign in to UIUXskills"
-              onSuccess={() => router.refresh()}
-            />
+            <AuthCard variant="compact" title="Sign in to UIUXskills" />
           </div>
 
         </div>

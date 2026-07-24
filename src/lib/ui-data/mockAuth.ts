@@ -6,11 +6,14 @@
  * during the Next.js migration; the implementation now talks to Firebase
  * Auth + our `/api/auth/session` endpoint.
  *
- * Public surface (unchanged):
+ * Public surface:
  *   - useAuth(), useAuthModal(), useAuthStorageSync()
  *   - openAuthModal(), closeAuthModal()
- *   - mockSignInGoogle()  (Google popup → session cookie)
- *   - mockSignInEmail()   (sends magic link; resolves when link is sent)
+ *   - mockSignInGoogle()      (Google redirect → session cookie; resolves
+ *                              only if the redirect never starts — success
+ *                              lands back here after a full page reload)
+ *   - clearGoogleSignInError() (dismiss a surfaced redirect failure)
+ *   - mockSignInEmail()       (sends magic link; resolves when link is sent)
  *   - signOut()
  *   - postAuthDestination(), hasSeenWelcome(), markWelcomeSeen()
  *   - updateProfile()
@@ -19,9 +22,10 @@
 
 import { useEffect, useSyncExternalStore } from 'react';
 import {
+  getRedirectResult,
   onAuthStateChanged,
   sendSignInLinkToEmail,
-  signInWithPopup,
+  signInWithRedirect,
   signOut as firebaseSignOut,
   type User as FirebaseUser,
 } from 'firebase/auth';
@@ -44,6 +48,11 @@ interface State {
   user: AuthUser | null;
   loading: boolean;
   isFirstSignIn: boolean;
+  /** Firebase error code from a Google redirect sign-in that failed after
+   * the browser came back from accounts.google.com (e.g.
+   * `auth/account-exists-with-different-credential`). Cleared once a
+   * subscriber (AuthCard) has surfaced it. */
+  googleSignInError: string | null;
   modal: {
     open: boolean;
     returnTo: string | null;
@@ -54,6 +63,11 @@ interface State {
 
 const WELCOME_KEY_PREFIX = 'uiuxskills.welcomeSeen:';
 const EMAIL_LINK_STORAGE_KEY = 'uiuxskills.emailForSignIn';
+// Set right before `signInWithRedirect` sends the browser to Google, so the
+// destination survives the full-page round trip. Only written when the
+// caller cares where they land afterward (the auth modal) — see
+// mockSignInGoogle().
+const GOOGLE_REDIRECT_RETURN_KEY = 'uiuxskills.googleRedirectReturnTo';
 
 function welcomeKey(userId: string): string {
   return `${WELCOME_KEY_PREFIX}${userId}`;
@@ -94,6 +108,7 @@ let state: State = {
   user: null,
   loading: true,
   isFirstSignIn: false,
+  googleSignInError: null,
   modal: { open: false, returnTo: null, intent: null },
 };
 
@@ -122,6 +137,7 @@ const SERVER_SNAPSHOT: State = Object.freeze({
   user: null,
   loading: true,
   isFirstSignIn: false,
+  googleSignInError: null,
   modal: Object.freeze({ open: false, returnTo: null, intent: null }),
 }) as State;
 
@@ -192,7 +208,22 @@ function ensureInitialized() {
     }
   });
 
-  // Subscribe to Firebase auth state changes (popup, redirect, email link).
+  // Surface errors from a Google redirect sign-in that just came back from
+  // accounts.google.com. Success is handled by onAuthStateChanged below
+  // (Firebase updates its internal auth state either way); this call exists
+  // to catch failures onAuthStateChanged won't report on its own, e.g.
+  // auth/account-exists-with-different-credential.
+  getRedirectResult(clientAuth()).catch((err) => {
+    if (typeof window !== 'undefined') window.sessionStorage.removeItem(GOOGLE_REDIRECT_RETURN_KEY);
+    const code =
+      err && typeof err === 'object' && 'code' in err
+        ? String((err as { code: unknown }).code)
+        : 'auth/unknown-error';
+    console.error('[auth] google redirect sign-in failed:', err);
+    setState({ loading: false, googleSignInError: code });
+  });
+
+  // Subscribe to Firebase auth state changes (redirect, email link).
   onAuthStateChanged(clientAuth(), async (firebaseUser) => {
     if (firebaseUser) {
       const user = await exchangeIdTokenForSession(firebaseUser);
@@ -204,6 +235,20 @@ function ensureInitialized() {
           isFirstSignIn: !seen,
           modal: { open: false, returnTo: null, intent: null },
         });
+        // If a Google redirect stashed a destination before sending the
+        // browser to accounts.google.com, honor it now that we're back and
+        // signed in. Pages that already react to `user` changes themselves
+        // (e.g. /login) never write this key, so this is a no-op for them.
+        if (typeof window !== 'undefined') {
+          const pending = window.sessionStorage.getItem(GOOGLE_REDIRECT_RETURN_KEY);
+          if (pending !== null) {
+            window.sessionStorage.removeItem(GOOGLE_REDIRECT_RETURN_KEY);
+            const dest = postAuthDestination(pending || null);
+            if (dest !== window.location.pathname + window.location.search) {
+              window.location.assign(dest);
+            }
+          }
+        }
       } else {
         setState({ loading: false });
       }
@@ -213,26 +258,43 @@ function ensureInitialized() {
   });
 }
 
-// --- Sign-in: Google popup ---
-export async function mockSignInGoogle(): Promise<AuthUser> {
+// --- Sign-in: Google redirect ---
+// Uses signInWithRedirect rather than signInWithPopup: accounts.google.com
+// sets its own Cross-Origin-Opener-Policy: same-origin header, which severs
+// `window.opener` inside the popup partway through the OAuth flow. That
+// breaks the postMessage channel Firebase's popup sign-in relies on to
+// relay the result back to the opener — the promise never resolves or
+// rejects, it just hangs forever after the user picks an account. A
+// full-page redirect sidesteps the popup/postMessage channel entirely.
+//
+// `returnTo` is only needed by callers that don't already react to `user`
+// state changes on their own (the auth modal, which can be open on any
+// page) — pass `undefined` (the default) to skip persisting it and let the
+// browser land back on whatever page initiated sign-in.
+export async function mockSignInGoogle(returnTo?: string | null): Promise<void> {
   ensureInitialized();
-  setState({ loading: true });
+  if (typeof window !== 'undefined') {
+    if (returnTo === undefined) {
+      window.sessionStorage.removeItem(GOOGLE_REDIRECT_RETURN_KEY);
+    } else {
+      window.sessionStorage.setItem(GOOGLE_REDIRECT_RETURN_KEY, returnTo ?? '');
+    }
+  }
+  setState({ loading: true, googleSignInError: null });
   try {
-    const cred = await signInWithPopup(clientAuth(), googleProvider());
-    const user = await exchangeIdTokenForSession(cred.user);
-    if (!user) throw new Error('Server rejected sign-in');
-    const seen = hasSeenWelcome(user.id);
-    setState({
-      user,
-      loading: false,
-      isFirstSignIn: !seen,
-      modal: { open: false, returnTo: null, intent: null },
-    });
-    return user;
+    // The browser navigates to Google here — this call normally never
+    // returns in the tab that made it. Completion is handled above, in
+    // ensureInitialized(), once the browser comes back.
+    await signInWithRedirect(clientAuth(), googleProvider());
   } catch (err) {
+    if (typeof window !== 'undefined') window.sessionStorage.removeItem(GOOGLE_REDIRECT_RETURN_KEY);
     setState({ loading: false });
     throw err;
   }
+}
+
+export function clearGoogleSignInError() {
+  setState({ googleSignInError: null });
 }
 
 // --- Sign-in: email magic link ---
