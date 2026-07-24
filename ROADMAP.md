@@ -1,7 +1,7 @@
 # UIUXskills · Roadmap & Pending Tasks
 
 > Living document. Update as items ship.
-> Last updated: **2026-07-24** (fix: relax X-Frame-Options/frame-ancestors from DENY/none to SAMEORIGIN/self)
+> Last updated: **2026-07-24** (fix: surface a visible error when Google sign-in's session exchange fails)
 > Current state: **Live in production** at https://uiuxskills.com
 
 ---
@@ -256,6 +256,7 @@ The product works end-to-end. These items close gaps between what the UI *promis
 
 Most-recent first.
 
+- [x] **2026-07-24** - fix: surface a visible error when Google sign-in's session exchange fails (c59da5c)
 - [x] **2026-07-24** - fix: relax X-Frame-Options/frame-ancestors from DENY/none to SAMEORIGIN/self (2c98689)
 - [x] **2026-07-24** - fix: switch Google sign-in from popup to redirect (069f3b9)
 - [x] **2026-07-21** - feat(seo): support Google Search Console site verification via env var (7165656)
