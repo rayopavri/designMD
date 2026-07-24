@@ -32,6 +32,18 @@ const nextConfig: NextConfig = {
         source: '/__/auth/:path*',
         destination: 'https://designmd-2ff95.firebaseapp.com/__/auth/:path*',
       },
+      // The auth handler page above fetches this reserved Firebase Hosting
+      // path itself (relative to whatever origin loaded it) to bootstrap its
+      // own firebase.initializeApp() call. With NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+      // set to the custom domain, that resolves against our origin — without
+      // this rewrite it 404s here instead of proxying to Firebase Hosting,
+      // which silently strands signInWithRedirect: the browser lands back on
+      // the app with no error and no session, because the handler page never
+      // got the config it needed to relay the OAuth result.
+      {
+        source: '/__/firebase/:path*',
+        destination: 'https://designmd-2ff95.firebaseapp.com/__/firebase/:path*',
+      },
     ];
   },
   async headers() {
