@@ -176,7 +176,11 @@ async function exchangeIdTokenForSession(firebaseUser: FirebaseUser): Promise<Au
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ idToken }),
   });
-  if (!res.ok) return null;
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    console.error(`[auth] /api/auth/session rejected the sign-in: ${res.status} ${body}`);
+    return null;
+  }
   const data = (await res.json()) as { user: ServerUserRow };
   return mapServerUser(data.user);
 }
@@ -250,7 +254,13 @@ function ensureInitialized() {
           }
         }
       } else {
-        setState({ loading: false });
+        // Firebase authenticated the user client-side, but our own session
+        // endpoint rejected the exchange (see the console error logged in
+        // exchangeIdTokenForSession above for the reason). Previously this
+        // failed silently — the page just looked signed out with no
+        // indication why. Surface it like any other sign-in failure.
+        if (typeof window !== 'undefined') window.sessionStorage.removeItem(GOOGLE_REDIRECT_RETURN_KEY);
+        setState({ loading: false, googleSignInError: 'auth/session-exchange-failed' });
       }
     }
     // If firebaseUser is null we don't immediately clear — explicit signOut()

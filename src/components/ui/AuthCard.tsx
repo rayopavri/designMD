@@ -50,6 +50,9 @@ function describeGoogleError(code: string | null): string {
   if (code === "auth/account-exists-with-different-credential") {
     return 'An account already exists with this email using a different sign-in method. Try "Continue with email" instead.';
   }
+  if (code === "auth/session-exchange-failed") {
+    return "Signed in with Google, but we couldn't finish setting up your session. Try again in a moment.";
+  }
   return code ? `Couldn't sign in (${code}). Try again.` : "Couldn't sign in. Try again.";
 }
 
