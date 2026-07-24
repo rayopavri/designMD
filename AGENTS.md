@@ -77,6 +77,8 @@ Supabase Postgres 17 via Drizzle ORM. Schema at `src/lib/db/schema.ts` — 16 ta
 
 Firebase Auth. Server-side token verification via Admin SDK (`src/lib/auth/`); client-side sign-in via Firebase JS SDK. Authorization is via **boolean flags on the `users` table**, not a role enum: `is_editor` (privileged actions — unlimited rate limit, auto-publish on generate) and `is_verified_creator`. The editor gate is enforced in `src/lib/auth/session.ts`.
 
+Google sign-in uses `signInWithRedirect` (not popup — see the comment in `src/lib/ui-data/mockAuth.ts`) against the custom auth domain `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=uiuxskills.com`. That requires `next.config.ts` to proxy **both** `/__/auth/:path*` and `/__/firebase/:path*` to `designmd-2ff95.firebaseapp.com` — see the gotcha below and `TECH-STACK.md` for the full failure mode.
+
 ## Feature flags
 
 `src/lib/ui-data/featureFlags.ts` — `PHASE_2_SHELVES_ENABLED` gates the CLI shelf, skills/agents/MCPs surfaces, and related nav links. Currently `false`. Flip to `true` to restore Phase 2 UI without any schema or code changes.
@@ -115,6 +117,7 @@ Upstash Redis sliding window on `/api/generate`: 3/hour anonymous (by IP), 10/ho
 - **Vercel function timeout (Pro: 300s / 800s Fluid; workers pin `maxDuration = 180s`)** — the 3-worker split is kept for parallelism + per-stage retry isolation, not the old 60s cap. Don't collapse workers.
 - **PgBouncer transaction mode** — no prepared statements via the pooler. `client.ts` handles this automatically; don't remove the `prepare: false` guard.
 - **`@google/design.md` external package** — `next.config.ts` includes `outputFileTracingIncludes` to ensure Vercel bundles the YAML data files. Don't remove that config.
+- **Custom Firebase auth domain needs two rewrites, not one** — `next.config.ts` must proxy both `/__/auth/:path*` and `/__/firebase/:path*` to `designmd-2ff95.firebaseapp.com`. The OAuth handler page (served via the `/__/auth/*` rewrite) itself fetches `/__/firebase/init.json` to bootstrap its own `firebase.initializeApp()`; if that second rewrite is missing, the fetch 404s against our own app and `signInWithRedirect` silently strands — browser lands back on the app signed out, no error, no `/api/auth/session` call. If Google sign-in ever regresses this way, check Network for that 404 first.
 - **Deloitte corporate WiFi blocks port 5432/6543** — tether to a phone hotspot for any direct DB operations from a work machine.
 - **ESLint skipped during builds** (`eslint.ignoreDuringBuilds: true`) — run `pnpm lint` manually; cosmetic violations from the migrated Vite code are expected.
 - **No `.env.example` yet** — required env vars are documented in `README.md` and `TECH-STACK.md`.
