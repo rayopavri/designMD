@@ -14,12 +14,15 @@ import { rateLimitByIp, tooManyRequests } from '@/lib/rate-limit/by-ip';
 
 export const runtime = 'nodejs';
 
-// A running job whose updatedAt hasn't changed in 4 minutes is permanently
-// stuck (Vercel SIGKILL'd at the 60s Hobby cap before the watchdog could mark
-// it failed, and the 3-min supervisor reaper hasn't caught it yet). Treat it as
-// failed in the response so the client stops polling and clears the entry — the
-// DB row stays as-is but no UI will ever show it again.
-const STALE_JOB_MS = 4 * 60 * 1000;
+// A running job whose updatedAt hasn't changed in this window is presumed
+// stuck (worker SIGKILL'd before its in-process watchdog could mark it
+// failed). This must stay at or beyond batch.ts's LEASE_MS (7 min) — the
+// supervisor cron's authoritative reap threshold — or this UI-only heuristic
+// fires first and permanently halts client polling (see GeneratePage.tsx)
+// before the backend has actually given up on a job that's still legitimately
+// running. Treat it as failed in the response so the client stops polling and
+// clears the entry — the DB row stays as-is but no UI will ever show it again.
+const STALE_JOB_MS = 8 * 60 * 1000;
 
 interface RouteContext {
   params: Promise<{ id: string }>;

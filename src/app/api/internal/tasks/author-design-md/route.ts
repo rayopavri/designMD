@@ -20,15 +20,16 @@ import { dispatchReady } from '@/lib/generator/batch';
 import { perf } from '@/lib/generator/perf-log';
 
 export const runtime = 'nodejs';
-export const maxDuration = 180;
+export const maxDuration = 300;
 
 // Hard watchdog: mark the job failed before Vercel SIGKILLs the function.
-// We run on the Vercel Pro plan (300s standard / 800s Fluid cap — see
-// TECH-STACK.md) with maxDuration pinned to 180s, so 174s leaves a ~6s cleanup
-// window (the failJob UPDATE races a 3s timeout) before the platform kills us
-// at 180s. The Gemini author call aborts even earlier (AUTHOR_TIMEOUT_MS) so
-// the in-process failJob runs first.
-const WATCHDOG_MS = 174_000;
+// We run on the Vercel Pro plan with Fluid Compute enabled (300s standard /
+// 800s Fluid cap — see TECH-STACK.md); maxDuration matches scrape-and-extract
+// at 300s for headroom consistency across the two AI-calling workers, so 290s
+// leaves a ~10s cleanup window (the failJob UPDATE races a 3s timeout) before
+// the platform kills us at 300s. The Gemini author call aborts even earlier
+// (AUTHOR_TIMEOUT_MS) so the in-process failJob runs first.
+const WATCHDOG_MS = 290_000;
 
 // The message is just { jobId }; the worker hydrates brand / markdown /
 // bundleId from generation_jobs.phase_payload.

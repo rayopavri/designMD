@@ -1149,7 +1149,7 @@ export interface GeminiTextResult {
  *
  * The author step calls this directly with no provider fallback: one hop,
  * the same GEMINI_API_KEY billing surface as extraction. Transient 429s are
- * retried here via withGeminiRetry; the author worker's 54s watchdog is the
+ * retried here via withGeminiRetry; the author worker's 290s watchdog is the
  * backstop for a genuine hang.
  */
 export async function generateTextFromGemini(input: GeminiTextInput): Promise<GeminiTextResult> {
@@ -1197,10 +1197,11 @@ export async function generateTextFromGemini(input: GeminiTextInput): Promise<Ge
         maxOutputTokens: input.maxOutputTokens ?? 6144,
         // Author-step latency control. Gemini 3.x Flash-Lite thinks at a high
         // level by default when unset, which on heavy pages can run 180s+ (vs
-        // the ~8-15s typical). We run on Vercel Hobby (60s function cap), so the
-        // author call must reliably finish in ~40s — LOW caps thinking hardest
-        // while still preserving spec quality. (MEDIUM still over-ran the cap on
-        // content-heavy pages like athome.starbucks.com.) See
+        // the ~8-15s typical). AUTHOR_TIMEOUT_MS (150s) is the hard ceiling, but
+        // LOW caps thinking hardest to keep normal latency low and leave margin
+        // for lint/score/DB writes after the call — while still preserving spec
+        // quality. (MEDIUM still over-ran on content-heavy pages like
+        // athome.starbucks.com.) See
         // generate-design-md.ts callAuthorModel.
         thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
         abortSignal: AbortSignal.timeout(input.timeoutMs),
@@ -1354,11 +1355,12 @@ const EXTRACTION_JPEG_QUALITY = 88;
 const MAX_EXTRACTION_MARKDOWN_CHARS = 12_000;
 
 // Per-request timeout for the Gemini brand-EXTRACTION call (scrape-and-extract
-// worker, Phase 1). MUST stay tighter than that worker's 54s watchdog (Vercel
-// Hobby 60s function cap — see TECH-STACK.md) so the AbortSignal fires inside
-// the worker's try/catch and failJob() runs before the platform SIGKILLs us. A
+// worker, Phase 1). MUST stay tighter than that worker's 290s watchdog (Vercel
+// Pro + Fluid Compute, 300s maxDuration — see TECH-STACK.md) so the
+// AbortSignal fires inside the worker's try/catch and failJob() runs before
+// the platform SIGKILLs us. A
 // SIGKILL would leave the generation_jobs row in `running` state and trigger a
-// QStash retry storm. Firecrawl can consume up to ~120s of the 180s budget and
+// QStash retry storm. Firecrawl can consume up to ~120s of the 300s budget and
 // a normal extraction returns in 8-25s, so 90s is the ceiling that still lets a
 // slow-but-valid call finish while keeping the worker inside its budget. Passed
 // as config.abortSignal via AbortSignal.timeout() — the @google/genai SDK

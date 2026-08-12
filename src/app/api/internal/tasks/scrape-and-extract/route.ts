@@ -17,17 +17,20 @@ import { perf } from '@/lib/generator/perf-log';
 // This route makes outbound HTTP calls (Firecrawl, Gemini) and writes
 // to Postgres. It must run on the Node runtime, not edge.
 export const runtime = 'nodejs';
-export const maxDuration = 180;
+export const maxDuration = 300;
 
 // Hard watchdog: mark the job failed before Vercel SIGKILLs the function.
 // Critical for bulk-upload batches — when a job hangs on Firecrawl (JS-heavy
 // sites can stall the API), the SIGKILL prevents failJob() AND dispatchReady()
 // from running, stranding the row in `running` and tying up a concurrency slot
-// until the supervisor cron reaps it. We run on the Vercel Pro plan (300s
-// standard / 800s Fluid cap — see TECH-STACK.md) with maxDuration pinned to
-// 180s, so 174s leaves a ~6s cleanup window (the failJob UPDATE races a 3s
-// timeout) before the platform kills us at 180s.
-const WATCHDOG_MS = 174_000;
+// until the supervisor cron reaps it. We run on the Vercel Pro plan with Fluid
+// Compute enabled (300s standard / 800s Fluid cap — see TECH-STACK.md);
+// maxDuration is 300s here because this worker's own sub-budgets
+// (FIRECRAWL_BUDGET_MS 120s + GEMINI_TIMEOUT_MS 90s = 210s worst case) need
+// more room than the previous 180s ceiling gave them. 290s leaves a ~10s
+// cleanup window (the failJob UPDATE races a 3s timeout) before the platform
+// kills us at 300s.
+const WATCHDOG_MS = 290_000;
 
 const PayloadSchema = z.object({
   jobId: z.string().uuid(),

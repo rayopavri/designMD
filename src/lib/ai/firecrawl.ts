@@ -61,7 +61,7 @@ function client(): Firecrawl {
  * the underlying fetch can still hang indefinitely if the server keeps the
  * connection open (observed on JS-heavy marketing sites like framer.com).
  * Without this, the only thing that catches a hang is the worker-level
- * 174s watchdog, and QStash's 1 retry then doubles that to ~350s of "stuck"
+ * 290s watchdog, and QStash's 1 retry then doubles that to ~580s of "stuck"
  * UI before the row gets marked failed.
  *
  * The underlying SDK promise is intentionally left unresolved — Node will

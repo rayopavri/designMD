@@ -440,12 +440,12 @@ function logMissingHeadings(provider: string, text: string): void {
   }
 }
 
-// Author worker runs on Vercel Hobby (60s function cap) with a 54s watchdog;
-// lint + scoring + DB writes after this call need ~10s, so the Gemini call must
-// abort with margin to spare. 150s is the ceiling, not the target: with LOW
-// thinking (see gemini.ts) and the trimmed prompt below, normal author latency
-// is ~8-20s. A genuine hang aborts at 150s so failJob() runs in-process — well
-// before the 174s watchdog and the 180s SIGKILL.
+// Author worker runs on Vercel Pro with Fluid Compute, maxDuration=300s and a
+// 290s watchdog; lint + scoring + DB writes after this call need ~10s, so the
+// Gemini call must abort with margin to spare. 150s is the ceiling, not the
+// target: with LOW thinking (see gemini.ts) and the trimmed prompt below,
+// normal author latency is ~8-20s. A genuine hang aborts at 150s so failJob()
+// runs in-process — well before the 290s watchdog and the 300s SIGKILL.
 const AUTHOR_TIMEOUT_MS = 150_000;
 
 /**
