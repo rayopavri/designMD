@@ -19,6 +19,12 @@ import { env } from '@/lib/env';
 import { scrapeScreenshot } from '@/lib/ai/firecrawl';
 import { captureAndStoreScreenshot } from '@/lib/storage/screenshots';
 import { safeDiagnosticErrorDetail } from '@/lib/security/diagnostics';
+import { readValidatedImageUpload } from '@/lib/security/image-upload';
+import {
+  isMultipartFormData,
+  MAX_GENERATE_MULTIPART_BYTES,
+  requestExceedsContentLength,
+} from '@/lib/security/request-body';
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
@@ -40,6 +46,13 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
     return NextResponse.json({ error: 'Invalid slug' }, { status: 400 });
   }
 
+  const contentType = req.headers.get('content-type') ?? '';
+  // Check the declared multipart envelope before parsing it. File.size below
+  // remains the defense for chunked requests without Content-Length.
+  if (isMultipartFormData(contentType) && requestExceedsContentLength(req, MAX_GENERATE_MULTIPART_BYTES)) {
+    return NextResponse.json({ error: 'payload_too_large' }, { status: 413 });
+  }
+
   const [bundle] = await db
     .select({ id: bundles.id, sourceUrl: bundles.sourceUrl })
     .from(bundles)
@@ -50,10 +63,8 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
-  const contentType = req.headers.get('content-type') ?? '';
-
   // ── Upload mode ──────────────────────────────────────────────
-  if (contentType.includes('multipart/form-data')) {
+  if (isMultipartFormData(contentType)) {
     let formData: FormData;
     try {
       formData = await req.formData();
@@ -65,16 +76,17 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
     if (!(file instanceof File)) {
       return NextResponse.json({ error: 'Missing file field' }, { status: 400 });
     }
-    if (!file.type.startsWith('image/')) {
-      return NextResponse.json({ error: 'File must be an image' }, { status: 400 });
+    const upload = await readValidatedImageUpload(file);
+    if (!upload.ok) {
+      const error = upload.error === 'unsupported_image_type'
+        ? 'File must be a PNG, JPEG, or WebP image'
+        : upload.error === 'image_too_large'
+          ? 'Image must be 1 byte to 4 MB'
+          : 'Invalid image data';
+      return NextResponse.json({ error }, { status: 400 });
     }
 
-    const input = Buffer.from(await file.arrayBuffer());
-    if (input.length === 0) {
-      return NextResponse.json({ error: 'Empty file' }, { status: 400 });
-    }
-
-    const stored = await storeBuffer(input, bundle.id);
+    const stored = await storeBuffer(upload.input, bundle.id);
     if (!stored.url) {
       return NextResponse.json({ error: stored.error ?? 'Failed to store screenshot' }, { status: 500 });
     }

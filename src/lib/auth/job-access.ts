@@ -39,6 +39,21 @@ export interface PublicGenerationJobStatus {
   companionDoneAt: Date | null;
 }
 
+/** Removes URL userinfo from legacy rows before they reach a public response. */
+export function sanitizePublicJobUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    if (!parsed.username && !parsed.password) return url;
+    parsed.username = '';
+    parsed.password = '';
+    return parsed.toString();
+  } catch {
+    // New jobs are rejected before persistence. Preserve non-URL legacy values
+    // because they cannot contain URL userinfo as parsed by the URL standard.
+    return url;
+  }
+}
+
 /** Authorizes a job owner or the anonymous browser that created the job. */
 export function canReadGenerationJob(job: GenerationJobAccess, viewer: GenerationJobAccess): boolean {
   if (job.userId) return viewer.userId === job.userId;
@@ -73,7 +88,7 @@ export function publicGenerationJobStatus(
 
   return {
     jobId: job.id,
-    url: job.url,
+    url: sanitizePublicJobUrl(job.url),
     status,
     currentStep: job.currentStep,
     errorMessage: failed ? publicGenerationError(status, failureStep) : null,

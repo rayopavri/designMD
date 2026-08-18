@@ -29,6 +29,9 @@ export function normalizeUrl(input: string): string {
   if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
     throw new Error(`URL must be http or https, got ${parsed.protocol}`);
   }
+  if (parsed.username || parsed.password) {
+    throw new Error('URL must not include credentials');
+  }
 
   // Lowercase host, strip www.
   let host = parsed.hostname.toLowerCase();

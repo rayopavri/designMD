@@ -101,6 +101,16 @@ describe('public generation job status', () => {
     assert.doesNotMatch(JSON.stringify(result), /super-secret|top-secret|worker\.ts|provider failed/i);
   });
 
+  it('never exposes userinfo from a legacy stored job URL', () => {
+    const result = publicGenerationJobStatus(
+      { ...job, url: 'https://legacy-user:legacy-password@example.com/private?keep=value' },
+      { resultBundleSlug: null },
+    );
+
+    assert.equal(result?.url, 'https://example.com/private?keep=value');
+    assert.doesNotMatch(JSON.stringify(result), /legacy-user|legacy-password/);
+  });
+
   it('uses stable public error codes for timeout and blocked-site failures', () => {
     assert.equal(publicGenerationError('failed', 'watchdog'), 'generation_timed_out');
     assert.equal(publicGenerationError('failed', 'scraping-blocked'), 'site_blocks_automation');

@@ -46,6 +46,14 @@ describe('normalizeUrl', () => {
   it('throws on non-http protocols', () => {
     assert.throws(() => normalizeUrl('ftp://example.com'), /URL must be http or https/);
   });
+
+  it('rejects URLs with username or password userinfo', () => {
+    assert.throws(
+      () => normalizeUrl('https://username:password@example.com/path'),
+      /credentials/i,
+    );
+    assert.throws(() => normalizeUrl('https://username@example.com/path'), /credentials/i);
+  });
 });
 
 describe('extractDomain', () => {

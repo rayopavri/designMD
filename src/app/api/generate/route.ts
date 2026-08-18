@@ -34,11 +34,13 @@ import { enqueueTask } from '@/lib/queue';
 import { rateLimitGenerate, markFreeGenerationUsed } from '@/lib/rate-limit';
 import {
   isMultipartFormData,
-  MAX_GENERATE_IMAGE_BYTES,
   MAX_GENERATE_MULTIPART_BYTES,
   requestExceedsContentLength,
 } from '@/lib/security/request-body';
-import { validateImageData } from '@/lib/security/image-signature';
+import {
+  ALLOWED_UPLOAD_IMAGE_MIME_TYPES,
+  readValidatedImageUpload,
+} from '@/lib/security/image-upload';
 
 export const runtime = 'nodejs';
 
@@ -46,7 +48,6 @@ const UrlBodySchema = z.object({
   url: z.string().url(),
 });
 
-const ALLOWED_MIME = new Set(['image/png', 'image/jpeg', 'image/webp']);
 const BRAND_NAME_MAX = 120;
 
 export async function POST(req: NextRequest) {
@@ -263,23 +264,23 @@ async function handleUpload(req: NextRequest, userId: string | null, anonToken: 
   }
   const brandName = brandNameRaw.trim().slice(0, BRAND_NAME_MAX);
 
-  if (!ALLOWED_MIME.has(file.type)) {
+  if (!ALLOWED_UPLOAD_IMAGE_MIME_TYPES.has(file.type)) {
     return NextResponse.json(
       { error: `Unsupported image type ${file.type}. Use PNG, JPEG, or WebP.` },
       { status: 400 },
     );
   }
-  if (file.size === 0 || file.size > MAX_GENERATE_IMAGE_BYTES) {
+  const upload = await readValidatedImageUpload(file);
+  if (!upload.ok && upload.error === 'image_too_large') {
     return NextResponse.json(
-      { error: `Image must be 1 byte to ${MAX_GENERATE_IMAGE_BYTES / 1024 / 1024} MB. Got ${file.size}.` },
+      { error: `Image must be 1 byte to 4 MB. Got ${file.size}.` },
       { status: 400 },
     );
   }
-
-  const buf = Buffer.from(await file.arrayBuffer());
-  if (!(await validateImageData(buf, file.type))) {
+  if (!upload.ok) {
     return NextResponse.json({ error: 'Invalid image data' }, { status: 400 });
   }
+  const buf = upload.input;
   const hash = createHash('sha256').update(buf).digest('hex');
   const base64 = buf.toString('base64');
   const sourceKey = `upload://${hash}`;
