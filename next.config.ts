@@ -47,17 +47,13 @@ const nextConfig: NextConfig = {
     ];
   },
   async headers() {
-    // Content-Security-Policy ships in REPORT-ONLY mode first: violations are
-    // logged to the browser console (and any report endpoint) but nothing is
-    // blocked, so we can watch for breakage — the Firebase auth iframe
-    // (/__/auth/ rewrite → firebaseapp.com), Google Fonts, and Supabase image
-    // hosts are the likely trip-wires — before flipping to an enforced
-    // `Content-Security-Policy`. Origins below reflect what the app actually
-    // talks to; tune against real reports, then rename the header to enforce.
+    // Firebase auth uses the auth rewrite, apis.google.com, and same-origin
+    // relay frames. Remote bundle screenshots and logos are user-provided, so
+    // image loading must permit HTTPS origins.
     const csp = [
       "default-src 'self'",
       // Next.js injects inline bootstrap scripts; Firebase auth loads apis.google.com.
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://www.googletagmanager.com https://www.google-analytics.com",
+      "script-src 'self' 'unsafe-inline' https://apis.google.com https://www.googletagmanager.com https://www.google-analytics.com",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com data:",
       "img-src 'self' data: blob: https:",
@@ -88,7 +84,7 @@ const nextConfig: NextConfig = {
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           // SAMEORIGIN rather than DENY — see the frame-ancestors comment above.
           { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
-          { key: 'Content-Security-Policy-Report-Only', value: csp },
+          { key: 'Content-Security-Policy', value: csp },
         ],
       },
     ];

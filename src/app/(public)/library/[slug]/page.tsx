@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getVisibleBundleBySlug } from '@/lib/db/queries/bundles';
 import type { BundleDetail } from '@/lib/db/queries/bundles';
+import { serializeJsonForHtml } from '@/lib/security/safe-json';
 import { detailToBundleItem, serializeDetail } from '@/lib/ui-data/bundleDetailAdapter';
 import BundleDetailClient from './BundleDetailClient';
 
@@ -165,7 +166,7 @@ export default async function Page({ params }: Props) {
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonForHtml(jsonLd) ?? '' }}
       />
       <BundleDetailClient initialItem={initialItem} />
     </>

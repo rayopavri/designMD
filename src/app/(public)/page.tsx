@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { listAllPublishedBundles } from '@/lib/db/queries/bundles';
+import { serializeJsonForHtml } from '@/lib/security/safe-json';
 import { apiToBundleItem, serializeListItem } from '@/lib/ui-data/bundleListAdapter';
 import { HomeHero } from "./HomeHero";
 import { HomeFeaturedBundles } from "./HomeFeaturedBundles";
@@ -104,7 +105,7 @@ async function Home() {
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonForHtml(jsonLd) ?? '' }}
       />
       <HomeHero />
       <HomeFeaturedBundles initialItems={initialItems} />

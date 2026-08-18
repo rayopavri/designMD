@@ -4,6 +4,7 @@ import {
   listAllPublishedBundles,
   listCategoriesWithPublishedCounts,
 } from '@/lib/db/queries/bundles';
+import { serializeJsonForHtml } from '@/lib/security/safe-json';
 import { apiToBundleItem, serializeListItem } from '@/lib/ui-data/bundleListAdapter';
 import { TOOL_LANDINGS } from '@/lib/ui-data/landing';
 import { LandingView, type CrossLink } from '@/components/ui/LandingView';
@@ -106,7 +107,7 @@ export default async function CategoryLandingPage({ params }: Props) {
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonForHtml(jsonLd) ?? '' }}
       />
       <LandingView
         kicker={category.name}

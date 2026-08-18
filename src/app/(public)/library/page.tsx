@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { listAllPublishedBundles } from '@/lib/db/queries/bundles';
+import { serializeJsonForHtml } from '@/lib/security/safe-json';
 import { apiToBundleItem, serializeListItem } from '@/lib/ui-data/bundleListAdapter';
 import LibraryClient from './LibraryClient';
 
@@ -54,7 +55,7 @@ export default async function LibraryPage() {
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonForHtml(collectionJsonLd) ?? '' }}
       />
       <LibraryClient initialItems={initialItems} />
     </>
