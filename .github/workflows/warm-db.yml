@@ -7,7 +7,7 @@ name: warm-db
 # without an update (e.g. after a Vercel SIGKILL). Batch jobs are handled by
 # the separate supervise-batches cron.
 #
-# If CRON_SECRET is set on Vercel, also add it as a GitHub Actions secret
+# Set CRON_SECRET on Vercel and add the same value as a GitHub Actions secret
 # named CRON_SECRET so this workflow can authenticate.
 
 on:
@@ -24,9 +24,10 @@ jobs:
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
-          if [ -n "$CRON_SECRET" ]; then
-            curl -fsS -H "Authorization: Bearer $CRON_SECRET" \
-              https://uiuxskills.com/api/cron/warm-db
-          else
-            curl -fsS https://uiuxskills.com/api/cron/warm-db
+          if [ -z "$CRON_SECRET" ]; then
+            echo "CRON_SECRET secret is not set."
+            echo "Add the same CRON_SECRET value in GitHub Actions and Vercel, then re-run."
+            exit 1
           fi
+          curl -fsS -H "Authorization: Bearer $CRON_SECRET" \
+            https://uiuxskills.com/api/cron/warm-db

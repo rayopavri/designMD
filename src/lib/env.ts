@@ -83,6 +83,48 @@ const EnvSchema = z.object({
   // App
   NEXT_PUBLIC_APP_URL: z.string().url().default('http://localhost:3000'),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+}).superRefine((value, ctx) => {
+  // Development and test intentionally retain the optional local fallbacks;
+  // production must have every credential that protects public automation.
+  if (value.NODE_ENV === 'production' && !value.CRON_SECRET) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['CRON_SECRET'],
+      message: 'CRON_SECRET is required in production.',
+    });
+  }
+
+  if (value.NODE_ENV === 'production' && !value.UPSTASH_REDIS_REST_URL) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['UPSTASH_REDIS_REST_URL'],
+      message: 'UPSTASH_REDIS_REST_URL is required in production.',
+    });
+  }
+
+  if (value.NODE_ENV === 'production' && !value.UPSTASH_REDIS_REST_TOKEN) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['UPSTASH_REDIS_REST_TOKEN'],
+      message: 'UPSTASH_REDIS_REST_TOKEN is required in production.',
+    });
+  }
+
+  if (value.QSTASH_TOKEN && !value.QSTASH_CURRENT_SIGNING_KEY) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['QSTASH_CURRENT_SIGNING_KEY'],
+      message: 'QSTASH_CURRENT_SIGNING_KEY is required when QSTASH_TOKEN is configured.',
+    });
+  }
+
+  if (value.QSTASH_TOKEN && !value.QSTASH_NEXT_SIGNING_KEY) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['QSTASH_NEXT_SIGNING_KEY'],
+      message: 'QSTASH_NEXT_SIGNING_KEY is required when QSTASH_TOKEN is configured.',
+    });
+  }
 });
 
 // Optional fields stay optional during Phase 1A so the app boots without

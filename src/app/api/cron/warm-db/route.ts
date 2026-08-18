@@ -13,12 +13,13 @@
  * destroy jobs that are merely waiting for a concurrency slot.
  *
  * Triggered by GitHub Actions (Vercel Hobby crons are once-per-day now).
- * Auth: optional Bearer via CRON_SECRET env var.
+ * Auth: requires `Authorization: Bearer <CRON_SECRET>`.
  */
 import { NextResponse, type NextRequest } from 'next/server';
 import { and, eq, isNull, lt, or, sql } from 'drizzle-orm';
 import { db } from '@/lib/db/client';
 import { generationJobs } from '@/lib/db/schema';
+import { isCronAuthorized } from '@/lib/security/cron-auth';
 
 export const runtime = 'nodejs';
 export const maxDuration = 15;
@@ -33,12 +34,23 @@ export const maxDuration = 15;
 const STUCK_JOB_AGE_MS = 5 * 60_000;
 
 export async function GET(req: NextRequest) {
-  const expected = process.env.CRON_SECRET;
-  if (expected) {
-    const auth = req.headers.get('authorization');
-    if (auth !== `Bearer ${expected}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+  const nodeEnv = process.env.NODE_ENV ?? 'development';
+  const cronSecret = process.env.CRON_SECRET;
+
+  // env.ts rejects this at production startup. Keep the request-time guard so
+  // this endpoint still fails closed if an alternate runtime bypasses that validation.
+  if (nodeEnv === 'production' && (!cronSecret || cronSecret.length < 16)) {
+    return NextResponse.json({ error: 'Cron configuration unavailable' }, { status: 503 });
+  }
+
+  if (
+    !isCronAuthorized(req, {
+      cronSecret,
+      allowInternalDevFallback: false,
+      nodeEnv,
+    })
+  ) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const startedAt = Date.now();

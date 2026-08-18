@@ -14,37 +14,28 @@
  * dispatches inline (each worker refills a slot on completion), so a 5-min
  * cadence is enough — it only has to catch what slipped through.
  *
- * Auth: requires `Authorization: Bearer <CRON_SECRET>` when CRON_SECRET is set
- * (the production path — GitHub Actions sends it). In local dev (no CRON_SECRET)
- * we fall back to the internal task token so the tick can be triggered by hand.
+ * Auth: requires `Authorization: Bearer <CRON_SECRET>` in production. In local
+ * development, the internal task token may trigger the supervisor by hand.
  */
 import { NextResponse, type NextRequest } from 'next/server';
 import { env } from '@/lib/env';
 import { dispatchReady, reapStale } from '@/lib/generator/batch';
+import { isCronAuthorized } from '@/lib/security/cron-auth';
 
 // Enqueues + DB writes only — no pipeline work runs here, so it stays well
 // under the timeout. Node runtime for Postgres access.
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
-function isAuthorized(req: NextRequest): boolean {
-  const header = req.headers.get('authorization');
-
-  if (env.CRON_SECRET) {
-    return header === `Bearer ${env.CRON_SECRET}`;
-  }
-
-  // Dev fallback: no CRON_SECRET configured — accept the internal task token
-  // so the supervisor can be invoked manually without Vercel Cron.
-  if (env.INTERNAL_TASK_TOKEN) {
-    return req.headers.get('x-internal-task-token') === env.INTERNAL_TASK_TOKEN;
-  }
-
-  return false;
-}
-
 export async function GET(req: NextRequest) {
-  if (!isAuthorized(req)) {
+  if (
+    !isCronAuthorized(req, {
+      cronSecret: env.CRON_SECRET,
+      internalTaskToken: env.INTERNAL_TASK_TOKEN,
+      allowInternalDevFallback: true,
+      nodeEnv: env.NODE_ENV,
+    })
+  ) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

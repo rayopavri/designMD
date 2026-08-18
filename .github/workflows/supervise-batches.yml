@@ -11,9 +11,8 @@ name: supervise-batches
 # covers the happy path. The vercel.json entry stays as a once-daily backstop
 # (and becomes an every-minute tick automatically if the project moves to Pro).
 #
-# Auth: the endpoint REQUIRES a credential (it 401s otherwise), unlike warm-db.
-# Set CRON_SECRET on Vercel AND add it as a GitHub Actions secret named
-# CRON_SECRET so this workflow can authenticate.
+# Auth: the endpoint requires a credential. Set CRON_SECRET on Vercel and add
+# the same value as a GitHub Actions secret named CRON_SECRET.
 
 on:
   schedule:
@@ -30,8 +29,8 @@ jobs:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
           if [ -z "$CRON_SECRET" ]; then
-            echo "CRON_SECRET secret is not set — the supervisor endpoint will 401."
-            echo "Add CRON_SECRET in repo Settings > Secrets and on Vercel, then re-run."
+            echo "CRON_SECRET secret is not set."
+            echo "Add the same CRON_SECRET value in GitHub Actions and Vercel, then re-run."
             exit 1
           fi
           curl -fsS -H "Authorization: Bearer $CRON_SECRET" \
