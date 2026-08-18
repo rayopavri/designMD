@@ -12,6 +12,7 @@ import { config } from 'dotenv';
 config({ path: '.env.local' });
 
 import postgres from 'postgres';
+import { safeDiagnosticErrorDetail, safePerfDiagnosticValue } from '../src/lib/security/diagnostics';
 
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) {
@@ -96,11 +97,13 @@ async function main() {
   if (orphaned.length === 0) {
     console.log('  (none — all bundles have a category)');
   } else {
-    for (const r of orphaned) console.log(`  - ${r.slug.padEnd(36)} ${r.title}`);
+    for (const r of orphaned) {
+      console.log(`  - ${r.slug.padEnd(36)} ${safePerfDiagnosticValue('title', r.title)}`);
+    }
   }
 }
 
 main().catch((err) => {
-  console.error('✗ backfill failed:', err);
+  console.error('✗ backfill failed:', safeDiagnosticErrorDetail(err));
   process.exit(1);
 });

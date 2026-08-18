@@ -28,6 +28,8 @@
 import { config } from 'dotenv';
 config({ path: '.env.local', override: true });
 
+import { safeDiagnosticErrorDetail } from '../src/lib/security/diagnostics';
+
 const WRITE = process.argv.includes('--write');
 const PREAMBLE = process.argv.includes('--preamble');
 const SLUG = process.argv.find((a) => a.startsWith('--slug='))?.slice('--slug='.length);
@@ -204,7 +206,7 @@ async function main() {
       cov = scoreFromLint(lint, md);
     } catch (err) {
       console.log(
-        `${b.slug.padEnd(30)}ERROR  lint/score failed: ${err instanceof Error ? err.message : err}`,
+        `${b.slug.padEnd(30)}ERROR  lint/score failed: ${safeDiagnosticErrorDetail(err)}`,
       );
       continue;
     }
@@ -253,6 +255,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error('✗ backfill failed:', err);
+  console.error('✗ backfill failed:', safeDiagnosticErrorDetail(err));
   process.exit(1);
 });

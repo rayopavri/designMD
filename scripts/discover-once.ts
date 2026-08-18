@@ -17,6 +17,11 @@ import {
   type DiscoverySource,
 } from '../src/lib/discovery/run-fetch';
 import { listCandidatesByStatus } from '../src/lib/db/queries/discovery';
+import {
+  safeDiagnosticErrorDetail,
+  safeDiagnosticUrl,
+  safePerfDiagnosticValue,
+} from '../src/lib/security/diagnostics';
 
 async function main(): Promise<void> {
   const source = (process.argv[2] ?? 'hackernews') as DiscoverySource;
@@ -54,8 +59,12 @@ async function main(): Promise<void> {
     } catch {
       /* rawContent may be absent for non-HN sources */
     }
-    console.log(`  • ${c.sourceUrl}`);
-    if (title) console.log(`    "${title}"  (@${c.authorHandle ?? '?'})`);
+    console.log(`  • ${safeDiagnosticUrl(c.sourceUrl)}`);
+    if (title) {
+      const safeTitle = safePerfDiagnosticValue('title', title);
+      const safeHandle = safePerfDiagnosticValue('handle', c.authorHandle ?? '?');
+      console.log(`    "${safeTitle}"  (@${safeHandle})`);
+    }
   }
 
   console.log('\n✔ done\n');
@@ -63,6 +72,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((err) => {
-  console.error('discover-once failed:', err);
+  console.error('discover-once failed:', safeDiagnosticErrorDetail(err));
   process.exit(1);
 });

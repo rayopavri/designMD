@@ -34,6 +34,7 @@ import { config } from 'dotenv';
 config({ path: '.env.local', override: true });
 
 import { dump as yamlDump, load as yamlLoad } from 'js-yaml';
+import { safeDiagnosticErrorDetail } from '../src/lib/security/diagnostics';
 
 const WRITE = process.argv.includes('--write');
 const INJECT = process.argv.includes('--inject');
@@ -150,7 +151,7 @@ async function main() {
     } catch (err) {
       console.log(
         `${b.slug.padEnd(28)}${String(elevCountBefore).padEnd(8)}` +
-          `ERROR  lint/score failed: ${err instanceof Error ? err.message : err}`,
+          `ERROR  lint/score failed: ${safeDiagnosticErrorDetail(err)}`,
       );
       continue;
     }
@@ -209,6 +210,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error('✗ backfill failed:', err);
+  console.error('✗ backfill failed:', safeDiagnosticErrorDetail(err));
   process.exit(1);
 });

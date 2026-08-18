@@ -23,6 +23,10 @@ const diagnosticSinkFiles = [
   'src/lib/ui-data/mockAuth.ts',
   'scripts/backfill-screenshots.ts',
   'scripts/backfill-companion-prompts.ts',
+  'scripts/discover-once.ts',
+  'scripts/backfill-elevation.ts',
+  'scripts/backfill-section-order.ts',
+  'scripts/backfill-bundle-categories.ts',
 ];
 
 const persistedJobProjectionFiles = [
