@@ -17,9 +17,8 @@
  *
  * `null` for a URL means "couldn't resolve a name → skip the name check".
  */
-import net from 'node:net';
-import { promises as dns } from 'node:dns';
 import { extractBrandNamesQuick, type QuickNameItem } from '@/lib/ai/gemini';
+import { safeFetchHtml } from '@/lib/security/safe-fetch';
 
 const FETCH_TIMEOUT_MS = 4_000;
 const OVERALL_DEADLINE_MS = 38_000;
@@ -58,7 +57,16 @@ export async function prefetchBrandNames(
       if (Date.now() >= deadline) return;
       const url = urls[i];
       try {
-        const html = await safeFetchHtml(url, deadline);
+        const html = await safeFetchHtml(url, {
+          deadlineMs: deadline - Date.now(),
+          timeoutMs: FETCH_TIMEOUT_MS,
+          maxBytes: MAX_HTML_BYTES,
+          maxRedirects: MAX_REDIRECTS,
+          headers: {
+            'user-agent': USER_AGENT,
+            accept: 'text/html,application/xhtml+xml',
+          },
+        });
         if (html == null) continue;
         const meta = parseHeadMetadata(html);
         if (meta.title || meta.ogSiteName || meta.ogTitle) {
@@ -120,149 +128,6 @@ export function firstSegment(title?: string): string | null {
   if (!title) return null;
   const first = title.split(/\s*[|–—·]\s*|\s+-\s+/)[0]?.trim();
   return first || null;
-}
-
-// ── Fetch with SSRF-safe redirect handling ──────────────────────────────────
-
-async function safeFetchHtml(
-  initialUrl: string,
-  deadline: number,
-): Promise<string | null> {
-  let current = initialUrl;
-  for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
-    let parsed: URL;
-    try {
-      parsed = new URL(current);
-    } catch {
-      return null;
-    }
-    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
-    if (!(await isSafeHost(parsed.hostname))) return null;
-
-    const remaining = deadline - Date.now();
-    if (remaining <= 0) return null;
-
-    let res: Response;
-    try {
-      res = await fetch(current, {
-        method: 'GET',
-        redirect: 'manual',
-        signal: AbortSignal.timeout(Math.min(FETCH_TIMEOUT_MS, remaining)),
-        headers: {
-          'user-agent': USER_AGENT,
-          accept: 'text/html,application/xhtml+xml',
-        },
-      });
-    } catch {
-      return null;
-    }
-
-    if (res.status >= 300 && res.status < 400) {
-      const location = res.headers.get('location');
-      if (!location) return null;
-      try {
-        current = new URL(location, current).toString();
-      } catch {
-        return null;
-      }
-      continue; // re-validate the new host on the next loop iteration
-    }
-
-    if (!res.ok) return null;
-
-    const contentType = res.headers.get('content-type')?.toLowerCase() ?? '';
-    if (contentType && !contentType.includes('html') && !contentType.includes('text')) {
-      return null;
-    }
-    return readCapped(res, MAX_HTML_BYTES);
-  }
-  return null; // too many redirects
-}
-
-async function readCapped(res: Response, maxBytes: number): Promise<string> {
-  if (!res.body) return '';
-  const reader = res.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  try {
-    while (total < maxBytes) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      if (value) {
-        chunks.push(value);
-        total += value.length;
-      }
-    }
-  } finally {
-    await reader.cancel().catch(() => {});
-  }
-  const merged = new Uint8Array(total);
-  let offset = 0;
-  for (const chunk of chunks) {
-    merged.set(chunk, offset);
-    offset += chunk.length;
-  }
-  return new TextDecoder('utf-8', { fatal: false }).decode(
-    merged.subarray(0, maxBytes),
-  );
-}
-
-// ── SSRF guard ───────────────────────────────────────────────────────────────
-
-async function isSafeHost(hostname: string): Promise<boolean> {
-  const host = hostname.toLowerCase();
-  if (!host) return false;
-  if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local')) {
-    return false;
-  }
-
-  if (net.isIP(host)) return !isBlockedIp(host);
-
-  let addresses: { address: string }[];
-  try {
-    addresses = await dns.lookup(host, { all: true });
-  } catch {
-    return false; // can't verify → treat as unsafe
-  }
-  if (addresses.length === 0) return false;
-  return addresses.every((a) => !isBlockedIp(a.address));
-}
-
-function isBlockedIp(ip: string): boolean {
-  const family = net.isIP(ip);
-  if (family === 4) return isPrivateIpv4(ip);
-  if (family === 6) return isPrivateIpv6(ip);
-  return true; // not a recognizable IP → unsafe
-}
-
-function isPrivateIpv4(ip: string): boolean {
-  const parts = ip.split('.').map((p) => Number(p));
-  if (parts.length !== 4 || parts.some((n) => !Number.isInteger(n) || n < 0 || n > 255)) {
-    return true;
-  }
-  const [a, b] = parts;
-  if (a === 0) return true; // 0.0.0.0/8
-  if (a === 10) return true; // 10.0.0.0/8
-  if (a === 127) return true; // loopback
-  if (a === 169 && b === 254) return true; // link-local
-  if (a === 172 && b >= 16 && b <= 31) return true; // 172.16.0.0/12
-  if (a === 192 && b === 168) return true; // 192.168.0.0/16
-  if (a === 100 && b >= 64 && b <= 127) return true; // CGNAT 100.64.0.0/10
-  return false;
-}
-
-function isPrivateIpv6(ip: string): boolean {
-  const addr = ip.toLowerCase();
-  if (addr === '::1' || addr === '::') return true; // loopback / unspecified
-  // IPv4-mapped (::ffff:a.b.c.d) — validate the embedded v4 address.
-  const mapped = addr.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
-  if (mapped) return isPrivateIpv4(mapped[1]);
-  const head = addr.split(':')[0];
-  if (head.startsWith('fe8') || head.startsWith('fe9') || head.startsWith('fea') || head.startsWith('feb')) {
-    return true; // fe80::/10 link-local
-  }
-  if (head.startsWith('fc') || head.startsWith('fd')) return true; // fc00::/7 ULA
-  return false;
 }
 
 // ── HTML <head> metadata extraction (regex, no DOM parser) ───────────────────

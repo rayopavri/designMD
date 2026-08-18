@@ -20,13 +20,16 @@ import { requireEditor } from '@/lib/auth/session';
 import { db } from '@/lib/db/client';
 import { bundles } from '@/lib/db/schema';
 import { extractBrandLogoUrl } from '@/lib/ai/logo-extract';
+import { safeFetchHtml } from '@/lib/security/safe-fetch';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
 const DEFAULT_LIMIT = 25;
 const MAX_LIMIT = 50;
-const FETCH_TIMEOUT_MS = 8_000;
+const FETCH_TIMEOUT_MS = 4_000;
+const FETCH_DEADLINE_MS = 8_000;
+const MAX_HTML_BYTES = 64 * 1024;
 const CONCURRENCY = 4;
 
 type Result = {
@@ -37,32 +40,22 @@ type Result = {
 };
 
 async function fetchHtml(url: string): Promise<string | null> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-  try {
-    const res = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; uiuxskills-logo-backfill/1.0)',
-        Accept: 'text/html,application/xhtml+xml',
-      },
-      signal: controller.signal,
-      redirect: 'follow',
-    });
-    if (!res.ok) return null;
-    const ct = res.headers.get('content-type') ?? '';
-    if (!ct.includes('html')) return null;
-    return await res.text();
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timer);
-  }
+  return safeFetchHtml(url, {
+    deadlineMs: FETCH_DEADLINE_MS,
+    timeoutMs: FETCH_TIMEOUT_MS,
+    maxBytes: MAX_HTML_BYTES,
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (compatible; uiuxskills-logo-backfill/1.0)',
+      Accept: 'text/html,application/xhtml+xml',
+    },
+    contentType: 'html',
+  });
 }
 
 async function processRow(row: { id: string; slug: string; sourceUrl: string }): Promise<Result> {
   const html = await fetchHtml(row.sourceUrl);
   if (!html) {
-    return { slug: row.slug, status: 'fetch-failed', error: `fetch ${row.sourceUrl} returned null` };
+    return { slug: row.slug, status: 'fetch-failed', error: 'HTML fetch failed' };
   }
   const logoUrl = extractBrandLogoUrl(html, row.sourceUrl);
   if (!logoUrl) {
