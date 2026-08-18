@@ -43,6 +43,12 @@ package-lock.json
 # vercel
 .vercel
 
+# playwright-cli workspace state and snapshots
+.playwright-cli/
+
+# playwright-cli agent skill (local-only, symlinked into ~/.agents/skills)
+.claude/skills/playwright-cli/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
