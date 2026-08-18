@@ -24,17 +24,32 @@ import { adminAuth } from '@/lib/auth/firebase-admin';
 import { resendClient, EMAIL_FROM } from '@/lib/email/resend';
 import { SIGN_IN_SUBJECT, signInEmailHtml, signInEmailText } from '@/lib/email/sign-in-email';
 import { env } from '@/lib/env';
+import { rateLimitEmailLink } from '@/lib/rate-limit/auth-email';
+import { readJsonBodyWithinLimit } from '@/lib/security/request-body';
 
 export const runtime = 'nodejs';
 
 const BodySchema = z.object({ email: z.string().email() });
+const MAX_EMAIL_LINK_BODY_BYTES = 8 * 1024;
 
 export async function POST(req: NextRequest) {
-  let body: z.infer<typeof BodySchema>;
-  try {
-    body = BodySchema.parse(await req.json());
-  } catch {
+  const parsedBody = await readJsonBodyWithinLimit(req, MAX_EMAIL_LINK_BODY_BYTES);
+  if (!parsedBody.ok && parsedBody.error === 'body_too_large') {
+    return NextResponse.json({ error: 'Request body too large' }, { status: 413 });
+  }
+
+  const body = BodySchema.safeParse(parsedBody.ok ? parsedBody.value : undefined);
+  if (!body.success) {
     return NextResponse.json({ error: 'Invalid email' }, { status: 400 });
+  }
+
+  const rateLimit = await rateLimitEmailLink(req, body.data.email);
+  if (!rateLimit.ok) {
+    if (rateLimit.unavailable) {
+      return NextResponse.json({ error: 'rate_limit_unavailable' }, { status: 503 });
+    }
+    // Do not reveal whether a link would otherwise be sent to this address.
+    return NextResponse.json({ ok: true });
   }
 
   // Resend not configured yet — tell the client to fall back to Firebase's
@@ -48,7 +63,7 @@ export async function POST(req: NextRequest) {
   // Firebase authorized-domains list (Authentication → Settings).
   let link: string;
   try {
-    link = await adminAuth().generateSignInWithEmailLink(body.email, {
+    link = await adminAuth().generateSignInWithEmailLink(body.data.email, {
       url: `${env.NEXT_PUBLIC_APP_URL}/auth/callback`,
       handleCodeInApp: true,
     });
@@ -60,7 +75,7 @@ export async function POST(req: NextRequest) {
   try {
     const { error } = await resend.emails.send({
       from: EMAIL_FROM,
-      to: body.email,
+      to: body.data.email,
       subject: SIGN_IN_SUBJECT,
       html: signInEmailHtml(link),
       text: signInEmailText(link),

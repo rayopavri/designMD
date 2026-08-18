@@ -110,6 +110,14 @@ const EnvSchema = z.object({
     });
   }
 
+  if (value.NODE_ENV === 'production' && !value.RATE_LIMIT_SECRET) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['RATE_LIMIT_SECRET'],
+      message: 'RATE_LIMIT_SECRET is required in production.',
+    });
+  }
+
   if (value.QSTASH_TOKEN && !value.QSTASH_CURRENT_SIGNING_KEY) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,

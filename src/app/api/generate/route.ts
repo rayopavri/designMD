@@ -31,6 +31,8 @@ import { getOrCreateAnonToken, attachAnonToken } from '@/lib/auth/anon-token';
 import { normalizeUrl } from '@/lib/generator/url';
 import { enqueueTask } from '@/lib/queue';
 import { rateLimitGenerate, markFreeGenerationUsed } from '@/lib/rate-limit';
+import { requestExceedsContentLength } from '@/lib/security/request-body';
+import { matchesImageSignature } from '@/lib/security/image-signature';
 
 export const runtime = 'nodejs';
 
@@ -39,10 +41,19 @@ const UrlBodySchema = z.object({
 });
 
 const MAX_IMAGE_BYTES = 6 * 1024 * 1024; // 6 MB raw — base64 expands ~33% but still fits comfortably
+const MAX_MULTIPART_BYTES = MAX_IMAGE_BYTES + 512 * 1024;
 const ALLOWED_MIME = new Set(['image/png', 'image/jpeg', 'image/webp']);
 const BRAND_NAME_MAX = 120;
 
 export async function POST(req: NextRequest) {
+  const contentType = req.headers.get('content-type') ?? '';
+  // Reject declared oversized payloads before auth, rate-limit, or multipart
+  // parsing. Chunked requests have no Content-Length; platform body limits are
+  // the outer enforcement layer, while File.size below remains defense-in-depth.
+  if (contentType.startsWith('multipart/form-data') && requestExceedsContentLength(req, MAX_MULTIPART_BYTES)) {
+    return NextResponse.json({ error: 'payload_too_large' }, { status: 413 });
+  }
+
   try {
     // Sign-in is optional now. Signed-in users still get attribution
     // (created_by = user.id); anonymous gets null.
@@ -58,6 +69,11 @@ export async function POST(req: NextRequest) {
     // anonymous get a single free generation per browser. Returns 429 if exceeded.
     const rl = await rateLimitGenerate({ req, userId, isEditor, anonToken });
     if (!rl.ok) {
+      if (rl.unavailable) {
+        const res = NextResponse.json({ error: 'rate_limit_unavailable' }, { status: 503 });
+        if (isNew && anonToken) attachAnonToken(res, anonToken);
+        return res;
+      }
       const res = NextResponse.json(
         {
           error: 'rate_limited',
@@ -83,7 +99,6 @@ export async function POST(req: NextRequest) {
       return res;
     }
 
-    const contentType = req.headers.get('content-type') ?? '';
     const res = contentType.startsWith('multipart/form-data')
       ? await handleUpload(req, userId, anonToken, isEditor)
       : await handleUrl(req, userId, anonToken, isEditor);
@@ -248,11 +263,8 @@ async function handleUpload(req: NextRequest, userId: string | null, anonToken: 
   let form: FormData;
   try {
     form = await req.formData();
-  } catch (err) {
-    return NextResponse.json(
-      { error: 'Invalid multipart body', details: err instanceof Error ? err.message : String(err) },
-      { status: 400 },
-    );
+  } catch {
+    return NextResponse.json({ error: 'Invalid multipart body' }, { status: 400 });
   }
 
   const file = form.get('image');
@@ -280,6 +292,9 @@ async function handleUpload(req: NextRequest, userId: string | null, anonToken: 
   }
 
   const buf = Buffer.from(await file.arrayBuffer());
+  if (!matchesImageSignature(buf, file.type)) {
+    return NextResponse.json({ error: 'Invalid image data' }, { status: 400 });
+  }
   const hash = createHash('sha256').update(buf).digest('hex');
   const base64 = buf.toString('base64');
   const sourceKey = `upload://${hash}`;

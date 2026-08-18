@@ -18,10 +18,9 @@
  * anonymous generations, each burning a Firecrawl + Gemini + Claude call. On
  * Vercel `x-forwarded-for` is platform-controlled, so IP is a trustworthy key.
  *
- * Graceful degradation: if UPSTASH_* env vars are unset (e.g. local
- * dev without Upstash configured), the helper logs a one-time warning
- * and allows every request. This avoids blocking development; the
- * production deploy has the env vars set.
+ * Local development can run without Upstash. Production returns a controlled
+ * unavailable result when Redis is missing or unreachable, preventing costly
+ * generations from becoming unmetered.
  *
  * Upstash free tier: 10,000 commands/day — easily covers thousands of
  * generation attempts (each check is 1-2 commands).
@@ -30,6 +29,7 @@ import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
 import { env } from '@/lib/env';
 import { getClientIp } from './ip';
+import { redisRateLimitConfiguration } from './config';
 
 export interface RateLimitResult {
   ok: boolean;
@@ -40,7 +40,8 @@ export interface RateLimitResult {
   /** Requests remaining in the current window. */
   remaining: number;
   /** Which tier applied — useful for debug / 429 response. */
-  tier: 'anonymous' | 'signed-in' | 'editor' | 'disabled';
+  tier: 'anonymous' | 'signed-in' | 'editor' | 'disabled' | 'unavailable';
+  unavailable?: true;
 }
 
 let _redis: Redis | null = null;
@@ -48,12 +49,8 @@ let _signedInLimiter: Ratelimit | null = null;
 let _anonIpLimiter: Ratelimit | null = null;
 let _warnedDisabled = false;
 
-function isConfigured(): boolean {
-  return Boolean(env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN);
-}
-
 function client(): Redis | null {
-  if (!isConfigured()) return null;
+  if (!env.UPSTASH_REDIS_REST_URL || !env.UPSTASH_REDIS_REST_TOKEN) return null;
   if (_redis) return _redis;
   _redis = new Redis({
     url: env.UPSTASH_REDIS_REST_URL!,
@@ -146,36 +143,51 @@ export async function rateLimitGenerate(input: RateLimitInput): Promise<RateLimi
     return { ok: true, retryAfter: 0, limit: Infinity, remaining: Infinity, tier: 'editor' };
   }
 
-  if (!isConfigured()) {
+  const configuration = redisRateLimitConfiguration({
+    nodeEnv: env.NODE_ENV,
+    redisUrl: env.UPSTASH_REDIS_REST_URL,
+    redisToken: env.UPSTASH_REDIS_REST_TOKEN,
+  });
+  if (configuration === 'unavailable') {
+    return { ok: false, retryAfter: 0, limit: 0, remaining: 0, tier: 'unavailable', unavailable: true };
+  }
+  if (configuration === 'disabled') {
     if (!_warnedDisabled) {
       console.warn(
-        '[rate-limit] UPSTASH_REDIS_REST_URL/TOKEN not set — rate limiting disabled. Set both env vars to enable.',
+        '[rate-limit] UPSTASH_REDIS_REST_URL/TOKEN not set — rate limiting disabled locally.',
       );
       _warnedDisabled = true;
     }
     return { ok: true, retryAfter: 0, limit: Infinity, remaining: Infinity, tier: 'disabled' };
   }
 
-  if (input.userId) {
-    const limiter = signedInLimiter();
-    if (!limiter) {
-      return { ok: true, retryAfter: 0, limit: Infinity, remaining: Infinity, tier: 'disabled' };
+  try {
+    if (input.userId) {
+      const limiter = signedInLimiter();
+      if (!limiter) {
+        return env.NODE_ENV === 'production'
+          ? { ok: false, retryAfter: 0, limit: 0, remaining: 0, tier: 'unavailable', unavailable: true }
+          : { ok: true, retryAfter: 0, limit: Infinity, remaining: Infinity, tier: 'disabled' };
+      }
+      const r = await limiter.limit(input.userId);
+      return {
+        ok: r.success,
+        retryAfter: r.success ? 0 : Math.max(0, Math.ceil((r.reset - Date.now()) / 1000)),
+        limit: r.limit,
+        remaining: r.remaining,
+        tier: 'signed-in',
+      };
     }
-    const r = await limiter.limit(input.userId);
-    return {
-      ok: r.success,
-      retryAfter: r.success ? 0 : Math.max(0, Math.ceil((r.reset - Date.now()) / 1000)),
-      limit: r.limit,
-      remaining: r.remaining,
-      tier: 'signed-in',
-    };
-  }
 
-  // Anonymous: enforce the hard per-IP ceiling FIRST (3/hour). This is the
-  // real abuse gate — the client can't reset it. slidingWindow.limit() is
-  // consuming, so only call it on the anonymous path.
-  const ipLimiter = anonIpLimiter();
-  if (ipLimiter) {
+    // Anonymous: enforce the hard per-IP ceiling FIRST (3/hour). This is the
+    // real abuse gate — the client can't reset it. slidingWindow.limit() is
+    // consuming, so only call it on the anonymous path.
+    const ipLimiter = anonIpLimiter();
+    if (!ipLimiter) {
+      return env.NODE_ENV === 'production'
+        ? { ok: false, retryAfter: 0, limit: 0, remaining: 0, tier: 'unavailable', unavailable: true }
+        : { ok: true, retryAfter: 0, limit: Infinity, remaining: Infinity, tier: 'disabled' };
+    }
     const r = await ipLimiter.limit(`ip:${getClientIp(input.req)}`);
     if (!r.success) {
       return {
@@ -186,13 +198,18 @@ export async function rateLimitGenerate(input: RateLimitInput): Promise<RateLimi
         tier: 'anonymous',
       };
     }
-  }
 
-  // One free generation per IP (UX nudge to sign in). Peek only — the route
-  // consumes it (markFreeGenerationUsed) after a job is actually created, so a
-  // 400/409 doesn't burn the free run.
-  const used = await hasUsedFreeGeneration(input.req);
-  return used
-    ? { ok: false, retryAfter: 0, limit: 1, remaining: 0, tier: 'anonymous' }
-    : { ok: true, retryAfter: 0, limit: 1, remaining: 1, tier: 'anonymous' };
+    // One free generation per IP (UX nudge to sign in). Peek only — the route
+    // consumes it (markFreeGenerationUsed) after a job is actually created, so a
+    // 400/409 doesn't burn the free run.
+    const used = await hasUsedFreeGeneration(input.req);
+    return used
+      ? { ok: false, retryAfter: 0, limit: 1, remaining: 0, tier: 'anonymous' }
+      : { ok: true, retryAfter: 0, limit: 1, remaining: 1, tier: 'anonymous' };
+  } catch (error) {
+    console.error('[rate-limit] limiter failed:', error);
+    return env.NODE_ENV === 'production'
+      ? { ok: false, retryAfter: 0, limit: 0, remaining: 0, tier: 'unavailable', unavailable: true }
+      : { ok: true, retryAfter: 0, limit: Infinity, remaining: Infinity, tier: 'disabled' };
+  }
 }
