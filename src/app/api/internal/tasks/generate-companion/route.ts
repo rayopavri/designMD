@@ -14,6 +14,7 @@ import { z } from 'zod';
 import { assertTaskAuth } from '@/lib/queue';
 import { runGenerateCompanion } from '@/lib/generator/generate-companion-task';
 import { perf } from '@/lib/generator/perf-log';
+import { safeGenerationErrorDetail } from '@/lib/auth/job-access';
 
 export const runtime = 'nodejs';
 // Vercel Pro plan: 300s standard / 800s Fluid cap (see TECH-STACK.md), pinned
@@ -29,19 +30,17 @@ export async function POST(req: NextRequest) {
   let rawPayload: unknown;
   try {
     rawPayload = await assertTaskAuth(req);
-  } catch (res) {
-    if (res instanceof Response) return res;
-    throw res;
+  } catch (err) {
+    if (err instanceof Response) return err;
+    console.error('[task:generate-companion] task authentication failed:', safeGenerationErrorDetail(err));
+    return NextResponse.json({ error: 'internal_worker_failed' }, { status: 500 });
   }
 
   let parsed: z.infer<typeof PayloadSchema>;
   try {
     parsed = PayloadSchema.parse(rawPayload);
-  } catch (err) {
-    return NextResponse.json(
-      { error: 'Invalid payload', details: err instanceof Error ? err.message : String(err) },
-      { status: 400 },
-    );
+  } catch {
+    return NextResponse.json({ error: 'invalid_payload' }, { status: 400 });
   }
 
   const t0 = Date.now();
@@ -51,10 +50,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   } catch (err) {
     perf('worker.companion', 'err', Date.now() - t0, { jobId: parsed.jobId });
-    console.error('[task:generate-companion] uncaught:', err);
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Unknown error' },
-      { status: 500 },
-    );
+    console.error('[task:generate-companion] uncaught:', safeGenerationErrorDetail(err));
+    return NextResponse.json({ error: 'internal_worker_failed' }, { status: 500 });
   }
 }

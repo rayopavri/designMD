@@ -26,6 +26,7 @@ import { bundles } from '@/lib/db/schema';
 import { isAutoCapturedScreenshot } from '@/lib/db/queries/bundles';
 import { scrapeScreenshot } from '@/lib/ai/firecrawl';
 import { captureAndStoreScreenshot } from '@/lib/storage/screenshots';
+import { safeGenerationErrorDetail } from '@/lib/auth/job-access';
 
 export const runtime = 'nodejs';
 export const maxDuration = 180;
@@ -45,19 +46,17 @@ export async function POST(req: NextRequest) {
   let rawPayload: unknown;
   try {
     rawPayload = await assertTaskAuth(req);
-  } catch (res) {
-    if (res instanceof Response) return res;
-    throw res;
+  } catch (err) {
+    if (err instanceof Response) return err;
+    console.error('[task:backfill-screenshot] task authentication failed:', safeGenerationErrorDetail(err));
+    return NextResponse.json({ error: 'internal_worker_failed' }, { status: 500 });
   }
 
   let parsed: z.infer<typeof PayloadSchema>;
   try {
     parsed = PayloadSchema.parse(rawPayload);
-  } catch (err) {
-    return NextResponse.json(
-      { error: 'Invalid payload', details: err instanceof Error ? err.message : String(err) },
-      { status: 400 },
-    );
+  } catch {
+    return NextResponse.json({ error: 'invalid_payload' }, { status: 400 });
   }
   const attempt = parsed.attempt ?? 1;
 
@@ -104,12 +103,15 @@ export async function POST(req: NextRequest) {
           { bundleId: bundle.id, attempt: attempt + 1, recapture },
           { delaySeconds },
         );
-      } catch (e) {
-        console.error('[backfill-screenshot] requeue failed:', e instanceof Error ? e.message : e);
+      } catch (err) {
+        console.error('[backfill-screenshot] requeue failed:', safeGenerationErrorDetail(err));
       }
       return NextResponse.json({ ok: true, stored: false, reason: 'rate-limited-requeued', attempt });
     }
-    console.error(`[backfill-screenshot] scrape failed (attempt ${attempt}):`, msg);
+    console.error(
+      `[backfill-screenshot] scrape failed (attempt ${attempt}):`,
+      safeGenerationErrorDetail(err),
+    );
     return NextResponse.json({ ok: true, stored: false, reason: 'scrape-failed' });
   }
 
@@ -134,7 +136,7 @@ export async function POST(req: NextRequest) {
       .set({ previewImageUrl: url })
       .where(and(eq(bundles.id, bundle.id), guard));
   } catch (err) {
-    console.error('[backfill-screenshot] update failed:', err instanceof Error ? err.message : err);
+    console.error('[backfill-screenshot] update failed:', safeGenerationErrorDetail(err));
     return NextResponse.json({ ok: true, stored: false, reason: 'update-failed' });
   }
 

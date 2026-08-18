@@ -135,4 +135,16 @@ describe('public generation job status', () => {
     assert.equal(detail, 'generation_error type=Error');
     assert.doesNotMatch(detail, /prompt|request|content|provider\.example|provider-token/i);
   });
+
+  it('does not retain an uppercase credential-shaped error code', () => {
+    const credentialShapedCode = 'AKIA_TEST_ACCESS_KEY_1234567890';
+    const error = Object.assign(new Error('provider request failed'), {
+      code: credentialShapedCode,
+    });
+
+    const detail = safeGenerationErrorDetail(error);
+
+    assert.equal(detail, 'generation_error type=Error');
+    assert.doesNotMatch(detail, new RegExp(credentialShapedCode));
+  });
 });

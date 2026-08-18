@@ -11,6 +11,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { assertTaskAuth } from '@/lib/queue';
 import { DISCOVERY_SOURCES, runDiscoverFetch } from '@/lib/discovery/run-fetch';
+import { safeGenerationErrorDetail } from '@/lib/auth/job-access';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -24,19 +25,17 @@ export async function POST(req: NextRequest) {
   let rawPayload: unknown;
   try {
     rawPayload = await assertTaskAuth(req);
-  } catch (res) {
-    if (res instanceof Response) return res;
-    throw res;
+  } catch (err) {
+    if (err instanceof Response) return err;
+    console.error('[task:discover-fetch] task authentication failed:', safeGenerationErrorDetail(err));
+    return NextResponse.json({ error: 'internal_worker_failed' }, { status: 500 });
   }
 
   let parsed: z.infer<typeof PayloadSchema>;
   try {
     parsed = PayloadSchema.parse(rawPayload);
-  } catch (err) {
-    return NextResponse.json(
-      { error: 'Invalid payload', details: err instanceof Error ? err.message : String(err) },
-      { status: 400 },
-    );
+  } catch {
+    return NextResponse.json({ error: 'invalid_payload' }, { status: 400 });
   }
 
   try {
@@ -46,8 +45,7 @@ export async function POST(req: NextRequest) {
     });
     return NextResponse.json({ ok: true, summary });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    console.error('[task:discover-fetch] uncaught:', message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error('[task:discover-fetch] uncaught:', safeGenerationErrorDetail(err));
+    return NextResponse.json({ error: 'internal_worker_failed' }, { status: 500 });
   }
 }

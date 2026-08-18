@@ -106,12 +106,5 @@ export function safeGenerationErrorDetail(error: unknown): string {
   if (!(error instanceof Error)) return 'generation_error type=non_error_throw';
 
   const type = DIAGNOSTIC_ERROR_TYPES.has(error.name) ? error.name : 'Error';
-  const code = getDiagnosticErrorCode(error);
-  return code ? `generation_error type=${type} code=${code}` : `generation_error type=${type}`;
-}
-
-function getDiagnosticErrorCode(error: Error): string | null {
-  const value = (error as Error & { code?: unknown }).code;
-  if (typeof value !== 'string') return null;
-  return /^[A-Z0-9][A-Z0-9_-]{0,63}$/.test(value) ? value : null;
+  return `generation_error type=${type}`;
 }

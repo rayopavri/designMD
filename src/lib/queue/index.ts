@@ -18,6 +18,7 @@
  */
 import { Client, Receiver } from '@upstash/qstash';
 import { env } from '@/lib/env';
+import { safeGenerationErrorDetail } from '@/lib/auth/job-access';
 
 export type TaskName =
   | 'scrape-and-extract'
@@ -86,8 +87,8 @@ export async function enqueueTask<P>(
       });
       return { inline: false };
     } catch (err) {
-      console.error(`[task:${name}] QStash publish failed:`, err);
-      throw err instanceof Error ? err : new Error(String(err));
+      console.error(`[task:${name}] QStash publish failed:`, safeGenerationErrorDetail(err));
+      throw new Error('Task dispatch failed');
     }
   }
 
@@ -116,15 +117,11 @@ async function runInline<P>(name: TaskName, payload: P, url: string): Promise<vo
   })
     .then(async (res) => {
       if (!res.ok) {
-        const text = await res.text().catch(() => '');
-        console.error(`[task:${name}] worker returned ${res.status}: ${text.slice(0, 500)}`);
+        console.error(`[task:${name}] worker returned non-success status: ${res.status}`);
       }
     })
     .catch((err: unknown) => {
-      console.error(
-        `[task:${name}] inline dispatch failed:`,
-        err instanceof Error ? err.message : err,
-      );
+      console.error(`[task:${name}] inline dispatch failed:`, safeGenerationErrorDetail(err));
     });
 }
 

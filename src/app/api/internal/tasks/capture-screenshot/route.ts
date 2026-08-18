@@ -18,6 +18,7 @@ import { assertTaskAuth } from '@/lib/queue';
 import { db } from '@/lib/db/client';
 import { bundles } from '@/lib/db/schema';
 import { captureAndStoreScreenshot } from '@/lib/storage/screenshots';
+import { safeGenerationErrorDetail } from '@/lib/auth/job-access';
 
 export const runtime = 'nodejs';
 // Lightweight: one image fetch + sharp transform + upload + one UPDATE.
@@ -33,19 +34,17 @@ export async function POST(req: NextRequest) {
   let rawPayload: unknown;
   try {
     rawPayload = await assertTaskAuth(req);
-  } catch (res) {
-    if (res instanceof Response) return res;
-    throw res;
+  } catch (err) {
+    if (err instanceof Response) return err;
+    console.error('[task:capture-screenshot] task authentication failed:', safeGenerationErrorDetail(err));
+    return NextResponse.json({ error: 'internal_worker_failed' }, { status: 500 });
   }
 
   let parsed: z.infer<typeof PayloadSchema>;
   try {
     parsed = PayloadSchema.parse(rawPayload);
-  } catch (err) {
-    return NextResponse.json(
-      { error: 'Invalid payload', details: err instanceof Error ? err.message : String(err) },
-      { status: 400 },
-    );
+  } catch {
+    return NextResponse.json({ error: 'invalid_payload' }, { status: 400 });
   }
 
   const url = await captureAndStoreScreenshot({
@@ -68,7 +67,7 @@ export async function POST(req: NextRequest) {
     // would trigger a QStash retry storm for a non-critical step. ACK and log.
     console.error(
       '[capture-screenshot] preview_image_url update failed:',
-      err instanceof Error ? err.message : err,
+      safeGenerationErrorDetail(err),
     );
     return NextResponse.json({ ok: true, stored: false });
   }

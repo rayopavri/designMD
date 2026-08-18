@@ -19,6 +19,7 @@
  */
 import { extractBrandNamesQuick, type QuickNameItem } from '@/lib/ai/gemini';
 import { safeFetchHtml } from '@/lib/security/safe-fetch';
+import { safeGenerationErrorDetail } from '@/lib/auth/job-access';
 
 const FETCH_TIMEOUT_MS = 4_000;
 const OVERALL_DEADLINE_MS = 38_000;
@@ -109,7 +110,10 @@ export async function prefetchBrandNames(
         if (trimmed) aiNameByUrl.set(url, trimmed);
       }
     } catch (err) {
-      console.warn('[prefetch-names] Gemini name extraction failed; using metadata fallback:', err);
+      console.warn(
+        '[prefetch-names] Gemini name extraction failed; using metadata fallback:',
+        safeGenerationErrorDetail(err),
+      );
     }
   }
 

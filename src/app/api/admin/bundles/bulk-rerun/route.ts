@@ -24,6 +24,7 @@ import { requireEditor } from '@/lib/auth/session';
 import { db } from '@/lib/db/client';
 import { bundles, generationJobs } from '@/lib/db/schema';
 import { enqueueTask } from '@/lib/queue';
+import { bulkRerunEnqueueFailureUpdate } from '@/lib/generator/bulk-rerun-failure';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -197,11 +198,7 @@ export async function POST(req: NextRequest) {
       await db
         .update(generationJobs)
         .set({
-          status: 'failed',
-          errorStep: 'enqueue',
-          errorMessage:
-            (err instanceof Error ? err.message : String(err)).slice(0, 1000) ||
-            'QStash enqueue failed',
+          ...bulkRerunEnqueueFailureUpdate(err),
           updatedAt: new Date(),
         })
         .where(eq(generationJobs.id, job.id));

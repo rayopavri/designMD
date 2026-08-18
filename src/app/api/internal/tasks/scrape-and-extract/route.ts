@@ -13,6 +13,7 @@ import { db } from '@/lib/db/client';
 import { generationJobs } from '@/lib/db/schema';
 import { dispatchReady } from '@/lib/generator/batch';
 import { perf } from '@/lib/generator/perf-log';
+import { safeGenerationErrorDetail } from '@/lib/auth/job-access';
 
 // This route makes outbound HTTP calls (Firecrawl, Gemini) and writes
 // to Postgres. It must run on the Node runtime, not edge.
@@ -41,19 +42,17 @@ export async function POST(req: NextRequest) {
   let rawPayload: unknown;
   try {
     rawPayload = await assertTaskAuth(req);
-  } catch (res) {
-    if (res instanceof Response) return res;
-    throw res;
+  } catch (err) {
+    if (err instanceof Response) return err;
+    console.error('[task:scrape-and-extract] task authentication failed:', safeGenerationErrorDetail(err));
+    return NextResponse.json({ error: 'internal_worker_failed' }, { status: 500 });
   }
 
   let parsed: z.infer<typeof PayloadSchema>;
   try {
     parsed = PayloadSchema.parse(rawPayload);
-  } catch (err) {
-    return NextResponse.json(
-      { error: 'Invalid payload', details: err instanceof Error ? err.message : String(err) },
-      { status: 400 },
-    );
+  } catch {
+    return NextResponse.json({ error: 'invalid_payload' }, { status: 400 });
   }
 
   let watchdogFired = false;
@@ -70,7 +69,7 @@ export async function POST(req: NextRequest) {
     perf('worker.scrape-and-extract', 'done', Date.now() - t0, { jobId: parsed.jobId });
     return NextResponse.json({ ok: true });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
+    const message = safeGenerationErrorDetail(err);
     perf('worker.scrape-and-extract', watchdogFired ? 'watchdog' : 'err', Date.now() - t0, {
       jobId: parsed.jobId,
     });
@@ -112,7 +111,10 @@ export async function POST(req: NextRequest) {
           ),
         ]);
       } catch (failErr) {
-        console.error('[task:scrape-and-extract] watchdog failJob failed:', failErr);
+        console.error(
+          '[task:scrape-and-extract] watchdog failJob failed:',
+          safeGenerationErrorDetail(failErr),
+        );
       }
       if (rows.length === 0) {
         console.warn(
@@ -127,11 +129,14 @@ export async function POST(req: NextRequest) {
             ),
           ]);
         } catch (dispErr) {
-          console.error('[task:scrape-and-extract] watchdog dispatchReady failed:', dispErr);
+          console.error(
+            '[task:scrape-and-extract] watchdog dispatchReady failed:',
+            safeGenerationErrorDetail(dispErr),
+          );
         }
       }
       // else: single-generate job (batchId null) — nothing to dispatch.
     }
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: 'internal_worker_failed' }, { status: 500 });
   }
 }
