@@ -31,6 +31,8 @@
 import { config } from 'dotenv';
 config({ path: '.env.local', override: true });
 
+import { safeDiagnosticErrorDetail } from '../src/lib/security/diagnostics';
+
 const WRITE = process.argv.includes('--write');
 const SLUG = process.argv.find((a) => a.startsWith('--slug='))?.slice('--slug='.length);
 const BATCH_ARG = process.argv.find((a) => a.startsWith('--batch='))?.slice('--batch='.length);
@@ -132,7 +134,7 @@ async function main() {
       console.log(`  ✓ ${b.slug}`);
     } catch (err) {
       failed += 1;
-      console.error(`  ✗ ${b.slug}: ${err instanceof Error ? err.message : err}`);
+      console.error(`  ✗ ${b.slug}: ${safeDiagnosticErrorDetail(err)}`);
     }
   });
 
@@ -143,6 +145,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error('✗ backfill failed:', err);
+  console.error(`✗ backfill failed: ${safeDiagnosticErrorDetail(err)}`);
   process.exit(1);
 });

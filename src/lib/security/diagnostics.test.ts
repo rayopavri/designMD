@@ -43,6 +43,14 @@ describe('diagnostic redaction', () => {
     assert.equal(safeDiagnosticUrl(unsafeUrl), 'invalid-url');
   });
 
+  it('removes Unicode format controls from generic fields and rejects them in URLs', () => {
+    assert.equal(
+      safePerfDiagnosticValue('reason', 'payload\u202eforged\u2066one\u200btwo\ufeffthree'),
+      'payload forged one two three',
+    );
+    assert.equal(safeDiagnosticUrl('https://example.test/path\u202eforged'), 'invalid-url');
+  });
+
   it('redacts historical persisted job errors before admin projection', () => {
     assert.equal(
       safePersistedGenerationErrorDetail('generation_error type=TimeoutError'),

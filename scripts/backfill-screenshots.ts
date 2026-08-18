@@ -20,6 +20,7 @@ config({ path: '.env.local' });
 
 import postgres from 'postgres';
 import { scrapeUrl } from '../src/lib/ai/firecrawl';
+import { safeDiagnosticErrorDetail, safeDiagnosticUrl } from '../src/lib/security/diagnostics';
 import { captureAndStoreScreenshot } from '../src/lib/storage/screenshots';
 
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -53,7 +54,7 @@ async function main() {
         try {
           const scrape = await scrapeUrl(source_url);
           if (!scrape.screenshotUrl) {
-            console.warn(`  – ${id}: no screenshot from ${source_url}`);
+            console.warn(`  – ${id}: no screenshot from ${safeDiagnosticUrl(source_url)}`);
             failed++;
             continue;
           }
@@ -65,10 +66,10 @@ async function main() {
           }
           await sql`UPDATE bundles SET preview_image_url = ${url} WHERE id = ${id}`;
           stored++;
-          console.log(`  ✓ ${id} → ${url}`);
+          console.log(`  ✓ ${id} → ${safeDiagnosticUrl(url)}`);
         } catch (err) {
           failed++;
-          console.error(`  ✗ ${id}: ${err instanceof Error ? err.message : String(err)}`);
+          console.error(`  ✗ ${id}: ${safeDiagnosticErrorDetail(err)}`);
         }
       }
     }
@@ -81,6 +82,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error('\n✗ backfill failed:', err.message ?? err);
+  console.error(`\n✗ backfill failed: ${safeDiagnosticErrorDetail(err)}`);
   process.exit(1);
 });

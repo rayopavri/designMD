@@ -21,6 +21,8 @@ const diagnosticSinkFiles = [
   'src/lib/discovery/guardrail.ts',
   'src/lib/discovery/run-fetch.ts',
   'src/lib/ui-data/mockAuth.ts',
+  'scripts/backfill-screenshots.ts',
+  'scripts/backfill-companion-prompts.ts',
 ];
 
 const persistedJobProjectionFiles = [
@@ -46,6 +48,31 @@ describe('diagnostic sink policy', () => {
         assert.doesNotMatch(source, pattern, `${file} contains an unredacted diagnostic sink`);
       }
     }
+  });
+
+  it('uses the diagnostic boundary in operational backfill scripts', async () => {
+    for (const file of ['scripts/backfill-screenshots.ts', 'scripts/backfill-companion-prompts.ts']) {
+      const source = await readFile(path.join(process.cwd(), file), 'utf8');
+      assert.match(source, /safeDiagnosticErrorDetail\(err\)/, `${file} must redact provider errors`);
+      assert.doesNotMatch(
+        source,
+        /err instanceof Error \? err\.message : (?:String\(err\)|err)/,
+        `${file} must not interpolate a provider error`,
+      );
+      assert.doesNotMatch(source, /console\.error\([^\n]*,\s*err\)/, `${file} must not log raw errors`);
+    }
+
+    const screenshotSource = await readFile(
+      path.join(process.cwd(), 'scripts/backfill-screenshots.ts'),
+      'utf8',
+    );
+    assert.match(screenshotSource, /safeDiagnosticUrl\(source_url\)/);
+    assert.match(screenshotSource, /safeDiagnosticUrl\(url\)/);
+    assert.doesNotMatch(
+      screenshotSource,
+      /console\.(?:warn|log)\([^\n]*\$\{(?:source_url|url)\}/,
+      'screenshot diagnostics must not print raw URLs',
+    );
   });
 
   it('redacts legacy persisted generation errors at every admin projection', async () => {
