@@ -44,7 +44,7 @@ Only Vercel is on a paid tier (Pro, for the raised function limits); everything 
 - Icon set. Used throughout the admin + library + home UI.
 
 ### Drizzle ORM
-- Type-safe SQL. Schema lives at `src/lib/db/schema.ts` — 15 tables, 7 enums, 9 triggers.
+- Type-safe SQL. Schema lives at `src/lib/db/schema.ts` — 16 tables, 7 enums, 9 triggers.
 - Driver: `postgres-js` against the Supabase transaction pooler (port 6543). `src/lib/db/client.ts` sets `prepare: false` automatically when the URL contains `:6543` because PgBouncer transaction mode forbids prepared statements. SSL is required even in local dev (only skipped for `localhost`/`127.0.0.1`).
 - `@neondatabase/serverless` is no longer used in the runtime; it may still appear in `package.json` until cleaned up.
 
@@ -91,7 +91,7 @@ Only Vercel is on a paid tier (Pro, for the raised function limits); everything 
   Vercel uses this repository-controlled engine range to override the project's
   dashboard default; Vercel manages compatible minor and patch updates.
 - **Constraints driving architecture:**
-  - Function timeout: Pro allows 300s (standard) / 800s (Fluid Compute). Each pipeline worker pins `maxDuration = 180s` with a 174s in-process watchdog. The 3-worker split (`scrape-and-extract` → `author-design-md` → `generate-companion`) predates the Pro upgrade — kept for parallelism (author + companion run concurrently) and per-stage retry isolation, not the old 60s cap.
+  - Function timeout: Pro allows 300s (standard) / 800s (Fluid Compute). The scrape-and-extract and author-design-md workers each pin `maxDuration = 300s` with a 290s watchdog; the companion worker pins 180s. The 3-worker split predates the Pro upgrade — scrape dispatches authoring and companion work in parallel for latency and retry isolation, not the old 60s cap.
   - Cron jobs limited to once-per-day (tightened ~2026-05-21). Triggered the migration to GitHub Actions cron.
 - **GitHub auto-deploy** — pushes to `main` trigger production builds automatically. If the webhook stops firing, the fallback is `pnpm dlx vercel --prod` from the local checkout (linked project lives at `~/.vercel/`).
 
@@ -101,7 +101,7 @@ Only Vercel is on a paid tier (Pro, for the raised function limits); everything 
 - **Connection path used everywhere:** transaction pooler at `aws-1-us-east-1.pooler.supabase.com:6543`, username `postgres.ppvqdkvpyuntbncdhwtm`. Direct host (`db.<ref>.supabase.co:5432`) is IPv6-only on the Free tier and unreachable from most non-IPv6 networks — do not use it for the runtime.
 - **PgBouncer transaction mode** is the only mode that fits the pooler URL. It forbids prepared statements, so `src/lib/db/client.ts` disables them whenever the URL contains `:6543`. Don't remove that toggle.
 - **Autosuspend:** Supabase Free pauses only after **7 days of zero activity**, not minutes. The 5-min GitHub Actions tick keeps activity flowing as a side effect; the cron's main job is now the stuck-`generation_jobs` watchdog.
-- 15 tables, 9 triggers (vote counting, slug uniqueness, accessibility check). All preserved across the migration.
+- 16 tables, 9 triggers (vote counting, slug uniqueness, accessibility check). All preserved across the migration.
 - Migrations going forward: still `pnpm tsx scripts/migrate-*.ts`, just hitting `DATABASE_URL` (Supabase pooler) instead of Neon.
 - **Network constraint:** Deloitte corporate WiFi blocks outbound 5432/6543. Direct `psql`/`pg_dump` from the work Mac on Deloitte network will time out. Tether to a phone hotspot for any direct DB ops. The Vercel-hosted app is unaffected.
 - Old Neon project (`ep-patient-mode-aqtwblo0.c-8.us-east-1.aws.neon.tech`) is no longer used by any code and can be deleted.
@@ -109,8 +109,8 @@ Only Vercel is on a paid tier (Pro, for the raised function limits); everything 
 ### Upstash QStash (Free tier)
 - Durable HTTP task queue. Replaces a previous `void fetch()` fire-and-forget pattern that lost ~1 in N companion jobs.
 - **Signs every webhook delivery**; workers verify via `assertQStashSignature`. Local dev (`INLINE_TASKS=true`) bypasses signing with a shared token.
-- When `QSTASH_TOKEN` is configured, both `QSTASH_CURRENT_SIGNING_KEY` and `QSTASH_NEXT_SIGNING_KEY` are required. Production must not rely on the local internal-token fallback.
-- Chains the 3 workers: `scrape-and-extract` enqueues `author-design-md`, which enqueues `generate-companion`.
+- `QSTASH_TOKEN`, `QSTASH_CURRENT_SIGNING_KEY`, and `QSTASH_NEXT_SIGNING_KEY` are required in production. `INLINE_TASKS` is local/test-only and production workers accept only verified QStash signatures.
+- `scrape-and-extract` dispatches `author-design-md` and `generate-companion` in parallel after persisting the shared phase payload.
 
 ### Upstash Redis (Free tier)
 - Sliding-window rate limit on `/api/generate` via `@upstash/ratelimit`.

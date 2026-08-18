@@ -4,6 +4,12 @@
  */
 import { z } from 'zod';
 
+const envBoolean = z.preprocess((value) => {
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  return value;
+}, z.boolean());
+
 const EnvSchema = z.object({
   // Database
   DATABASE_URL: z.string().url(),
@@ -49,7 +55,8 @@ const EnvSchema = z.object({
   UPSTASH_REDIS_REST_URL: z.string().url().optional(),
   UPSTASH_REDIS_REST_TOKEN: z.string().min(1).optional(),
 
-  // QStash (durable task queue — replaces fragile fire-and-forget on Vercel)
+  // QStash (durable task queue — required in production; replaces fragile
+  // fire-and-forget dispatch on Vercel).
   QSTASH_TOKEN: z.string().min(1).optional(),
   QSTASH_CURRENT_SIGNING_KEY: z.string().min(1).optional(),
   QSTASH_NEXT_SIGNING_KEY: z.string().min(1).optional(),
@@ -70,8 +77,9 @@ const EnvSchema = z.object({
   // Safe Browsing
   GOOGLE_SAFE_BROWSING_API_KEY: z.string().min(1).optional(),
 
-  // Cloud Tasks (skip for local dev)
-  INLINE_TASKS: z.coerce.boolean().default(true),
+  // Local/test-only worker dispatch. Production always uses signed QStash
+  // delivery, so opt-in is required outside those environments as well.
+  INLINE_TASKS: envBoolean.default(false),
   // Feature flags
   FIRECRAWL_EXTRACT_ENABLED: z.coerce.boolean().default(false),
   INTERNAL_TASK_TOKEN: z.string().min(16).optional(),
@@ -118,19 +126,36 @@ const EnvSchema = z.object({
     });
   }
 
-  if (value.QSTASH_TOKEN && !value.QSTASH_CURRENT_SIGNING_KEY) {
+  const qstashRequired = value.NODE_ENV === 'production' || Boolean(value.QSTASH_TOKEN);
+  if (qstashRequired && !value.QSTASH_TOKEN) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      path: ['QSTASH_CURRENT_SIGNING_KEY'],
-      message: 'QSTASH_CURRENT_SIGNING_KEY is required when QSTASH_TOKEN is configured.',
+      path: ['QSTASH_TOKEN'],
+      message: 'QSTASH_TOKEN is required in production.',
     });
   }
 
-  if (value.QSTASH_TOKEN && !value.QSTASH_NEXT_SIGNING_KEY) {
+  if (qstashRequired && !value.QSTASH_CURRENT_SIGNING_KEY) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['QSTASH_CURRENT_SIGNING_KEY'],
+      message: 'QSTASH_CURRENT_SIGNING_KEY is required when QSTASH_TOKEN is configured and in production.',
+    });
+  }
+
+  if (qstashRequired && !value.QSTASH_NEXT_SIGNING_KEY) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['QSTASH_NEXT_SIGNING_KEY'],
-      message: 'QSTASH_NEXT_SIGNING_KEY is required when QSTASH_TOKEN is configured.',
+      message: 'QSTASH_NEXT_SIGNING_KEY is required when QSTASH_TOKEN is configured and in production.',
+    });
+  }
+
+  if (value.NODE_ENV === 'production' && value.INLINE_TASKS) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['INLINE_TASKS'],
+      message: 'INLINE_TASKS must be false in production.',
     });
   }
 });

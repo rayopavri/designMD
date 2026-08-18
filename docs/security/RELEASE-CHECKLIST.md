@@ -25,6 +25,7 @@ in the release record.
 - [ ] `/login` and `/auth/callback` reject protocol-relative `returnTo` values such as `//attacker.example`.
 - [ ] `/api/generate/[id]` returns 404 for another signed-in user's job and for a mismatched anonymous-token job.
 - [ ] Production email-link and generation limits are active: Redis credentials and `RATE_LIMIT_SECRET` are set, and an unavailable limiter returns controlled 503 rather than permitting the request.
+- [ ] Production QStash configuration is present: `QSTASH_TOKEN`, `QSTASH_CURRENT_SIGNING_KEY`, and `QSTASH_NEXT_SIGNING_KEY` are set, `INLINE_TASKS=false`, and an internal worker token cannot authorize a production worker request.
 - [ ] Verify `CRON_SECRET` matches between Vercel and GitHub Actions without exposing its value; rotate it and any other exposed credential before release.
 
 ## CSP browser release gate — currently blocked

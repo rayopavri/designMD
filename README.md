@@ -83,12 +83,13 @@ variables needed for the features you run locally:
 Set `INLINE_TASKS=true` in `.env.local` to run the generation pipeline synchronously (bypasses QStash for local dev).
 
 Production has stricter requirements: `CRON_SECRET`, both Upstash Redis
-variables, and `RATE_LIMIT_SECRET` are mandatory; QStash signing keys are
-mandatory whenever `QSTASH_TOKEN` is set. Firebase Admin credentials are needed
-for server-side session verification. Rate limiting intentionally fails closed
-in production rather than allowing unmetered requests. Keep all server secrets
-out of `NEXT_PUBLIC_*` variables. See [SECURITY.md](./SECURITY.md) for the
-complete configuration and rotation process.
+variables, `RATE_LIMIT_SECRET`, `QSTASH_TOKEN`, and both QStash signing keys
+are mandatory. `INLINE_TASKS` must be false: production workers accept only
+verified QStash signatures. Firebase Admin credentials are needed for
+server-side session verification. Rate limiting intentionally fails closed in
+production rather than allowing unmetered requests. Keep all server secrets out
+of `NEXT_PUBLIC_*` variables. See [SECURITY.md](./SECURITY.md) for the complete
+configuration and rotation process.
 
 ```bash
 pnpm db:migrate      # apply migrations
@@ -150,7 +151,11 @@ Bundle generation runs as a 3-worker chain over QStash:
 2. **`author-design-md`** — Claude Sonnet writes the canonical DESIGN.md; output is linted with `@google/design.md`.
 3. **`generate-companion`** — Claude writes the companion system prompt calibrated for use alongside the spec.
 
-Each worker enqueues the next on success. A GitHub Actions watchdog (runs every 5 min) marks any job stuck in `queued` or `running` for more than 5 minutes as `failed`.
+After `scrape-and-extract` persists the draft and phase payload, it dispatches
+`author-design-md` and `generate-companion` in parallel. Both hydrate their
+inputs from the durable job state. A GitHub Actions watchdog (runs every 5 min)
+marks any job stuck in `queued` or `running` for more than 5 minutes as
+`failed`.
 
 ---
 

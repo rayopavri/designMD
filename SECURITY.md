@@ -62,7 +62,7 @@ exposed, say so in the first line so its rotation can start immediately.
 | --- | --- | --- |
 | Firebase Auth | Browser sign-in uses Firebase; server sessions verify Firebase ID tokens with the Admin SDK. Account-link conflicts require an explicit linking flow. | `FIREBASE_ADMIN_CREDENTIALS_B64` is server-only. Never expose it or any service-account JSON to the browser. |
 | Supabase Postgres and Storage | Drizzle connects as the table owner; RLS is enabled deny-by-default on application tables. The transaction pooler requires prepared statements to stay disabled. | Keep `DATABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` server-only. The service-role key bypasses RLS and is only for server storage operations. |
-| Upstash QStash | Worker deliveries are signature-verified. The internal-token fallback is limited to non-production development. | When `QSTASH_TOKEN` is set, both `QSTASH_CURRENT_SIGNING_KEY` and `QSTASH_NEXT_SIGNING_KEY` are required. |
+| Upstash QStash | Production worker deliveries are signature-verified; the internal-token and inline-dispatch fallbacks are limited to development/test. | `QSTASH_TOKEN`, `QSTASH_CURRENT_SIGNING_KEY`, and `QSTASH_NEXT_SIGNING_KEY` are required in production. |
 | Upstash Redis | Redis enforces generation and magic-link abuse limits. | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, and `RATE_LIMIT_SECRET` are required in production; do not allow a production fail-open fallback. |
 | Production cron routes | `/api/cron/warm-db` and `/api/cron/supervise-batches` require `Authorization: Bearer <CRON_SECRET>`. Missing or invalid credentials return 401; a production configuration failure returns a non-sensitive error. | Configure the identical `CRON_SECRET` in Vercel and GitHub Actions. GitHub workflows stop before making a request when it is absent. |
 
@@ -80,8 +80,9 @@ GitHub Actions secret where noted), never in source or `NEXT_PUBLIC_*` variables
 | `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | Required in production for rate limiting. |
 | `RATE_LIMIT_SECRET` | Required in production; HMAC key for non-reversible email limit keys; at least 32 characters. |
 | `FIREBASE_ADMIN_CREDENTIALS_B64` | Required for production server-side Firebase session verification and magic-link administration. |
-| `QSTASH_TOKEN` | Required when production workers use QStash. |
-| `QSTASH_CURRENT_SIGNING_KEY` / `QSTASH_NEXT_SIGNING_KEY` | Required whenever `QSTASH_TOKEN` is configured. |
+| `QSTASH_TOKEN` | Required in production for durable worker dispatch. |
+| `QSTASH_CURRENT_SIGNING_KEY` / `QSTASH_NEXT_SIGNING_KEY` | Required in production and whenever `QSTASH_TOKEN` is configured. |
+| `INLINE_TASKS` | Must be `false` in production. It is an explicit development/test-only local dispatch mode. |
 | Firebase `NEXT_PUBLIC_*` configuration | Required for browser Firebase sign-in; these values are public identifiers, not secrets. |
 
 Provider API keys and optional storage credentials must also be set for each

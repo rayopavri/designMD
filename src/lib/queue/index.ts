@@ -32,6 +32,11 @@ export interface EnqueueResult {
   inline: boolean;
 }
 
+/** Inline worker dispatch is a local/test convenience, never a production path. */
+export function canUseInlineDispatch(nodeEnv: string, inlineTasks: boolean): boolean {
+  return nodeEnv !== 'production' && inlineTasks;
+}
+
 let qstashClient: Client | null = null;
 function getQStash(): Client | null {
   if (!env.QSTASH_TOKEN) return null;
@@ -92,14 +97,20 @@ export async function enqueueTask<P>(
     }
   }
 
-  if (env.INLINE_TASKS) {
+  if (canUseInlineDispatch(env.NODE_ENV, env.INLINE_TASKS)) {
     // Inline (dev) dispatch ignores delay — workers fire immediately.
     await runInline(name, payload, workerUrl);
     return { inline: true };
   }
 
+  if (env.NODE_ENV === 'production') {
+    // env.ts rejects this at startup. Keep the runtime guard for alternate
+    // deployments that bypass validation, and do not disclose configuration.
+    throw new Error('Task queue configuration unavailable');
+  }
+
   throw new Error(
-    'No task dispatch configured. Set QSTASH_TOKEN (prod) or INLINE_TASKS=true (dev).',
+    'No task dispatch configured. Set QSTASH_TOKEN or INLINE_TASKS=true outside production.',
   );
 }
 
@@ -141,7 +152,13 @@ export async function assertQStashSignature(req: Request): Promise<string> {
     });
   }
   const body = await req.text();
-  const isValid = await receiver.verify({ signature, body });
+  let isValid = false;
+  try {
+    isValid = await receiver.verify({ signature, body });
+  } catch {
+    // Malformed signatures are unauthenticated requests, not internal errors.
+    isValid = false;
+  }
   if (!isValid) {
     throw new Response(JSON.stringify({ error: 'Invalid QStash signature' }), {
       status: 401,
@@ -152,6 +169,13 @@ export async function assertQStashSignature(req: Request): Promise<string> {
 }
 
 export function assertInternalTaskAuth(req: Request): void {
+  if (env.NODE_ENV === 'production') {
+    throw new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { 'content-type': 'application/json' },
+    });
+  }
+
   if (!env.INTERNAL_TASK_TOKEN) {
     throw new Response(JSON.stringify({ error: 'Internal token not configured' }), {
       status: 500,
@@ -174,6 +198,11 @@ export function assertInternalTaskAuth(req: Request): void {
  * value rather than calling req.json() again.
  */
 export async function assertTaskAuth<T = unknown>(req: Request): Promise<T> {
+  if (env.NODE_ENV === 'production') {
+    const body = await assertQStashSignature(req);
+    return JSON.parse(body) as T;
+  }
+
   if (req.headers.get('upstash-signature')) {
     const body = await assertQStashSignature(req);
     return JSON.parse(body) as T;
