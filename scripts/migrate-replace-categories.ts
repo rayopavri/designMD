@@ -13,13 +13,15 @@
 import { config } from 'dotenv';
 config({ path: '.env.local' });
 
-import { neon } from '@neondatabase/serverless';
+import postgres from 'postgres';
 
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) {
   console.error('✗ DATABASE_URL not set');
   process.exit(1);
 }
+
+const sql = postgres(DATABASE_URL, { prepare: !DATABASE_URL.includes(':6543') });
 
 const NEW_CATEGORIES: { slug: string; name: string }[] = [
   { slug: 'productivity-saas', name: 'Productivity & SaaS' },
@@ -34,8 +36,6 @@ const NEW_CATEGORIES: { slug: string; name: string }[] = [
 ];
 
 async function main() {
-  const sql = neon(DATABASE_URL!);
-
   console.log('→ Nullifying bundle FK references...');
   await sql`UPDATE bundles SET primary_category_id = NULL, secondary_category_id = NULL`;
   console.log('  ✓ FK refs cleared');

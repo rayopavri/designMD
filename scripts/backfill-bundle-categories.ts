@@ -11,13 +11,15 @@
 import { config } from 'dotenv';
 config({ path: '.env.local' });
 
-import { neon } from '@neondatabase/serverless';
+import postgres from 'postgres';
 
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) {
   console.error('✗ DATABASE_URL not set');
   process.exit(1);
 }
+
+const sql = postgres(DATABASE_URL, { prepare: !DATABASE_URL.includes(':6543') });
 
 const BUNDLE_OVERRIDES: Record<string, string> = {
   linear: 'developer-tools-ides',
@@ -48,8 +50,6 @@ const BUNDLE_OVERRIDES: Record<string, string> = {
 };
 
 async function main() {
-  const sql = neon(DATABASE_URL!);
-
   console.log('→ Resolving category slugs to IDs...');
   const catRows = (await sql`SELECT id, slug FROM categories`) as Array<{
     id: string;

@@ -207,9 +207,6 @@ importers:
       '@eslint/eslintrc':
         specifier: ^3.3.5
         version: 3.3.5
-      '@neondatabase/serverless':
-        specifier: ^1.1.0
-        version: 1.1.0
       '@tailwindcss/postcss':
         specifier: ^4.0.0
         version: 4.3.0
@@ -6203,7 +6200,8 @@ snapshots:
       '@tybys/wasm-util': 0.10.2
     optional: true
 
-  '@neondatabase/serverless@1.1.0': {}
+  '@neondatabase/serverless@1.1.0':
+    optional: true
 
   '@next/env@15.5.23': {}
 

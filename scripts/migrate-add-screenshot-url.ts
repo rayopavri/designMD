@@ -4,14 +4,14 @@
  * uploads it to Vercel Blob; the resulting URL is persisted here so
  * the public home gallery can render real website thumbnails.
  *
- * Uses @neondatabase/serverless (HTTP) for local execution since direct
- * TCP to Neon stateless-compute endpoints is unreliable from some
- * networks. Production app code keeps using postgres-js as before.
+ * Uses postgres-js against the DATABASE_URL from .env.local. Prepared
+ * statements are disabled when the URL points to the Supabase transaction
+ * pooler (port 6543).
  */
 import { config } from 'dotenv';
 config({ path: '.env.local' });
 
-import { neon } from '@neondatabase/serverless';
+import postgres from 'postgres';
 
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) {
@@ -19,9 +19,9 @@ if (!DATABASE_URL) {
   process.exit(1);
 }
 
-async function main() {
-  const sql = neon(DATABASE_URL!);
+const sql = postgres(DATABASE_URL, { prepare: !DATABASE_URL.includes(':6543') });
 
+async function main() {
   console.log('→ Adding bundles.screenshot_url...');
   await sql`
     ALTER TABLE bundles

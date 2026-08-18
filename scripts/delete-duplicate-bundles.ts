@@ -15,13 +15,15 @@
 import { config } from 'dotenv';
 config({ path: '.env.local' });
 
-import { neon } from '@neondatabase/serverless';
+import postgres from 'postgres';
 
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) {
   console.error('✗ DATABASE_URL not set');
   process.exit(1);
 }
+
+const sql = postgres(DATABASE_URL, { prepare: !DATABASE_URL.includes(':6543') });
 
 const DUPLICATE_SLUGS = [
   'linear-2',
@@ -39,8 +41,6 @@ const DUPLICATE_SLUGS = [
 ];
 
 async function main() {
-  const sql = neon(DATABASE_URL!);
-
   console.log(`→ Deleting ${DUPLICATE_SLUGS.length} duplicate bundles...`);
   let deleted = 0;
   let missing = 0;
