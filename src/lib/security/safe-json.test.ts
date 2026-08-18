@@ -6,6 +6,7 @@ describe('serializeJsonForHtml', () => {
   it('escapes HTML-breaking characters', () => {
     const output = serializeJsonForHtml({ value: '</script><script>alert(1)</script>' });
 
+    assert.ok(output);
     assert.doesNotMatch(output, /<\/script>/i);
     assert.ok(output.includes('\\u003c/script\\u003e'));
   });
@@ -13,12 +14,14 @@ describe('serializeJsonForHtml', () => {
   it('escapes ampersands and JavaScript line separators', () => {
     const output = serializeJsonForHtml({ value: '&\u2028\u2029' });
 
+    assert.ok(output);
     assert.equal(output, '{"value":"\\u0026\\u2028\\u2029"}');
   });
 
   it('escapes nested values without changing their structure', () => {
     const output = serializeJsonForHtml({ nested: { values: ['<', '&', '>'] } });
 
+    assert.ok(output);
     assert.equal(output, '{"nested":{"values":["\\u003c","\\u0026","\\u003e"]}}');
   });
 

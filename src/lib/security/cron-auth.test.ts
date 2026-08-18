@@ -30,6 +30,24 @@ describe('isCronAuthorized', () => {
     );
   });
 
+  it('accepts a valid internal token when a configured bearer secret is wrong', () => {
+    assert.equal(
+      isCronAuthorized(
+        makeRequest({
+          authorization: 'Bearer wrong-secret',
+          'x-internal-task-token': 'internal-token',
+        }),
+        {
+          cronSecret: 'cron-secret',
+          internalTaskToken: 'internal-token',
+          allowInternalDevFallback: true,
+          nodeEnv: 'development',
+        },
+      ),
+      true,
+    );
+  });
+
   it('rejects production requests when the cron secret is missing', () => {
     assert.equal(
       isCronAuthorized(makeRequest({ 'x-internal-task-token': 'internal-token' }), {

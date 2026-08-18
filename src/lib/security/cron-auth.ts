@@ -21,8 +21,11 @@ function secretsMatch(actual: string | null, expected: string | undefined): bool
 }
 
 export function isCronAuthorized(req: Request, options: CronAuthOptions): boolean {
-  if (options.cronSecret) {
-    return secretsMatch(req.headers.get('authorization'), `Bearer ${options.cronSecret}`);
+  if (
+    options.cronSecret &&
+    secretsMatch(req.headers.get('authorization'), `Bearer ${options.cronSecret}`)
+  ) {
+    return true;
   }
 
   if (

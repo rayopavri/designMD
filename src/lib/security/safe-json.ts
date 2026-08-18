@@ -1,9 +1,9 @@
 /** Serialize JSON for an HTML script element without allowing markup breaks. */
-export function serializeJsonForHtml(value: unknown): string {
+export function serializeJsonForHtml(value: unknown): string | undefined {
   const serialized = JSON.stringify(value);
 
   if (serialized === undefined) {
-    return serialized as unknown as string;
+    return serialized;
   }
 
   return serialized
