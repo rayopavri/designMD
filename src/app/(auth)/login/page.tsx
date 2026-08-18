@@ -1,22 +1,21 @@
 "use client";
 
 import { Suspense, useEffect, useMemo } from "react";
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AuthCard } from "@/components/ui/AuthCard";
 import { postAuthDestination, useAuth } from "@/lib/ui-data/mockAuth";
 import { BG, BORDER_SOFT, INK, MONO, MUTED, SUB, SURFACE, VIOLET, LIME, PEACH, CYAN } from "@/lib/ui-data/tokens";
 
 function Login() {
-  const _router = useRouter();
-  const navigate = (path: string) => _router.push(path);
+  const router = useRouter();
   const search = useSearchParams().toString();
   const returnTo = useMemo(() => new URLSearchParams(search).get("returnTo") ?? "/", [search]);
   const { user } = useAuth();
 
   // If already signed in, bounce straight to the destination.
   useEffect(() => {
-    if (user) navigate(postAuthDestination(returnTo));
-  }, [user, navigate, returnTo]);
+    if (user) router.push(postAuthDestination(returnTo));
+  }, [user, router, returnTo]);
 
   const paletteSwatches = [VIOLET, LIME, PEACH, CYAN, "#E89B9F"];
 

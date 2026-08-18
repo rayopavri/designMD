@@ -107,7 +107,8 @@ export async function runGenerateCompanion(payload: GenerateCompanionPayload): P
   }
 }
 
-async function markFailed(bundleId: string, _reason: string): Promise<void> {
+async function markFailed(bundleId: string, reason: string): Promise<void> {
+  console.error(`[generate-companion] marking ${bundleId} failed:`, reason);
   await db
     .update(bundles)
     .set({ companionStatus: 'failed', updatedAt: new Date() })

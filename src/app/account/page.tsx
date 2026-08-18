@@ -7,13 +7,12 @@ import { useAuth } from "@/lib/ui-data/mockAuth";
 
 function Account() {
   const { user } = useAuth();
-  const _router = useRouter();
+  const router = useRouter();
   const location = usePathname();
-  const navigate = (path: string) => _router.push(path);
 
   useEffect(() => {
-    if (!user) navigate(`/login?returnTo=${encodeURIComponent(location || "/account")}`);
-  }, [user, navigate, location]);
+    if (!user) router.push(`/login?returnTo=${encodeURIComponent(location || "/account")}`);
+  }, [user, router, location]);
 
   if (!user) return null;
 

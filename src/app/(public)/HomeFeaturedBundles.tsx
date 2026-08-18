@@ -12,7 +12,6 @@ import {
   MUTED,
   SUB,
   SURFACE_2,
-  VIOLET,
 } from '@/lib/ui-data/tokens';
 import { useBundleItems } from '@/hooks/useBundleItems';
 import { ItemCard } from '@/components/ui/ItemCard';

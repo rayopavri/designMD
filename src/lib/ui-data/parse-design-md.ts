@@ -70,7 +70,7 @@ function doParse(raw: string): ParsedTokens {
 
   // ── New YAML format: has `colors:` as an object with hex string values ─────
   if (fm.colors && typeof fm.colors === 'object' && !Array.isArray(fm.colors)) {
-    return parseNewFormat(fm, raw);
+    return parseNewFormat(fm);
   }
 
   // ── Old markdown format: tokens live in # TOKEN VALUES sections ─────────────
@@ -79,7 +79,7 @@ function doParse(raw: string): ParsedTokens {
 
 // ─── New YAML format ──────────────────────────────────────────────────────────
 
-function parseNewFormat(fm: Record<string, unknown>, _raw: string): ParsedTokens {
+function parseNewFormat(fm: Record<string, unknown>): ParsedTokens {
   const colorMap: Record<string, string> = {};
   const colors: ParsedColor[] = [];
   const colorsObj = fm.colors as Record<string, unknown>;

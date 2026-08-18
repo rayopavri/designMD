@@ -196,15 +196,13 @@ export const listCategoriesWithPublishedCounts = cache(
 // Mirrors listPublishedBundles but does NOT clamp to status='published'.
 // Editors use this to see every bundle across all lifecycle states.
 
-const ADMIN_STATUSES = [
-  'personal',
-  'pending_review',
-  'published',
-  'flagged',
-  'rejected',
-  'archived',
-] as const;
-type AdminStatus = (typeof ADMIN_STATUSES)[number];
+type AdminStatus =
+  | 'personal'
+  | 'pending_review'
+  | 'published'
+  | 'flagged'
+  | 'rejected'
+  | 'archived';
 
 export interface AdminBundleListFilters extends BundleListFilters {
   /** When omitted, all statuses are returned. */

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { ArrowUpRight, Search } from "lucide-react";
 import { SectionLabel } from "@/components/ui/Shell";
 import { BORDER, INK, MONO, MUTED, SUB, SURFACE, VIOLET } from "@/lib/ui-data/tokens";

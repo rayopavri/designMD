@@ -4,13 +4,13 @@
  * Returns every bundle the authenticated user has saved as a favorite,
  * ordered by most-recently-saved first. Used by /account/favorites.
  */
-import { NextResponse, type NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/session';
 import { listUserFavorites } from '@/lib/db/queries/favorites';
 
 export const runtime = 'nodejs';
 
-export async function GET(_req: NextRequest) {
+export async function GET() {
   let user;
   try {
     user = await requireAuth();

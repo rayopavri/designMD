@@ -1,9 +1,11 @@
 name: warm-db
-# Hits /api/cron/warm-db every 5 minutes to keep Neon from autosuspending.
-# Replaces the Vercel cron we had to drop (Hobby plan now caps cron jobs at
-# once per day). GitHub Actions schedule has a 5-min granularity floor;
-# Neon autosuspends at 5 min idle, so this is on the edge — first request
-# in a window may still cold-start occasionally. Worth it for free.
+# Hits /api/cron/warm-db every 5 minutes. Historically this kept Neon from
+# autosuspending; the project now runs on Supabase Postgres, which only pauses
+# after 7 days of inactivity, so the warmer is largely cosmetic. The load-bearing
+# job in this cron is the stuck-single-generate watchdog: it fails any
+# generation_jobs row that has been queued/running for more than 5 minutes
+# without an update (e.g. after a Vercel SIGKILL). Batch jobs are handled by
+# the separate supervise-batches cron.
 #
 # If CRON_SECRET is set on Vercel, also add it as a GitHub Actions secret
 # named CRON_SECRET so this workflow can authenticate.

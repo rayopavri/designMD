@@ -2,14 +2,13 @@
  * Rate-limit gate for `/api/generate`.
  *
  * Three tiers, persisted in Upstash Redis:
- *   - anonymous  → hard ceiling of 3 generations per hour, keyed by client IP
- *                  (sliding window). This is the real abuse gate — it cannot be
- *                  reset by the client. Layered on top is a one-free-generation
- *                  UX gate, ALSO keyed by IP: after the first successful run the
- *                  UI prompts sign-in, but even without the cookie an attacker
- *                  can't exceed the 3/hour IP ceiling. The free-gen gate is
- *                  *peeked* here and only *consumed* (markFreeGenerationUsed)
- *                  once a job is actually created, so a 400/409 doesn't burn it.
+ *   - anonymous  → one free generation per client IP (UX nudge to sign in),
+ *                  plus a hard ceiling of 3 generations per hour keyed by client
+ *                  IP (sliding window). The 3/hour ceiling is the real abuse gate
+ *                  — it cannot be reset by the client. The one-free-generation
+ *                  gate is *peeked* here and only *consumed*
+ *                  (markFreeGenerationUsed) once a job is actually created, so a
+ *                  400/409 doesn't burn it.
  *   - signed-in  → 10 generations per hour (sliding window), keyed by userId
  *   - editor     → unlimited (rate limit not applied)
  *

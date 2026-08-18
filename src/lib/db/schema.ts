@@ -26,7 +26,6 @@ import {
   index,
   uniqueIndex,
   check,
-  primaryKey,
   type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 import { sql, relations } from 'drizzle-orm';

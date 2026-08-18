@@ -10,7 +10,6 @@ import { BG_SOFT_HEADER } from "@/lib/ui-data/constants";
 import {
   BG,
   BORDER,
-  BORDER_SOFT,
   INK,
   INK_ON_LIGHT,
   LIME,
@@ -268,7 +267,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function SectionLabel({ n: _n, t }: { n?: string; t: string }) {
+export function SectionLabel({ t }: { n?: string; t: string }) {
   return (
     <div
       className="inline-flex items-center gap-2.5 text-[10.5px] uppercase tracking-[0.22em]"

@@ -1,11 +1,10 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { Check, ChevronDown, Copy, Globe, Image as ImageIcon, Loader2, Lock, RefreshCw, Send, ShieldCheck, Upload, X as XIcon } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Check, Globe, Image as ImageIcon, Loader2, RefreshCw, ShieldCheck, Upload, X as XIcon } from "lucide-react";
 import { SectionLabel } from "@/components/ui/Shell";
 import { saveActiveGenJob, clearActiveGenJob, readStoredJob } from "@/hooks/useActiveGenJob";
-import { CodePanel } from "@/components/ui/CodePanel";
 import {
   BG,
   BORDER,
@@ -19,7 +18,6 @@ import {
   SUB,
   SURFACE,
   SURFACE_2,
-  VIOLET,
 } from "@/lib/ui-data/tokens";
 import { TYPE_META } from "@/lib/ui-data/items";
 import { openAuthModal } from "@/lib/ui-data/mockAuth";
@@ -181,8 +179,6 @@ function GenerateContent({ modelLabel }: { modelLabel: string }) {
   const [palette, setPalette] = useState<string[]>([]);
   const [validation, setValidation] = useState<string | null>(null);
   const timersRef = useRef<number[]>([]);
-  // Real-pipeline state (bundle type only)
-  const [jobId, setJobId] = useState<string | null>(null);
   const [existingSlug, setExistingSlug] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [companionStartedAt, setCompanionStartedAt] = useState<string | null>(null);
@@ -211,7 +207,6 @@ function GenerateContent({ modelLabel }: { modelLabel: string }) {
     const stored = readStoredJob();
     if (!stored) return;
     setUrl(stored.url);
-    setJobId(stored.jobId);
     setStatus("running");
     setStepIdx(0);
     pollJob(stored.jobId);
@@ -393,7 +388,6 @@ function GenerateContent({ modelLabel }: { modelLabel: string }) {
       }
       const body = (await res.json()) as { jobId: string; currentStep: string | null };
       saveActiveGenJob(body.jobId, submitUrl);
-      setJobId(body.jobId);
       pollJob(body.jobId);
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : "Network error");
@@ -432,7 +426,6 @@ function GenerateContent({ modelLabel }: { modelLabel: string }) {
       }
       const body = (await res.json()) as { jobId: string };
       saveActiveGenJob(body.jobId, `upload:${name}`);
-      setJobId(body.jobId);
       pollJob(body.jobId);
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : "Network error");
@@ -523,7 +516,6 @@ function GenerateContent({ modelLabel }: { modelLabel: string }) {
     setStepIdx(-1);
     setPalette([]);
     setValidation(null);
-    setJobId(null);
     setExistingSlug(null);
     setErrorMsg(null);
     setCompanionStartedAt(null);

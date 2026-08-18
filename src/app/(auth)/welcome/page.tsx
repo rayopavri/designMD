@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, Check } from "lucide-react";
 import {
   BG,
@@ -29,8 +29,7 @@ const TOOLS = [
 ];
 
 function Welcome() {
-  const _router = useRouter();
-  const navigate = (path: string) => _router.push(path);
+  const router = useRouter();
   const search = useSearchParams().toString();
   const returnTo = useMemo(() => new URLSearchParams(search).get("returnTo") ?? "/generate", [search]);
   const { user } = useAuth();
@@ -41,12 +40,12 @@ function Welcome() {
 
   useEffect(() => {
     if (!user) {
-      navigate(`/login?returnTo=${encodeURIComponent(returnTo)}`);
+      router.push(`/login?returnTo=${encodeURIComponent(returnTo)}`);
       return;
     }
     // Onboarding is strictly first-run. Returning users skip straight through.
-    if (hasSeenWelcome(user.id)) navigate(returnTo);
-  }, [user, navigate, returnTo]);
+    if (hasSeenWelcome(user.id)) router.push(returnTo);
+  }, [user, router, returnTo]);
 
   function toggleTool(id: string) {
     setTools((prev) => {
@@ -65,7 +64,7 @@ function Welcome() {
       });
     }
     markWelcomeSeen();
-    navigate(returnTo);
+    router.push(returnTo);
   }
 
   const handleValid = handle.trim() === "" || /^[a-z0-9-]{3,30}$/i.test(handle.trim());

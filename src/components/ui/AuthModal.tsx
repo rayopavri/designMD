@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { usePathname } from "next/navigation";
+
 import { X } from "lucide-react";
 import { AuthCard } from "./AuthCard";
 import { closeAuthModal, useAuthModal } from "@/lib/ui-data/mockAuth";

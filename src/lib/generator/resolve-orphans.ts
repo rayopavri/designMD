@@ -21,7 +21,6 @@
  */
 import type {
   ExtractedBrand,
-  ExtractedColor,
   ExtractedComponent,
 } from '@/lib/ai/gemini';
 
@@ -34,7 +33,6 @@ const SEMANTIC_PAIRS = [
   { color: 'info', component: 'badge-info', onPair: 'on-info' },
 ];
 
-const ON_PREFIX_RE = /^on-/;
 const SURFACE_PREFIX_RE = /^surface(-|$)/;
 const OUTLINE_RE = /^(outline|border|divider)/;
 const TERTIARY_NAMES = new Set(['tertiary', 'secondary', 'accent', 'accent-2', 'accent-3']);

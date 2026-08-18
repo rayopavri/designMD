@@ -905,7 +905,6 @@ function BatchStatusView({
           <tbody>
             {batchStatus.jobs.map((job, i) => {
               const isRunning = job.status === "running";
-              const isFailed = job.status === "failed";
               const isCompleted = job.status === "completed";
               const accent = outcomeAccent(job);
               const isPublished = isCompleted && job.bundleStatus === "published";

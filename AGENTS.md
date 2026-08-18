@@ -81,7 +81,7 @@ Google sign-in uses `signInWithRedirect` (not popup — see the comment in `src/
 
 ## Feature flags
 
-`src/lib/ui-data/featureFlags.ts` — `PHASE_2_SHELVES_ENABLED` gates the CLI shelf, skills/agents/MCPs surfaces, and related nav links. Currently `false`. Flip to `true` to restore Phase 2 UI without any schema or code changes.
+The previous `PHASE_2_SHELVES_ENABLED` flag (formerly in `src/lib/ui-data/featureFlags.ts`) has been removed. Phase 2 surfaces (CLI shelf, skills/agents/MCPs) are currently not rendered. The `discovery_candidates` and related Phase 2 schema tables exist but are not yet wired to fetchers, classifiers, or admin UI — see `ROADMAP.md`.
 
 ## Search
 
@@ -102,7 +102,6 @@ Upstash Redis sliding window on `/api/generate`: 3/hour anonymous (by IP), 10/ho
 | AI author prompts | `src/lib/ai/generate-design-md.ts`, `src/lib/generator/` |
 | Gemini extraction | `src/lib/ai/gemini.ts` |
 | QStash workers | `src/app/api/internal/` |
-| Feature flags | `src/lib/ui-data/featureFlags.ts` |
 | Design tokens | `src/lib/ui-data/tokens.ts` |
 | Auth helpers | `src/lib/auth/` |
 | Rate limiting | `src/lib/rate-limit/` |

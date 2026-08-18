@@ -9,7 +9,7 @@
  * Response: { slugs: string[] }
  */
 import { NextResponse } from 'next/server';
-import { inArray, eq, isNotNull } from 'drizzle-orm';
+import { inArray, eq } from 'drizzle-orm';
 import { db } from '@/lib/db/client';
 import { bundles, generationJobs } from '@/lib/db/schema';
 import { requireEditor } from '@/lib/auth/session';

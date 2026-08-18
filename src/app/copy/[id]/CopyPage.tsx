@@ -10,7 +10,6 @@ import {
   BORDER,
   BORDER_SOFT,
   INK,
-  INK_ON_LIGHT,
   LIME,
   MONO,
   MUTED,

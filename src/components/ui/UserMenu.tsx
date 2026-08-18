@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { ChevronDown, Heart, LayoutList, LogOut, User as UserIcon } from "lucide-react";
 import { BORDER, INK, MONO, MUTED, SUB, SURFACE, SURFACE_2 } from "@/lib/ui-data/tokens";
 import { signOut, useAuth } from "@/lib/ui-data/mockAuth";
