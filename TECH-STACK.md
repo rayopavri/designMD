@@ -26,8 +26,8 @@ Only Vercel is on a paid tier (Pro, for the raised function limits); everything 
 
 ## Application layer
 
-### Next.js 15.5.9 (App Router)
-- Framework. **Security-pinned floor** — anything below 15.5.9 has a known CVE that Vercel's deploy-time scanner blocks. Do not downgrade.
+### Next.js 16.3.1 (App Router)
+- Framework. Keep the pinned release current with Next.js security updates; do not downgrade to a vulnerable version.
 - App Router with mixed server + client components.
 - React Server Components for the public marketing/library pages; client components for `/admin/*` and `/generate` (interactive state, polling).
 
@@ -35,7 +35,7 @@ Only Vercel is on a paid tier (Pro, for the raised function limits); everything 
 - Bundled with Next.js. No extra config.
 
 ### TypeScript 5.7
-- Strict mode. All source under `src/`. Build skips ESLint (`eslint.ignoreDuringBuilds: true`) because the migrated Vite code has cosmetic violations — surfaced via `pnpm lint` instead.
+- Strict mode. All source under `src/`. Next.js 16 no longer runs ESLint during builds; lint is run explicitly with `pnpm lint`.
 
 ### Tailwind CSS v4
 - Utility classes. Design tokens (colors, type, spacing) defined inline in `src/lib/ui-data/tokens.ts` and applied via `style={{}}` props (semantic over utility-class soup for color).

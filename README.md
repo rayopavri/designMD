@@ -32,7 +32,7 @@ Paste a product URL into the generator and the pipeline scrapes it, extracts bra
 
 | Layer | Tool |
 |---|---|
-| Framework | Next.js 15.5 (App Router) + React 19 |
+| Framework | Next.js 16.3 (App Router) + React 19 |
 | Language | TypeScript 5.7 (strict mode) |
 | Styling | Tailwind CSS v4 + Radix UI |
 | Database | Supabase Postgres 17 + Drizzle ORM |
