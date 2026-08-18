@@ -84,7 +84,7 @@ const nextConfig: NextConfig = {
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           // SAMEORIGIN rather than DENY — see the frame-ancestors comment above.
           { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
-          { key: 'Content-Security-Policy', value: csp },
+          { key: 'Content-Security-Policy-Report-Only', value: csp },
         ],
       },
     ];
