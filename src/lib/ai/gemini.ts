@@ -32,6 +32,7 @@ import {
 } from '@/lib/generator/infer-elevation';
 import { perf } from '@/lib/generator/perf-log';
 import { openRouterEnabled, openRouterGenerate } from '@/lib/ai/openrouter';
+import { safeDiagnosticErrorDetail } from '@/lib/security/diagnostics';
 
 let _client: GoogleGenAI | null = null;
 
@@ -903,7 +904,7 @@ export async function extractBrandFromMarkdown(
     } catch (err) {
       console.warn(
         '[gemini] failed to fetch screenshot, falling back to text-only:',
-        err instanceof Error ? err.message : err,
+        safeDiagnosticErrorDetail(err),
       );
     }
   }
@@ -921,7 +922,7 @@ export async function extractBrandFromMarkdown(
     ).catch((err: unknown) => {
       perf('extract.openrouter', 'err', Date.now() - genStartedAt, {
         timeoutMs: GEMINI_TIMEOUT_MS,
-        error: err instanceof Error ? err.message.slice(0, 80) : String(err).slice(0, 80),
+        error: safeDiagnosticErrorDetail(err),
       });
       throw err;
     });
@@ -955,7 +956,7 @@ export async function extractBrandFromMarkdown(
       cacheMs,
       cached: Boolean(cachedName),
       timeoutMs: GEMINI_TIMEOUT_MS,
-      error: err instanceof Error ? err.message.slice(0, 80) : String(err).slice(0, 80),
+      error: safeDiagnosticErrorDetail(err),
     });
     throw err;
   });
@@ -1066,7 +1067,7 @@ export async function extractBrandFromImage(
     ).catch((err: unknown) => {
       perf('extract-image.openrouter', 'err', Date.now() - genStartedAt, {
         timeoutMs: GEMINI_TIMEOUT_MS,
-        error: err instanceof Error ? err.message.slice(0, 80) : String(err).slice(0, 80),
+        error: safeDiagnosticErrorDetail(err),
       });
       throw err;
     });
@@ -1102,7 +1103,7 @@ export async function extractBrandFromImage(
       cacheMs,
       cached: Boolean(cachedName),
       timeoutMs: GEMINI_TIMEOUT_MS,
-      error: err instanceof Error ? err.message.slice(0, 80) : String(err).slice(0, 80),
+      error: safeDiagnosticErrorDetail(err),
     });
     throw err;
   });
@@ -1167,7 +1168,7 @@ export async function generateTextFromGemini(input: GeminiTextInput): Promise<Ge
     ).catch((err: unknown) => {
       perf('author.openrouter', 'err', Date.now() - startedAt, {
         timeoutMs: input.timeoutMs,
-        error: err instanceof Error ? err.message.slice(0, 80) : String(err).slice(0, 80),
+        error: safeDiagnosticErrorDetail(err),
       });
       throw err;
     });
@@ -1215,7 +1216,7 @@ export async function generateTextFromGemini(input: GeminiTextInput): Promise<Ge
       cacheMs,
       cached: Boolean(cachedName),
       timeoutMs: input.timeoutMs,
-      error: err instanceof Error ? err.message.slice(0, 80) : String(err).slice(0, 80),
+      error: safeDiagnosticErrorDetail(err),
     });
     throw err;
   });
@@ -1405,7 +1406,7 @@ async function fetchImageAsPart(url: string): Promise<Part | null> {
   } catch (err) {
     console.warn(
       '[gemini] sharp pipeline failed, sending original:',
-      err instanceof Error ? err.message : err,
+      safeDiagnosticErrorDetail(err),
     );
     const mimeType = res.headers.get('content-type')?.split(';')[0] || 'image/png';
     return { inlineData: { mimeType, data: original.toString('base64') } };

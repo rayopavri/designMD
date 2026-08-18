@@ -13,7 +13,9 @@ UIUXskills is a platform for browsing, generating, and using [DESIGN.md](https:/
 - A **DESIGN.md spec** — a structured document describing a product's visual language: colors, typography, components, spacing, and style guidelines, validated against Google's official schema.
 - A **companion prompt** — a system prompt engineered for Claude that loads the spec into context so the model respects the design system during generation.
 
-Paste a product URL into the generator and the pipeline scrapes it, extracts brand tokens with Gemini, authors the DESIGN.md with Claude Sonnet, lints it against the schema, and packages both files for export.
+Paste a product URL into the generator and the pipeline scrapes it, extracts
+brand tokens and authors the DESIGN.md with Gemini 3.1 Flash-Lite, lints it
+against the schema, and packages it with a Claude Sonnet companion prompt.
 
 ---
 
@@ -37,8 +39,8 @@ Paste a product URL into the generator and the pipeline scrapes it, extracts bra
 | Styling | Tailwind CSS v4 + Radix UI |
 | Database | Supabase Postgres 17 + Drizzle ORM |
 | Auth | Firebase Auth (Google + magic link) |
-| LLM — authoring | Anthropic Claude Sonnet |
-| LLM — extraction | Google Gemini 2.0 Flash |
+| LLM — authoring + extraction | Google Gemini 3.1 Flash-Lite |
+| LLM — companion prompt | Anthropic Claude Sonnet 4.6 |
 | Web scraping | Firecrawl |
 | Task queue | Upstash QStash |
 | Rate limiting | Upstash Redis |
@@ -125,7 +127,7 @@ src/
 │   ├── admin/              # Editorial review queue
 │   └── api/
 │       ├── generate/       # Generation pipeline entry point
-│       ├── internal/       # QStash worker endpoints (scrape, author, companion)
+│       ├── internal/tasks/ # QStash worker endpoints (scrape, author, companion)
 │       ├── bundles/        # Bundle CRUD, votes, favorites
 │       ├── me/             # Authenticated user endpoints
 │       └── admin/          # Admin actions (publish, reject, archive)
@@ -145,11 +147,11 @@ src/
 
 ## Generation pipeline
 
-Bundle generation runs as a 3-worker chain over QStash:
+Bundle generation runs as three QStash task workers:
 
-1. **`scrape-and-extract`** — Firecrawl fetches the URL and captures a full-page screenshot; Gemini extracts brand tokens (palette, typography, components, design styles, category).
-2. **`author-design-md`** — Claude Sonnet writes the canonical DESIGN.md; output is linted with `@google/design.md`.
-3. **`generate-companion`** — Claude writes the companion system prompt calibrated for use alongside the spec.
+1. **`/api/internal/tasks/scrape-and-extract`** — Firecrawl fetches the URL and captures a full-page screenshot; Gemini 3.1 Flash-Lite extracts brand tokens (palette, typography, components, design styles, category).
+2. **`/api/internal/tasks/author-design-md`** — Gemini 3.1 Flash-Lite writes the canonical DESIGN.md; output is linted with `@google/design.md`.
+3. **`/api/internal/tasks/generate-companion`** — Claude Sonnet 4.6 writes the companion system prompt calibrated for use alongside the spec.
 
 After `scrape-and-extract` persists the draft and phase payload, it dispatches
 `author-design-md` and `generate-companion` in parallel. Both hydrate their

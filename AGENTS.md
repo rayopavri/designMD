@@ -29,13 +29,16 @@ Override only if the user explicitly asks for a branch + PR for a specific chang
 
 # Commands
 
-pnpm only. **There is no test suite** (no framework, no test files) — validate changes with `pnpm typecheck` and `pnpm lint`.
+pnpm only. The repository has a Node test suite (`*.test.ts`, run through
+`tsx`); run `pnpm test` as well as `pnpm typecheck` and `pnpm lint` after
+runtime changes.
 
 | Command | Use |
 |---|---|
 | `pnpm dev` | Dev server. `INLINE_TASKS=true` runs the 3-worker pipeline in-process (no QStash). |
+| `pnpm test` | Node test suite. The script supplies synthetic local `DATABASE_URL` and internal-task values; it does not require a reachable database. |
 | `pnpm typecheck` | `tsc --noEmit` — the first check after any edit; needs no env vars. |
-| `pnpm lint` | `next lint` — run manually (ESLint is skipped during builds; migrated-Vite cosmetic violations are expected). |
+| `pnpm lint` | `eslint .`. Next 16 does not run ESLint during builds, so run this explicitly; the current baseline has four unrelated warnings. |
 | `pnpm build` | `next build`. Imports `src/lib/env.ts`, which Zod-validates env **at import time**, so `DATABASE_URL` must be set or the build throws. |
 | `pnpm db:generate` | Drizzle diff of `schema.ts` vs the last snapshot → new migration file. Offline (no DB). Run after any schema change. |
 | `pnpm db:migrate` | Apply migrations (three-phase — see Database). Needs DB access. |
@@ -51,13 +54,16 @@ Every `db:*` command except `db:generate` hits the pooler on port 6543 — block
 
 ## Generation pipeline
 
-Three QStash workers chained in sequence:
+Three QStash task workers run the generation pipeline:
 
-1. `POST /api/internal/scrape-and-extract` — Firecrawl scrapes the URL + screenshot; Gemini extracts brand tokens (palette, typography, components, design styles, category).
-2. `POST /api/internal/author-design-md` — Gemini 3.1 Flash-Lite writes the DESIGN.md (direct via Google, single provider — no fallback; per-call timeout sized to the 300s worker); `@google/design.md` lints it.
-3. `POST /api/internal/generate-companion` — Claude Sonnet 4.6 writes the companion system prompt.
+1. `POST /api/internal/tasks/scrape-and-extract` — Firecrawl scrapes the URL + screenshot; Gemini 3.1 Flash-Lite extracts brand tokens (palette, typography, components, design styles, category).
+2. `POST /api/internal/tasks/author-design-md` — Gemini 3.1 Flash-Lite directly writes the DESIGN.md (single provider, no fallback); `@google/design.md` lints it.
+3. `POST /api/internal/tasks/generate-companion` — Claude Sonnet 4.6 writes the companion system prompt.
 
-Workers are chained: each enqueues the next on success. `src/lib/queue/` handles dispatch. `INLINE_TASKS=true` bypasses QStash in local dev.
+After scrape/extract persists the shared phase payload, it dispatches authoring
+and companion work in parallel. `src/lib/queue/` handles dispatch.
+`INLINE_TASKS=true` bypasses QStash only in local development/test; production
+requires signed QStash deliveries.
 
 ## Database
 
@@ -101,7 +107,7 @@ Upstash Redis sliding window on `/api/generate`: 3/hour anonymous (by IP), 10/ho
 | Drizzle queries | `src/lib/db/queries/` |
 | AI author prompts | `src/lib/ai/generate-design-md.ts`, `src/lib/generator/` |
 | Gemini extraction | `src/lib/ai/gemini.ts` |
-| QStash workers | `src/app/api/internal/` |
+| QStash workers | `src/app/api/internal/tasks/` |
 | Design tokens | `src/lib/ui-data/tokens.ts` |
 | Auth helpers | `src/lib/auth/` |
 | Rate limiting | `src/lib/rate-limit/` |
@@ -113,10 +119,11 @@ Upstash Redis sliding window on `/api/generate`: 3/hour anonymous (by IP), 10/ho
 
 # Constraints and gotchas
 
-- **Vercel function timeout (Pro: 300s / 800s Fluid; workers pin `maxDuration = 180s`)** — the 3-worker split is kept for parallelism + per-stage retry isolation, not the old 60s cap. Don't collapse workers.
+- **Vercel worker timeouts (Pro: 300s standard / 800s Fluid)** — `scrape-and-extract` and `author-design-md` each pin `maxDuration = 300s` with 290s watchdogs; `generate-companion` pins 180s. The split preserves parallelism and retry isolation, not an old 60s cap. Don't collapse workers.
+- **Runtime/dependencies** — Next.js is pinned to 16.3.1, React to 19.2.8, and `package.json` requires Node.js 22+. The latest recorded production audit has no critical/high findings and two documented moderate Firebase Admin/Cloud Storage UUID paths; re-run `pnpm audit --prod` when changing dependencies.
 - **PgBouncer transaction mode** — no prepared statements via the pooler. `client.ts` handles this automatically; don't remove the `prepare: false` guard.
 - **`@google/design.md` external package** — `next.config.ts` includes `outputFileTracingIncludes` to ensure Vercel bundles the YAML data files. Don't remove that config.
 - **Custom Firebase auth domain needs two rewrites, not one** — `next.config.ts` must proxy both `/__/auth/:path*` and `/__/firebase/:path*` to `designmd-2ff95.firebaseapp.com`. The OAuth handler page (served via the `/__/auth/*` rewrite) itself fetches `/__/firebase/init.json` to bootstrap its own `firebase.initializeApp()`; if that second rewrite is missing, the fetch 404s against our own app and `signInWithRedirect` silently strands — browser lands back on the app signed out, no error, no `/api/auth/session` call. If Google sign-in ever regresses this way, check Network for that 404 first.
 - **Deloitte corporate WiFi blocks port 5432/6543** — tether to a phone hotspot for any direct DB operations from a work machine.
-- **ESLint skipped during builds** (`eslint.ignoreDuringBuilds: true`) — run `pnpm lint` manually; cosmetic violations from the migrated Vite code are expected.
+- **ESLint is not part of Next 16 builds** — `pnpm lint` runs the flat ESLint config directly. Treat new warnings as regressions; the four current unrelated warnings are documented in the security release evidence.
 - **No `.env.example` yet** — required env vars are documented in `README.md` and `TECH-STACK.md`.

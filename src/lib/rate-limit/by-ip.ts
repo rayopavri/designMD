@@ -13,6 +13,7 @@
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
 import { env } from '@/lib/env';
+import { safeDiagnosticErrorDetail } from '@/lib/security/diagnostics';
 import { getClientIp } from './ip';
 import { redisRateLimitConfiguration } from './config';
 
@@ -105,7 +106,7 @@ export async function rateLimitByIp(
       remaining: r.remaining,
     };
   } catch (error) {
-    console.error('[rate-limit:by-ip] limiter failed:', error);
+    console.error('[rate-limit:by-ip] limiter failed:', safeDiagnosticErrorDetail(error));
     return env.NODE_ENV === 'production'
       ? { ok: false, retryAfter: 0, limit: 0, remaining: 0, unavailable: true }
       : { ok: true, retryAfter: 0, limit: opts.limit, remaining: opts.limit };

@@ -16,8 +16,8 @@
 | Cache / rate limit | Upstash Redis | Free | $0 |
 | Cron | GitHub Actions | Free | $0 |
 | Web scraping | Firecrawl | Pay-per-use | ~$0-5 (light use) |
-| LLM (authoring) | Anthropic Claude | API | ~$0.02-0.08 per bundle |
-| LLM (vision/extract) | Google Gemini | API | ~$0.001-0.005 per bundle |
+| LLM (authoring + vision/extract) | Google Gemini 3.1 Flash-Lite | API | ~$0.001-0.01 per bundle |
+| LLM (companion prompt) | Anthropic Claude Sonnet 4.6 | API | variable by prompt size |
 | **Total live cost** | | | **~$20/mo (Vercel Pro) + per-bundle LLM costs** |
 
 Only Vercel is on a paid tier (Pro, for the raised function limits); everything else sits inside generous free allowances at current traffic.
@@ -63,15 +63,15 @@ Only Vercel is on a paid tier (Pro, for the raised function limits); everything 
 
 ### Anthropic Claude
 - **Models in use:**
-  - `claude-sonnet-4-5` (Sonnet 4.6 alias) — writes canonical DESIGN.md + companion prompts.
+  - `claude-sonnet-4-6` — writes companion prompts.
   - `claude-haiku-4-5` — reserved (env var set, not yet wired). Intended for Phase 2 Discovery candidate classifier.
 - **API:** REST via `@anthropic-ai/sdk`.
-- **Cost shape:** ~$3 per 1M input tokens, $15 per 1M output. A typical bundle's two Claude calls (design.md + companion) cost roughly **$0.02-$0.08**.
+- **Cost shape:** one companion-prompt call per bundle; actual cost depends on prompt size and current provider pricing.
 
 ### Google Gemini
-- **Model:** `gemini-3.1-flash-lite` (Gemini 3.1 Flash Lite) for both markdown extraction and image-only extraction.
-- **API:** `@google/generative-ai` SDK.
-- **Used for:** multi-modal brand extraction (palette, typography, components, design styles, **category**) from URL scrape OR uploaded screenshot.
+- **Model:** `gemini-3.1-flash-lite` (Gemini 3.1 Flash Lite) for markdown extraction, image-only extraction, and direct canonical DESIGN.md authoring.
+- **API:** `@google/genai` SDK.
+- **Used for:** multi-modal brand extraction (palette, typography, components, design styles, **category**) from URL scrape OR uploaded screenshot, then direct authoring of the DESIGN.md body. There is no cross-provider authoring fallback.
 - **Category extraction is enum-constrained** to the 9 canonical domain slugs — the schema rejects anything else.
 - **Cost shape:** ~$0.10 per 1M input tokens. Very cheap. Per-bundle cost typically **<$0.01**.
 
@@ -110,7 +110,7 @@ Only Vercel is on a paid tier (Pro, for the raised function limits); everything 
 - Durable HTTP task queue. Replaces a previous `void fetch()` fire-and-forget pattern that lost ~1 in N companion jobs.
 - **Signs every webhook delivery**; workers verify via `assertQStashSignature`. Local dev (`INLINE_TASKS=true`) bypasses signing with a shared token.
 - `QSTASH_TOKEN`, `QSTASH_CURRENT_SIGNING_KEY`, and `QSTASH_NEXT_SIGNING_KEY` are required in production. `INLINE_TASKS` is local/test-only and production workers accept only verified QStash signatures.
-- `scrape-and-extract` dispatches `author-design-md` and `generate-companion` in parallel after persisting the shared phase payload.
+- Generation endpoints live at `/api/internal/tasks/scrape-and-extract`, `/api/internal/tasks/author-design-md`, and `/api/internal/tasks/generate-companion`. Scrape/extract dispatches authoring and companion work in parallel after persisting the shared phase payload.
 
 ### Upstash Redis (Free tier)
 - Sliding-window rate limit on `/api/generate` via `@upstash/ratelimit`.
@@ -189,7 +189,7 @@ domain, `src/lib/email/sign-in-email.ts`) — none of the above concerns it.
 
 ### `@google/design.md` (the linter)
 - Official Google DESIGN.md schema validator.
-- Runs in `author-design-md` worker after Sonnet writes the file.
+- Runs in `author-design-md` after Gemini writes the file.
 - Produces structured warnings + errors that feed into the coverage scoring.
 
 ### GitHub

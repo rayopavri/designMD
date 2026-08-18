@@ -25,6 +25,7 @@ import { resendClient, EMAIL_FROM } from '@/lib/email/resend';
 import { SIGN_IN_SUBJECT, signInEmailHtml, signInEmailText } from '@/lib/email/sign-in-email';
 import { env } from '@/lib/env';
 import { rateLimitEmailLink } from '@/lib/rate-limit/auth-email';
+import { safeDiagnosticErrorDetail } from '@/lib/security/diagnostics';
 import { readJsonBodyWithinLimit } from '@/lib/security/request-body';
 
 export const runtime = 'nodejs';
@@ -68,7 +69,7 @@ export async function POST(req: NextRequest) {
       handleCodeInApp: true,
     });
   } catch (err) {
-    console.error('[auth/email-link] generateSignInWithEmailLink failed:', err);
+    console.error('[auth/email-link] generateSignInWithEmailLink failed:', safeDiagnosticErrorDetail(err));
     return NextResponse.json({ error: 'Could not create sign-in link' }, { status: 500 });
   }
 
@@ -83,11 +84,11 @@ export async function POST(req: NextRequest) {
     if (error) {
       // Common during setup: domain not verified, or sending to a non-owner
       // address while still in Resend's test mode.
-      console.error('[auth/email-link] resend send error:', error);
+      console.error('[auth/email-link] resend send error:', safeDiagnosticErrorDetail(error));
       return NextResponse.json({ error: 'Could not send email' }, { status: 502 });
     }
   } catch (err) {
-    console.error('[auth/email-link] resend threw:', err);
+    console.error('[auth/email-link] resend threw:', safeDiagnosticErrorDetail(err));
     return NextResponse.json({ error: 'Could not send email' }, { status: 502 });
   }
 

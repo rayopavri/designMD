@@ -26,6 +26,8 @@
  * its inner AI-call time is cold-start + QStash + DB overhead.
  */
 
+import { safePerfDiagnosticKey, safePerfDiagnosticValue } from '@/lib/security/diagnostics';
+
 /** Call outcome. `done` = a worker returned (may have failed an inner stage);
  *  `watchdog` = the worker was aborted by its own watchdog before cleanup. */
 type PerfOutcome = 'ok' | 'err' | 'skip' | 'done' | 'watchdog';
@@ -41,7 +43,7 @@ export function perf(stage: string, outcome: PerfOutcome, ms: number, fields?: P
   if (fields) {
     extra = Object.entries(fields)
       .filter(([, v]) => v !== undefined && v !== null)
-      .map(([k, v]) => `${k}=${v}`)
+      .map(([k, v]) => `${safePerfDiagnosticKey(k)}=${safePerfDiagnosticValue(k, v)}`)
       .join(' ');
   }
   // console.log is the established observability channel in this pipeline

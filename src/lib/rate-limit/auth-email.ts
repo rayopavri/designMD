@@ -1,6 +1,7 @@
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
 import { env } from '@/lib/env';
+import { safeDiagnosticErrorDetail } from '@/lib/security/diagnostics';
 import { getClientIp } from './ip';
 import {
   EMAIL_ADDRESS_LIMIT,
@@ -98,7 +99,7 @@ export async function rateLimitEmailLink(req: Request, email: string): Promise<E
     );
     return address.success ? { ok: true } : blocked(address.reset);
   } catch (error) {
-    console.error('[rate-limit:auth-email] limiter failed:', error);
+    console.error('[rate-limit:auth-email] limiter failed:', safeDiagnosticErrorDetail(error));
     return env.NODE_ENV === 'production' ? unavailable() : { ok: true };
   }
 }

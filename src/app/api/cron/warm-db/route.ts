@@ -20,6 +20,7 @@ import { and, eq, isNull, lt, or, sql } from 'drizzle-orm';
 import { db } from '@/lib/db/client';
 import { generationJobs } from '@/lib/db/schema';
 import { isCronAuthorized } from '@/lib/security/cron-auth';
+import { safeDiagnosticErrorDetail } from '@/lib/security/diagnostics';
 
 export const runtime = 'nodejs';
 export const maxDuration = 15;
@@ -96,10 +97,7 @@ export async function GET(req: NextRequest) {
       elapsedMs,
     });
   } catch (err) {
-    console.error('[cron:warm-db] failed:', err);
-    return NextResponse.json(
-      { ok: false, error: err instanceof Error ? err.message : 'Unknown error' },
-      { status: 500 },
-    );
+    console.error('[cron:warm-db] failed:', safeDiagnosticErrorDetail(err));
+    return NextResponse.json({ ok: false, error: 'cron_warm_failed' }, { status: 500 });
   }
 }

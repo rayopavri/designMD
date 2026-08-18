@@ -21,6 +21,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { env } from '@/lib/env';
 import { dispatchReady, reapStale } from '@/lib/generator/batch';
 import { isCronAuthorized } from '@/lib/security/cron-auth';
+import { safeDiagnosticErrorDetail } from '@/lib/security/diagnostics';
 
 // Enqueues + DB writes only — no pipeline work runs here, so it stays well
 // under the timeout. Node runtime for Postgres access.
@@ -45,8 +46,7 @@ export async function GET(req: NextRequest) {
     const dispatched = await dispatchReady();
     return NextResponse.json({ ok: true, reaped, dispatched });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    console.error('[cron:supervise-batches] failed:', message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error('[cron:supervise-batches] failed:', safeDiagnosticErrorDetail(err));
+    return NextResponse.json({ error: 'cron_supervision_failed' }, { status: 500 });
   }
 }

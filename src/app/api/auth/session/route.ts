@@ -11,6 +11,7 @@ import { adminAuth } from '@/lib/auth/firebase-admin';
 import { isAccountLinkRequiredError } from '@/lib/auth/account-linking';
 import { SESSION_COOKIE, SESSION_DURATION_MS } from '@/lib/auth/session';
 import { upsertUserFromFirebase } from '@/lib/db/queries/users';
+import { safeDiagnosticErrorDetail } from '@/lib/security/diagnostics';
 
 const BodySchema = z.object({
   idToken: z.string().min(10),
@@ -67,7 +68,7 @@ export async function POST(req: NextRequest) {
     if (isAccountLinkRequiredError(err)) {
       return NextResponse.json({ error: 'account_link_required' }, { status: 409 });
     }
-    console.error('[auth/session] failed to upsert user row:', err);
+    console.error('[auth/session] failed to upsert user row:', safeDiagnosticErrorDetail(err));
     return NextResponse.json({ error: 'Failed to create user record' }, { status: 500 });
   }
 

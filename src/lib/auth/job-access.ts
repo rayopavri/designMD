@@ -87,24 +87,4 @@ export function publicGenerationJobStatus(
   };
 }
 
-const DIAGNOSTIC_ERROR_TYPES = new Set([
-  'AbortError',
-  'Error',
-  'FetchError',
-  'PostgresError',
-  'TimeoutError',
-  'TypeError',
-  'ZodError',
-]);
-
-/**
- * Emits only a small allowlisted diagnostic summary. Provider error messages
- * can embed prompts, request bodies, URLs, and authorization headers, so a
- * blacklist is not a safe boundary for logs or persisted job diagnostics.
- */
-export function safeGenerationErrorDetail(error: unknown): string {
-  if (!(error instanceof Error)) return 'generation_error type=non_error_throw';
-
-  const type = DIAGNOSTIC_ERROR_TYPES.has(error.name) ? error.name : 'Error';
-  return `generation_error type=${type}`;
-}
+export { safeGenerationErrorDetail } from '@/lib/security/diagnostics';

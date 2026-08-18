@@ -15,6 +15,7 @@
 import { anthropic, ANTHROPIC_MODELS } from './anthropic';
 import type { ExtractedBrand } from './gemini';
 import { perf } from '@/lib/generator/perf-log';
+import { safeDiagnosticErrorDetail } from '@/lib/security/diagnostics';
 
 export const SYSTEM_PROMPT = `You write companion prompts for design system specs.
 
@@ -302,7 +303,7 @@ async function runCompanionSonnet(userPrompt: string): Promise<string> {
       // exhausted its retries on timeouts — that's the "companion times out".
       perf('companion.sonnet', 'err', Date.now() - startedAt, {
         timeoutMs: SONNET_TIMEOUT_MS,
-        error: err instanceof Error ? err.message.slice(0, 80) : String(err).slice(0, 80),
+        error: safeDiagnosticErrorDetail(err),
       });
       throw err;
     });

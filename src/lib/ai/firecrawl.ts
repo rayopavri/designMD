@@ -19,6 +19,7 @@ import { env } from '@/lib/env';
 
 import { extractBrandLogoUrl } from './logo-extract';
 import { perf } from '@/lib/generator/perf-log';
+import { safeDiagnosticErrorDetail, safeDiagnosticUrl } from '@/lib/security/diagnostics';
 
 /**
  * Re-export the SDK's BrandingProfile under the legacy name so downstream
@@ -188,7 +189,7 @@ export async function scrapeUrlSmart(
     primary = await scrapeUrl(url);
   } catch (err) {
     perf('scrape.primary', 'err', Date.now() - start, {
-      error: err instanceof Error ? err.message.slice(0, 80) : String(err).slice(0, 80),
+      error: safeDiagnosticErrorDetail(err),
     });
     throw err;
   }
@@ -201,7 +202,7 @@ export async function scrapeUrlSmart(
   // threshold we'll skip batch on the next check.
   if (afterPrimary > FIRECRAWL_BUDGET_MS - 12_000) {
     console.warn(
-      `[firecrawl] skipping enrichment for ${url} — primary used ${afterPrimary}ms of ${FIRECRAWL_BUDGET_MS}ms budget`,
+      `[firecrawl] skipping enrichment for ${safeDiagnosticUrl(url)} — primary used ${afterPrimary}ms of ${FIRECRAWL_BUDGET_MS}ms budget`,
     );
     return primary;
   }
@@ -237,10 +238,10 @@ export async function scrapeUrlSmart(
     });
   } catch (err) {
     perf('scrape.map', 'err', Date.now() - mapStart, {
-      error: err instanceof Error ? err.message.slice(0, 80) : String(err).slice(0, 80),
+      error: safeDiagnosticErrorDetail(err),
     });
     console.warn(
-      `[firecrawl] map enrichment skipped for ${url}: ${err instanceof Error ? err.message : err}`,
+      `[firecrawl] map enrichment skipped for ${safeDiagnosticUrl(url)}: ${safeDiagnosticErrorDetail(err)}`,
     );
     return primary;
   }
@@ -253,7 +254,7 @@ export async function scrapeUrlSmart(
   const afterMap = Date.now() - start;
   if (afterMap > FIRECRAWL_BUDGET_MS - 16_000) {
     console.warn(
-      `[firecrawl] skipping batch enrichment for ${url} — ${afterMap}ms elapsed before batch could start`,
+      `[firecrawl] skipping batch enrichment for ${safeDiagnosticUrl(url)} — ${afterMap}ms elapsed before batch could start`,
     );
     return primary;
   }
@@ -290,10 +291,10 @@ export async function scrapeUrlSmart(
     perf('scrape.batch', 'ok', Date.now() - batchStart, { pages: batch.data?.length ?? 0 });
   } catch (err) {
     perf('scrape.batch', 'err', Date.now() - batchStart, {
-      error: err instanceof Error ? err.message.slice(0, 80) : String(err).slice(0, 80),
+      error: safeDiagnosticErrorDetail(err),
     });
     console.warn(
-      `[firecrawl] batchScrape enrichment skipped for ${url}: ${err instanceof Error ? err.message : err}`,
+      `[firecrawl] batchScrape enrichment skipped for ${safeDiagnosticUrl(url)}: ${safeDiagnosticErrorDetail(err)}`,
     );
     return primary;
   }
