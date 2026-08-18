@@ -32,4 +32,14 @@ describe('diagnostic redaction', () => {
     );
     assert.equal(safePerfDiagnosticValue('reason', 'payload\nforged=value'), 'payload forged=value');
   });
+
+  it('removes C1 controls and Unicode line separators from diagnostic fields', () => {
+    assert.equal(
+      safePerfDiagnosticValue('reason', 'payload\u0085forged=one\u2028forged=two\u2029forged=three'),
+      'payload forged=one forged=two forged=three',
+    );
+    const unsafeUrl = 'https://example.test/path\u0085forged';
+    assert.equal(safeDiagnosticUrl(unsafeUrl), 'invalid-url');
+    assert.equal(safeDiagnosticUrl(unsafeUrl), 'invalid-url');
+  });
 });

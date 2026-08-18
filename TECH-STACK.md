@@ -44,7 +44,7 @@ Only Vercel is on a paid tier (Pro, for the raised function limits); everything 
 - Icon set. Used throughout the admin + library + home UI.
 
 ### Drizzle ORM
-- Type-safe SQL. Schema lives at `src/lib/db/schema.ts` — 16 tables, 7 enums, 9 triggers.
+- Type-safe SQL. Schema lives at `src/lib/db/schema.ts` — 16 tables, 7 enums, 7 triggers.
 - Driver: `postgres-js` against the Supabase transaction pooler (port 6543). `src/lib/db/client.ts` sets `prepare: false` automatically when the URL contains `:6543` because PgBouncer transaction mode forbids prepared statements. SSL is required even in local dev (only skipped for `localhost`/`127.0.0.1`).
 - `@neondatabase/serverless` is no longer used in the runtime; it may still appear in `package.json` until cleaned up.
 
@@ -55,7 +55,7 @@ Only Vercel is on a paid tier (Pro, for the raised function limits); everything 
 - Server-side auth verification (admin SDK) + client-side sign-in flow (JS SDK).
 
 ### sharp
-- Image processing. Clamps Firecrawl full-page screenshots to 1600×4000 JPEG before sending to Gemini so the model doesn't aggressively downscale them. Native dependency (Vercel ships its built binary).
+- Image processing. Clamps Firecrawl's fixed desktop viewport screenshots to 1600×2400 JPEG before sending to Gemini so the model retains text and component detail. Native dependency (Vercel ships its built binary).
 
 ---
 
@@ -71,14 +71,15 @@ Only Vercel is on a paid tier (Pro, for the raised function limits); everything 
 ### Google Gemini
 - **Model:** `gemini-3.1-flash-lite` (Gemini 3.1 Flash Lite) for markdown extraction, image-only extraction, and direct canonical DESIGN.md authoring.
 - **API:** `@google/genai` SDK.
-- **Used for:** multi-modal brand extraction (palette, typography, components, design styles, **category**) from URL scrape OR uploaded screenshot, then direct authoring of the DESIGN.md body. There is no cross-provider authoring fallback.
+- **Used for:** multi-modal brand extraction (palette, typography, components, design styles, **category**) from URL scrape OR uploaded screenshot, then authoring of the DESIGN.md body. Direct Gemini is the default transport.
+- **Optional OpenRouter transport:** `AI_PROVIDER=openrouter` explicitly routes Gemini-owned extraction and authoring calls through OpenRouter and requires server-only `OPENROUTER_API_KEY`. It is a provider selection, not automatic fallback/retry behavior; it does not affect Firecrawl or the direct Anthropic companion call. `OPENROUTER_MODEL` and `OPENROUTER_REASONING_EFFORT` have server-side defaults but may be overridden.
 - **Category extraction is enum-constrained** to the 9 canonical domain slugs — the schema rejects anything else.
 - **Cost shape:** ~$0.10 per 1M input tokens. Very cheap. Per-bundle cost typically **<$0.01**.
 
 ### Firecrawl
 - **API:** `@mendable/firecrawl-js`.
-- **Used for:** URL → clean markdown + HTML + computed-style snapshot + full-page screenshot.
-- Config: `screenshot@fullPage`, `waitFor: 1500ms`, plus 4 wait/scroll actions (~6s total) to trigger IntersectionObserver lazy-loads on animated landing pages, `timeout: 45_000ms`, `blockAds: true`.
+- **Used for:** URL → clean markdown + HTML + computed-style snapshot + fixed desktop viewport screenshot.
+- Config: a 1440×900, quality-90 screenshot; a 2-second wait, Escape, generic overlay cleanup, and a 600ms settle; then a 1-second scrape wait with a 30-second rich-capture timeout. It deliberately does not use full-page capture or scroll actions; the hero and first sections are the primary visual input.
 - **Cost shape:** pay-per-scrape; free tier covers light usage. At current generation volume the bill is ~$0-5/mo.
 
 ---
@@ -93,7 +94,7 @@ Only Vercel is on a paid tier (Pro, for the raised function limits); everything 
 - **Constraints driving architecture:**
   - Function timeout: Pro allows 300s (standard) / 800s (Fluid Compute). The scrape-and-extract and author-design-md workers each pin `maxDuration = 300s` with a 290s watchdog; the companion worker pins 180s. The 3-worker split predates the Pro upgrade — scrape dispatches authoring and companion work in parallel for latency and retry isolation, not the old 60s cap.
   - Cron jobs limited to once-per-day (tightened ~2026-05-21). Triggered the migration to GitHub Actions cron.
-- **GitHub auto-deploy** — pushes to `main` trigger production builds automatically. If the webhook stops firing, the fallback is `pnpm dlx vercel --prod` from the local checkout (linked project lives at `~/.vercel/`).
+- **Production deploys** — every push to `main` triggers the Vercel production build automatically. Direct `main` commits are the repository's deployment workflow; no staging branch or pull request is used.
 
 ### Supabase Postgres (Free plan, current)
 - Migrated from Neon on 2026-05-21. Postgres 17, project `uiuxskills` (ref `ppvqdkvpyuntbncdhwtm`, region `us-east-1`).
@@ -101,8 +102,8 @@ Only Vercel is on a paid tier (Pro, for the raised function limits); everything 
 - **Connection path used everywhere:** transaction pooler at `aws-1-us-east-1.pooler.supabase.com:6543`, username `postgres.ppvqdkvpyuntbncdhwtm`. Direct host (`db.<ref>.supabase.co:5432`) is IPv6-only on the Free tier and unreachable from most non-IPv6 networks — do not use it for the runtime.
 - **PgBouncer transaction mode** is the only mode that fits the pooler URL. It forbids prepared statements, so `src/lib/db/client.ts` disables them whenever the URL contains `:6543`. Don't remove that toggle.
 - **Autosuspend:** Supabase Free pauses only after **7 days of zero activity**, not minutes. The 5-min GitHub Actions tick keeps activity flowing as a side effect; the cron's main job is now the stuck-`generation_jobs` watchdog.
-- 16 tables, 9 triggers (vote counting, slug uniqueness, accessibility check). All preserved across the migration.
-- Migrations going forward: still `pnpm tsx scripts/migrate-*.ts`, just hitting `DATABASE_URL` (Supabase pooler) instead of Neon.
+- 16 tables, 7 triggers (vote aggregation, automatic flagging, companion-versioning, and four `updated_at` maintenance triggers). All preserved across the migration.
+- Migrations run through `pnpm db:migrate` (`scripts/migrate.ts`) in three phases: idempotent `0000_init.sql`, Drizzle migrations in `_journal.json` order, then idempotent `9999_triggers_and_seed.sql`. Run `pnpm db:generate` after schema changes; do not use `db:push` against shared or production databases.
 - **Network constraint:** Deloitte corporate WiFi blocks outbound 5432/6543. Direct `psql`/`pg_dump` from the work Mac on Deloitte network will time out. Tether to a phone hotspot for any direct DB ops. The Vercel-hosted app is unaffected.
 - Old Neon project (`ep-patient-mode-aqtwblo0.c-8.us-east-1.aws.neon.tech`) is no longer used by any code and can be deleted.
 
@@ -175,7 +176,7 @@ domain, `src/lib/email/sign-in-email.ts`) — none of the above concerns it.
 
 - **JSON-LD:** all JSON-LD script payloads use `serializeJsonForHtml`, escaping `<`, `>`, `&`, U+2028, and U+2029 before HTML insertion. A source-level regression test covers every JSON-LD script sink.
 - **CSP:** `next.config.ts` currently delivers `Content-Security-Policy-Report-Only`; `unsafe-eval` is absent. Enforcement is blocked on a real browser smoke matrix covering public pages, remote images, Firebase redirect sign-in/session, generation/upload, auth redirects, and job polling. HTTP status checks do not satisfy this gate.
-- **Outbound fetches:** admin logo recovery and metadata prefetch use a shared safe-fetch helper that rejects non-public addresses and unsafe redirect hops, pins validated DNS answers, and applies redirect, byte, and deadline caps.
+- **Outbound fetches:** admin logo recovery, metadata prefetch, and Firecrawl screenshot downloads use a shared safe-fetch helper that rejects non-public addresses and unsafe redirect hops, pins validated DNS answers, and applies redirect, deadline, and byte caps. Screenshot responses additionally require an allowed image MIME type with a matching signature.
 - **Uploads and polling:** generation uploads reject oversized declared bodies and files, validate/decode supported images, and cap decoded pixels. Job status reads require the owning signed-in session or anonymous token and return the same 404 for unknown and unauthorized IDs; public failures are stable diagnostic codes only.
 - **Release evidence:** see [`docs/security/RELEASE-CHECKLIST.md`](docs/security/RELEASE-CHECKLIST.md) and [`SECURITY.md`](SECURITY.md) for the exact checks, production variables, residual audit rationale, and secret-rotation procedure.
 
@@ -196,12 +197,6 @@ domain, `src/lib/email/sign-in-email.ts`) — none of the above concerns it.
 - Repo: `rayopavri/designMD` on `main` branch.
 - `replit-archive` branch holds the frozen old Replit code.
 
-### Vercel CLI (`vercel` via `pnpm dlx`)
-- Currently the primary deploy path while the GitHub webhook is being fixed.
-- Run from `designmd-app/` after committing: `pnpm dlx vercel --prod`.
-
----
-
 ## Removed from stack (recent)
 
 - **Vercel Blob** + `@vercel/blob` package (removed 2026-05-21). Was storing full-page website screenshots; the home grid now uses palette-bar library cards which don't need them. Gemini still gets the screenshot in-memory from Firecrawl during extraction.
@@ -210,18 +205,12 @@ domain, `src/lib/email/sign-in-email.ts`) — none of the above concerns it.
 
 ---
 
-## Phase 1 / Phase 2 surface gating (2026-05-21)
+## Phase 2 surfaces
 
-Phase 1 ships the design.md generator + bundle library only. Phase 2 will reintroduce skills, agents, MCPs, and the CLI shelves. **No code was deleted** — everything is gated behind a single flag so the work can come back by flipping a boolean.
-
-- **Flag:** `PHASE_2_SHELVES_ENABLED = false` in `src/lib/ui-data/featureFlags.ts`. To restore Phase 2 surfaces: set it to `true`.
-- **Hidden surfaces (still in the repo, not rendered):**
-  - Header + footer "CLI" nav link (`src/components/ui/Shell.tsx`).
-  - Hero "Install via CLI" quick link and `~/.claude/skills/linear` snippet path (`src/app/(public)/HomeHero.tsx`).
-  - Library headline "Four shelves..." copy, the 4-card shelf grid, and the Type filter in the sidebar (`src/app/(public)/library/page.tsx`, `src/components/ui/LibraryFilterPanel.tsx`). The library auto-pins to the `design-systems` shelf on mount.
-  - Bundle detail page "cli" copy card (`src/app/(public)/library/[slug]/page.tsx`). The remaining "spec" + "prompt" cards collapse to a 2-up grid in Phase 1.
-  - The `/docs/cli` route returns `notFound()` (`src/app/(public)/docs/cli/page.tsx`).
-- **Untouched (deliberately):** DB schema, `bundles.type` enum, worker code, admin routes, `/api/generate` pipeline, `src/lib/ui-data/libraryFilters.ts`, mock skill/agent/mcp items in `src/lib/ui-data/items.ts`.
+The CLI shelf and skills/agents/MCP surfaces are not currently rendered. The
+old `PHASE_2_SHELVES_ENABLED` feature flag has been removed; Phase 2 tables
+such as `discovery_candidates` remain in the schema but are not wired to
+fetchers, classifiers, or admin UI. See `ROADMAP.md` for the active plan.
 
 ---
 

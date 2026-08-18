@@ -36,6 +36,7 @@ import { uniqueBundleSlug } from '@/lib/generator/slug';
 import { dispatchReady } from '@/lib/generator/batch';
 import type { AuthorPhasePayload } from '@/lib/generator/phase-payload';
 import { safeGenerationErrorDetail } from '@/lib/auth/job-access';
+import { safeDiagnosticUrl } from '@/lib/security/diagnostics';
 
 // QStash payloads are capped at 1MB. Trim the scraped markdown before
 // passing to Phase 2 — design.md authoring only needs a representative
@@ -493,7 +494,7 @@ Source: ${job.url}
         .limit(1);
       if (winner) {
         console.warn(
-          `[scrape-and-extract] duplicate active bundle for ${job.normalizedUrl}; ` +
+          `[scrape-and-extract] duplicate active bundle for ${safeDiagnosticUrl(job.normalizedUrl)}; ` +
             `attaching job ${job.id} to existing bundle ${winner.id}`,
         );
         return winner.id;

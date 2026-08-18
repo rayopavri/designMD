@@ -18,6 +18,7 @@ import { bundles } from '@/lib/db/schema';
 import { env } from '@/lib/env';
 import { scrapeScreenshot } from '@/lib/ai/firecrawl';
 import { captureAndStoreScreenshot } from '@/lib/storage/screenshots';
+import { safeDiagnosticErrorDetail } from '@/lib/security/diagnostics';
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
@@ -106,9 +107,8 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
   try {
     screenshotUrl = await scrapeScreenshot(bundle.sourceUrl);
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error('[admin screenshot recapture] scrape failed:', msg);
-    return NextResponse.json({ error: `Firecrawl: ${msg}` }, { status: 502 });
+    console.error('[admin screenshot recapture] scrape failed:', safeDiagnosticErrorDetail(err));
+    return NextResponse.json({ error: 'screenshot_recapture_failed' }, { status: 502 });
   }
 
   // Use a versioned key so the new URL is never cached — overwriting the same
@@ -153,15 +153,12 @@ async function storeBuffer(input: Buffer, bundleId: string): Promise<{ url: stri
       signal: AbortSignal.timeout(10_000),
     });
     if (!up.ok) {
-      const detail = (await up.text().catch(() => '')).slice(0, 200);
-      const msg = `Supabase storage ${up.status}${detail ? `: ${detail}` : ''}`;
-      console.error('[admin screenshot upload]', msg);
-      return { error: msg };
+      console.error(`[admin screenshot upload] failed with status ${up.status}`);
+      return { error: 'screenshot_storage_failed' };
     }
     return { url: `${base}/storage/v1/object/public/bundle-screenshots/${path}` };
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error('[admin screenshot upload] failed:', msg);
-    return { error: msg };
+    console.error('[admin screenshot upload] failed:', safeDiagnosticErrorDetail(err));
+    return { error: 'screenshot_storage_failed' };
   }
 }

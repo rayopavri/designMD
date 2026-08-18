@@ -439,26 +439,26 @@ export async function scrapeUrl(url: string): Promise<ScrapeResult> {
     // enhanced proxy — Firecrawl's strongest anti-bot path, better than stealth
     // on Cloudflare/DataDome. If it also fails, surface the original error.
     if (/\b40[13]\b|\b429\b|forbidden|blocked|denied|captcha|challenge/i.test(msg)) {
-      console.warn(`[firecrawl] ${url} looks bot-blocked; retrying with enhanced proxy.`);
+      console.warn(`[firecrawl] ${safeDiagnosticUrl(url)} looks bot-blocked; retrying with enhanced proxy.`);
       try {
         result = await scrapeUrlOnce(url, { ...richOpts, timeout: 35_000, proxy: 'enhanced' });
         escalated = true;
       } catch (enhancedErr) {
         console.warn(
-          `[firecrawl] enhanced retry failed for ${url}: ${enhancedErr instanceof Error ? enhancedErr.message : enhancedErr}`,
+          `[firecrawl] enhanced retry failed for ${safeDiagnosticUrl(url)}: ${safeDiagnosticErrorDetail(enhancedErr)}`,
         );
         throw err;
       }
     } else if (/408|timed out|timeout/i.test(msg)) {
       // Timed out (often JS-heavy sites): drop screenshot/branding/actions and
       // grab text fast so Gemini still has something to work with.
-      console.warn(`[firecrawl] Primary scrape timed out for ${url}; retrying markdown-only.`);
+      console.warn(`[firecrawl] Primary scrape timed out for ${safeDiagnosticUrl(url)}; retrying markdown-only.`);
       return await scrapeUrlOnce(url, { formats: ['markdown', 'html'], waitFor: 0, timeout: 10_000 });
     } else {
       // Any other failure (e.g. a Firecrawl plan that gates executeJavascript) —
       // retry once WITHOUT actions so we never regress below a plain screenshot.
       console.warn(
-        `[firecrawl] scrape with actions failed for ${url} (${msg.slice(0, 80)}); retrying without actions.`,
+        `[firecrawl] scrape with actions failed for ${safeDiagnosticUrl(url)} (${safeDiagnosticErrorDetail(err)}); retrying without actions.`,
       );
       return await scrapeUrlOnce(url, { formats: primaryFormats, waitFor: 1_500, timeout: 25_000 });
     }
@@ -472,19 +472,20 @@ export async function scrapeUrl(url: string): Promise<ScrapeResult> {
   if (looksBlocked(result)) {
     if (!escalated) {
       console.warn(
-        `[firecrawl] ${url} returned a soft-block/challenge page; retrying with enhanced proxy.`,
+        `[firecrawl] ${safeDiagnosticUrl(url)} returned a soft-block/challenge page; retrying with enhanced proxy.`,
       );
       try {
         result = await scrapeUrlOnce(url, { ...richOpts, timeout: 35_000, proxy: 'enhanced' });
       } catch (enhancedErr) {
-        throw new Error(
-          `SITE_BLOCKED: ${url} blocks automated access (anti-bot challenge; enhanced-proxy retry failed: ${enhancedErr instanceof Error ? enhancedErr.message : String(enhancedErr)})`,
+        console.warn(
+          `[firecrawl] enhanced soft-block retry failed for ${safeDiagnosticUrl(url)}: ${safeDiagnosticErrorDetail(enhancedErr)}`,
         );
+        throw new Error('SITE_BLOCKED: automated access was blocked by an anti-bot challenge');
       }
     }
     if (looksBlocked(result)) {
       throw new Error(
-        `SITE_BLOCKED: ${url} blocks automated access (anti-bot challenge detected after enhanced-proxy retry)`,
+        'SITE_BLOCKED: automated access was blocked by an anti-bot challenge',
       );
     }
   }

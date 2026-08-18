@@ -33,6 +33,7 @@ import {
 import { perf } from '@/lib/generator/perf-log';
 import { openRouterEnabled, openRouterGenerate } from '@/lib/ai/openrouter';
 import { safeDiagnosticErrorDetail } from '@/lib/security/diagnostics';
+import { safeFetchImage } from '@/lib/security/safe-fetch';
 
 let _client: GoogleGenAI | null = null;
 
@@ -197,8 +198,9 @@ async function getCachedSystemInstruction(
     systemCacheByKey.set(key, { name: created.name, createdAtMs: Date.now() });
     return created.name;
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.warn(`[gemini] system-instruction cache create failed (${msg.slice(0, 200)}) — falling back to inline`);
+    console.warn(
+      `[gemini] system-instruction cache create failed (${safeDiagnosticErrorDetail(err)}) — falling back to inline`,
+    );
     failedCacheKeys.add(key);
     return null;
   }
@@ -1338,15 +1340,14 @@ export async function extractBrandNamesQuick(
     .map((r) => ({ url: r.url, name: r.name }));
 }
 
-// Full-page screenshots can be 10,000+ px tall. Gemini downscales aggressively
-// past ~3MP, which turns text/components into mush and tanks extraction
-// quality. Clamp dimensions before sending — we keep the original full-page
-// version in Vercel Blob for the home gallery hover-scroll. The 2400px cap
-// keeps total vision-token budget low (hero + 2-3 sections) so the call
-// stays well under the scrape-and-extract worker's 60s Hobby budget.
+// Screenshot sources can still be large. Clamp dimensions before sending so
+// Gemini preserves text/component detail instead of aggressively downscaling.
+// The 2400px cap keeps the vision-token budget low while retaining the hero
+// and first sections captured in the fixed desktop viewport.
 const MAX_EXTRACTION_WIDTH = 1600;
 const MAX_EXTRACTION_HEIGHT = 2400;
 const EXTRACTION_JPEG_QUALITY = 88;
+const MAX_SCREENSHOT_BYTES = 10 * 1024 * 1024;
 
 // Cap the scraped markdown injected into the Gemini prompt. Firecrawl already
 // trims to 80k chars for storage, but that's ~20k tokens of text the model
@@ -1371,10 +1372,13 @@ const MAX_EXTRACTION_MARKDOWN_CHARS = 12_000;
 const GEMINI_TIMEOUT_MS = 90_000;
 
 async function fetchImageAsPart(url: string): Promise<Part | null> {
-  const res = await fetch(url);
-  if (!res.ok) return null;
-  const original = Buffer.from(await res.arrayBuffer());
-  if (original.length === 0) return null;
+  const image = await safeFetchImage(url, {
+    deadlineMs: 8_000,
+    timeoutMs: 8_000,
+    maxBytes: MAX_SCREENSHOT_BYTES,
+  });
+  if (!image) return null;
+  const original = Buffer.from(image.bytes);
 
   try {
     const sharpMod = (await import('sharp')).default;
@@ -1386,8 +1390,7 @@ async function fetchImageAsPart(url: string): Promise<Part | null> {
     const needsCrop = (needsResize ? Math.round((MAX_EXTRACTION_WIDTH / width) * height) : height) > MAX_EXTRACTION_HEIGHT;
 
     if (!needsResize && !needsCrop && width > 0 && height > 0) {
-      const mimeType = res.headers.get('content-type')?.split(';')[0] || 'image/png';
-      return { inlineData: { mimeType, data: original.toString('base64') } };
+      return { inlineData: { mimeType: image.mimeType, data: original.toString('base64') } };
     }
 
     let pipeline = sharpMod(original);
@@ -1408,8 +1411,7 @@ async function fetchImageAsPart(url: string): Promise<Part | null> {
       '[gemini] sharp pipeline failed, sending original:',
       safeDiagnosticErrorDetail(err),
     );
-    const mimeType = res.headers.get('content-type')?.split(';')[0] || 'image/png';
-    return { inlineData: { mimeType, data: original.toString('base64') } };
+    return { inlineData: { mimeType: image.mimeType, data: original.toString('base64') } };
   }
 }
 

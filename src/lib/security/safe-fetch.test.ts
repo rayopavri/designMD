@@ -7,7 +7,7 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { afterEach, describe, it, mock } from 'node:test';
 import { createSecureContext } from 'node:tls';
-import { createPinnedDispatcher, isBlockedIp, safeFetchHtml } from './safe-fetch';
+import { createPinnedDispatcher, isBlockedIp, safeFetchHtml, safeFetchImage } from './safe-fetch';
 
 const require = createRequire(import.meta.url);
 const undici = require('undici') as typeof import('undici');
@@ -401,5 +401,82 @@ describe('safeFetchHtml', () => {
       await safeFetchHtml('https://example.com', { deadlineMs: 50, timeoutMs: 1 }),
       null,
     );
+  });
+});
+
+describe('safeFetchImage', () => {
+  const png = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
+
+  it('does not fetch a screenshot host when any DNS answer is private', async () => {
+    mockDns(['93.184.216.34', '127.0.0.1']);
+    const request = mockUndiciFetch(async () => new Response('unexpected'));
+
+    assert.equal(await safeFetchImage('https://screenshots.example.test/capture.png'), null);
+    assert.equal(request.mock.calls.length, 0);
+  });
+
+  it('revalidates screenshot redirects before fetching their destination', async () => {
+    mockDns(['93.184.216.34']);
+    const seen: string[] = [];
+    mockUndiciFetch(async (input) => {
+      seen.push(String(input));
+      return new Response(null, {
+        status: 302,
+        headers: { location: 'http://127.0.0.1/private.png' },
+      });
+    });
+
+    assert.equal(await safeFetchImage('https://screenshots.example.test/capture.png'), null);
+    assert.deepEqual(seen, ['https://screenshots.example.test/capture.png']);
+  });
+
+  it('uses the pinned dispatcher and returns a signature-validated image', async () => {
+    mockDns(['93.184.216.34']);
+    let dispatcher: unknown;
+    mockUndiciFetch(async (_input, init) => {
+      dispatcher = (init as (RequestInit & { dispatcher?: unknown }) | undefined)?.dispatcher;
+      return new Response(png, { headers: { 'content-type': 'image/png' } });
+    });
+
+    const image = await safeFetchImage('https://screenshots.example.test/capture.png');
+    assert.deepEqual(image?.bytes, png);
+    assert.equal(image?.mimeType, 'image/png');
+    assert.ok(dispatcher instanceof undici.Agent);
+  });
+
+  it('rejects a response with a non-image content type or mismatched signature', async () => {
+    mockDns(['93.184.216.34']);
+    mockUndiciFetch(async () => new Response(png, { headers: { 'content-type': 'text/html' } }));
+    assert.equal(await safeFetchImage('https://screenshots.example.test/capture.png'), null);
+
+    mock.restoreAll();
+    mockDns(['93.184.216.34']);
+    mockUndiciFetch(async () => new Response('<html>not an image</html>', {
+      headers: { 'content-type': 'image/png' },
+    }));
+    assert.equal(await safeFetchImage('https://screenshots.example.test/capture.png'), null);
+  });
+
+  it('rejects and cancels a screenshot response that exceeds its hard byte cap', async () => {
+    mockDns(['93.184.216.34']);
+    let cancelled = false;
+    mockUndiciFetch(async () => new Response(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue(png);
+          controller.enqueue(new Uint8Array([0, 1, 2, 3]));
+        },
+        cancel() {
+          cancelled = true;
+        },
+      }),
+      { headers: { 'content-type': 'image/png' } },
+    ));
+
+    assert.equal(
+      await safeFetchImage('https://screenshots.example.test/capture.png', { maxBytes: png.byteLength }),
+      null,
+    );
+    assert.equal(cancelled, true);
   });
 });

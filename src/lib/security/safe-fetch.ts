@@ -32,6 +32,23 @@ export interface SafeFetchHtmlOptions {
   contentType?: 'html' | 'html-or-text';
 }
 
+export interface SafeFetchImageOptions {
+  /** Overall time budget, including DNS, redirects, and body reads. */
+  deadlineMs?: number;
+  /** Maximum time for any individual request hop. */
+  timeoutMs?: number;
+  /** Hard limit for response bytes; oversized images are rejected, not truncated. */
+  maxBytes?: number;
+  /** Maximum number of redirects to follow. */
+  maxRedirects?: number;
+  headers?: HeadersInit;
+}
+
+export type SafeFetchedImage = {
+  bytes: Uint8Array;
+  mimeType: 'image/png' | 'image/jpeg' | 'image/webp' | 'image/gif' | 'image/avif';
+};
+
 /**
  * Fetch a public HTTP(S) document without following redirects automatically.
  * Every redirect target is independently validated and any error degrades to null.
@@ -95,6 +112,84 @@ export async function safeFetchHtml(
     try {
       if (!response.ok || !isAllowedHtmlContentType(response, options.contentType)) return null;
       return await readCapped(response, maxBytes);
+    } finally {
+      await dispatcher.destroy().catch(() => {});
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Fetch a public screenshot through the same pinned, redirect-aware boundary
+ * as HTML. The response must fit entirely within maxBytes and its declared
+ * MIME type must match a recognized image signature.
+ */
+export async function safeFetchImage(
+  initialUrl: string,
+  options: SafeFetchImageOptions = {},
+): Promise<SafeFetchedImage | null> {
+  const deadlineMs = positiveInteger(options.deadlineMs, DEFAULT_DEADLINE_MS);
+  const timeoutMs = positiveInteger(options.timeoutMs, DEFAULT_TIMEOUT_MS);
+  const maxBytes = positiveInteger(options.maxBytes, DEFAULT_MAX_BYTES);
+  const maxRedirects = nonNegativeInteger(options.maxRedirects, DEFAULT_MAX_REDIRECTS);
+  if (deadlineMs === null || timeoutMs === null || maxBytes === null || maxRedirects === null) {
+    return null;
+  }
+
+  const deadline = Date.now() + deadlineMs;
+  let current = initialUrl;
+  let forwardSensitiveHeaders = true;
+
+  for (let hop = 0; hop <= maxRedirects; hop += 1) {
+    if (Date.now() >= deadline) return null;
+
+    let parsed: URL;
+    try {
+      parsed = new URL(current);
+    } catch {
+      return null;
+    }
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
+    if (parsed.username || parsed.password) return null;
+    const addresses = await resolveSafeHost(parsed.hostname, deadline);
+    if (!addresses) return null;
+
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) return null;
+    const request = await fetchPinned(
+      parsed,
+      addresses,
+      requestHeaders(options.headers, parsed, forwardSensitiveHeaders),
+      AbortSignal.timeout(Math.min(timeoutMs, remaining)),
+    );
+    if (!request) return null;
+    const { response, dispatcher } = request;
+
+    if (response.status >= 300 && response.status < 400) {
+      const location = response.headers.get('location');
+      await cancelResponseBody(response);
+      await dispatcher.destroy().catch(() => {});
+      if (!location) return null;
+      try {
+        const next = new URL(location, parsed);
+        if (next.origin !== parsed.origin) forwardSensitiveHeaders = false;
+        current = next.toString();
+      } catch {
+        return null;
+      }
+      continue;
+    }
+
+    try {
+      const mimeType = allowedImageMimeType(response.headers.get('content-type'));
+      if (!response.ok || !mimeType) {
+        await cancelResponseBody(response);
+        return null;
+      }
+      const bytes = await readCappedBytes(response, maxBytes);
+      if (!bytes || !hasImageSignature(bytes, mimeType)) return null;
+      return { bytes, mimeType };
     } finally {
       await dispatcher.destroy().catch(() => {});
     }
@@ -263,6 +358,104 @@ async function readCapped(response: FetchResponse, maxBytes: number): Promise<st
     offset += chunk.byteLength;
   }
   return new TextDecoder('utf-8', { fatal: false }).decode(body);
+}
+
+async function readCappedBytes(response: FetchResponse, maxBytes: number): Promise<Uint8Array | null> {
+  const declaredLength = Number(response.headers.get('content-length'));
+  if (Number.isFinite(declaredLength) && declaredLength > maxBytes) {
+    await cancelResponseBody(response);
+    return null;
+  }
+  if (!response.body) return null;
+
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+      if (value.byteLength > maxBytes - total) return null;
+      const copy = new Uint8Array(value.byteLength);
+      copy.set(value);
+      chunks.push(copy);
+      total += copy.byteLength;
+    }
+  } catch {
+    return null;
+  } finally {
+    await reader.cancel().catch(() => {});
+  }
+
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytes;
+}
+
+function allowedImageMimeType(value: string | null): SafeFetchedImage['mimeType'] | null {
+  switch (value?.split(';', 1)[0]?.trim().toLowerCase()) {
+    case 'image/png':
+      return 'image/png';
+    case 'image/jpeg':
+      return 'image/jpeg';
+    case 'image/webp':
+      return 'image/webp';
+    case 'image/gif':
+      return 'image/gif';
+    case 'image/avif':
+      return 'image/avif';
+    default:
+      return null;
+  }
+}
+
+function hasImageSignature(bytes: Uint8Array, mimeType: SafeFetchedImage['mimeType']): boolean {
+  if (mimeType === 'image/png') {
+    return bytes.length >= 8
+      && bytes[0] === 0x89
+      && bytes[1] === 0x50
+      && bytes[2] === 0x4e
+      && bytes[3] === 0x47
+      && bytes[4] === 0x0d
+      && bytes[5] === 0x0a
+      && bytes[6] === 0x1a
+      && bytes[7] === 0x0a;
+  }
+  if (mimeType === 'image/jpeg') return bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  if (mimeType === 'image/webp') {
+    return bytes.length >= 12
+      && bytes[0] === 0x52
+      && bytes[1] === 0x49
+      && bytes[2] === 0x46
+      && bytes[3] === 0x46
+      && bytes[8] === 0x57
+      && bytes[9] === 0x45
+      && bytes[10] === 0x42
+      && bytes[11] === 0x50;
+  }
+  if (mimeType === 'image/gif') {
+    return bytes.length >= 6
+      && bytes[0] === 0x47
+      && bytes[1] === 0x49
+      && bytes[2] === 0x46
+      && bytes[3] === 0x38
+      && (bytes[4] === 0x37 || bytes[4] === 0x39)
+      && bytes[5] === 0x61;
+  }
+  return bytes.length >= 12
+    && bytes[4] === 0x66
+    && bytes[5] === 0x74
+    && bytes[6] === 0x79
+    && bytes[7] === 0x70
+    && bytes[8] === 0x61
+    && bytes[9] === 0x76
+    && bytes[10] === 0x69
+    && bytes[11] === 0x66;
 }
 
 function isBlockedIpv4(ip: string): boolean {

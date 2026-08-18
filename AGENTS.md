@@ -56,8 +56,8 @@ Every `db:*` command except `db:generate` hits the pooler on port 6543 — block
 
 Three QStash task workers run the generation pipeline:
 
-1. `POST /api/internal/tasks/scrape-and-extract` — Firecrawl scrapes the URL + screenshot; Gemini 3.1 Flash-Lite extracts brand tokens (palette, typography, components, design styles, category).
-2. `POST /api/internal/tasks/author-design-md` — Gemini 3.1 Flash-Lite directly writes the DESIGN.md (single provider, no fallback); `@google/design.md` lints it.
+1. `POST /api/internal/tasks/scrape-and-extract` — Firecrawl scrapes the URL + fixed 1440×900 screenshot; Gemini 3.1 Flash-Lite extracts brand tokens (palette, typography, components, design styles, category).
+2. `POST /api/internal/tasks/author-design-md` — Gemini 3.1 Flash-Lite writes the DESIGN.md; `@google/design.md` lints it.
 3. `POST /api/internal/tasks/generate-companion` — Claude Sonnet 4.6 writes the companion system prompt.
 
 After scrape/extract persists the shared phase payload, it dispatches authoring
@@ -65,9 +65,14 @@ and companion work in parallel. `src/lib/queue/` handles dispatch.
 `INLINE_TASKS=true` bypasses QStash only in local development/test; production
 requires signed QStash deliveries.
 
+Gemini-owned extraction and authoring calls use direct Gemini by default.
+`AI_PROVIDER=openrouter` is an explicit, opt-in transport selection for those
+calls and requires `OPENROUTER_API_KEY`; it is not an automatic fallback and
+does not affect Firecrawl or the direct Anthropic companion worker.
+
 ## Database
 
-Supabase Postgres 17 via Drizzle ORM. Schema at `src/lib/db/schema.ts` — 16 tables, 7 enums, triggers (vote counting, slug uniqueness, etc.). Row Level Security is enabled on every table (deny-by-default, no policies); the app connects as the table-owner role and bypasses it, so RLS is transparent to the app. See `docs/DATABASE-SECURITY.md`.
+Supabase Postgres 17 via Drizzle ORM. Schema at `src/lib/db/schema.ts` — 16 tables, 7 enums, and 7 triggers (vote counting, slug uniqueness, etc.). Row Level Security is enabled on every table (deny-by-default, no policies); the app connects as the table-owner role and bypasses it, so RLS is transparent to the app. See `docs/DATABASE-SECURITY.md`.
 
 **Critical:** the connection uses the transaction pooler (port 6543). `src/lib/db/client.ts` disables prepared statements when the URL contains `:6543` because PgBouncer transaction mode forbids them. Do not remove that toggle.
 

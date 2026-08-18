@@ -76,6 +76,7 @@ variables needed for the features you run locally:
 | `FIREBASE_ADMIN_CREDENTIALS_B64` + Firebase `NEXT_PUBLIC_*` values | Firebase Console → Project Settings / service account |
 | `ANTHROPIC_API_KEY` | console.anthropic.com |
 | `GEMINI_API_KEY` | Google AI Studio |
+| `AI_PROVIDER` + `OPENROUTER_API_KEY` | Optional: set `AI_PROVIDER=openrouter` to route Gemini-owned extraction/authoring calls through OpenRouter; direct Gemini is the default |
 | `FIRECRAWL_API_KEY` | firecrawl.dev |
 | `UPSTASH_REDIS_REST_URL` + `_TOKEN` | Upstash console |
 | `RATE_LIMIT_SECRET` | Generate a unique 32+ character secret |
@@ -90,11 +91,14 @@ are mandatory. `INLINE_TASKS` must be false: production workers accept only
 verified QStash signatures. Firebase Admin credentials are needed for
 server-side session verification. Rate limiting intentionally fails closed in
 production rather than allowing unmetered requests. Keep all server secrets out
-of `NEXT_PUBLIC_*` variables. See [SECURITY.md](./SECURITY.md) for the complete
+of `NEXT_PUBLIC_*` variables. `OPENROUTER_API_KEY` is required only when the
+explicit `AI_PROVIDER=openrouter` transport is selected; it is never an
+automatic fallback. See [SECURITY.md](./SECURITY.md) for the complete
 configuration and rotation process.
 
 ```bash
-pnpm db:migrate      # apply migrations
+pnpm db:generate     # generate a Drizzle migration after a schema change
+pnpm db:migrate      # apply init SQL, Drizzle migrations, then idempotent triggers/seed SQL
 pnpm db:seed         # optional: seed with sample bundles
 pnpm dev             # http://localhost:3000
 ```
@@ -140,7 +144,7 @@ src/
     ├── generator/          # DESIGN.md authoring logic
     ├── queue/              # QStash task dispatch
     ├── search/             # Orama index
-    └── ui-data/            # Static data, feature flags, design tokens
+    └── ui-data/            # Static data and design tokens
 ```
 
 ---
@@ -149,7 +153,7 @@ src/
 
 Bundle generation runs as three QStash task workers:
 
-1. **`/api/internal/tasks/scrape-and-extract`** — Firecrawl fetches the URL and captures a full-page screenshot; Gemini 3.1 Flash-Lite extracts brand tokens (palette, typography, components, design styles, category).
+1. **`/api/internal/tasks/scrape-and-extract`** — Firecrawl fetches the URL and captures a fixed 1440×900 desktop viewport screenshot; Gemini 3.1 Flash-Lite extracts brand tokens (palette, typography, components, design styles, category).
 2. **`/api/internal/tasks/author-design-md`** — Gemini 3.1 Flash-Lite writes the canonical DESIGN.md; output is linted with `@google/design.md`.
 3. **`/api/internal/tasks/generate-companion`** — Claude Sonnet 4.6 writes the companion system prompt calibrated for use alongside the spec.
 
@@ -158,6 +162,11 @@ After `scrape-and-extract` persists the draft and phase payload, it dispatches
 inputs from the durable job state. A GitHub Actions watchdog (runs every 5 min)
 marks any job stuck in `queued` or `running` for more than 5 minutes as
 `failed`.
+
+Gemini is the default provider for extraction and authoring. Setting
+`AI_PROVIDER=openrouter` deliberately routes those Gemini-owned calls through
+OpenRouter instead; it requires `OPENROUTER_API_KEY`, is not a fallback, and
+does not affect Firecrawl or the direct Anthropic companion call.
 
 ---
 

@@ -12,10 +12,13 @@
  * sharp binary already bundled for Gemini vision pre-processing.
  */
 import { env } from '@/lib/env';
+import { safeDiagnosticErrorDetail, safeDiagnosticUrl } from '@/lib/security/diagnostics';
+import { safeFetchImage } from '@/lib/security/safe-fetch';
 
 const BUCKET = 'bundle-screenshots';
 const FETCH_TIMEOUT_MS = 8_000;
 const UPLOAD_TIMEOUT_MS = 10_000;
+const MAX_SCREENSHOT_BYTES = 10 * 1024 * 1024;
 
 export async function captureAndStoreScreenshot({
   screenshotUrl,
@@ -29,13 +32,16 @@ export async function captureAndStoreScreenshot({
   if (!base || !serviceKey) return null;
 
   try {
-    const res = await fetch(screenshotUrl, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
-    if (!res.ok) {
-      console.warn(`[screenshots] source fetch ${res.status} for ${screenshotUrl.slice(0, 80)}`);
+    const screenshot = await safeFetchImage(screenshotUrl, {
+      deadlineMs: FETCH_TIMEOUT_MS,
+      timeoutMs: FETCH_TIMEOUT_MS,
+      maxBytes: MAX_SCREENSHOT_BYTES,
+    });
+    if (!screenshot) {
+      console.warn(`[screenshots] source fetch failed for ${safeDiagnosticUrl(screenshotUrl)}`);
       return null;
     }
-    const input = Buffer.from(await res.arrayBuffer());
-    if (input.length === 0) return null;
+    const input = Buffer.from(screenshot.bytes);
 
     const sharpMod = (await import('sharp')).default;
     const webp = await sharpMod(input)
@@ -65,14 +71,12 @@ export async function captureAndStoreScreenshot({
       signal: AbortSignal.timeout(UPLOAD_TIMEOUT_MS),
     });
     if (!up.ok) {
-      console.error(
-        `[screenshots] upload failed ${up.status}: ${(await up.text().catch(() => '')).slice(0, 200)}`,
-      );
+      console.error(`[screenshots] upload failed with status ${up.status}`);
       return null;
     }
     return `${base}/storage/v1/object/public/${BUCKET}/${path}`;
   } catch (err) {
-    console.error('[screenshots] capture failed:', err instanceof Error ? err.message : err);
+    console.error('[screenshots] capture failed:', safeDiagnosticErrorDetail(err));
     return null;
   }
 }
@@ -126,12 +130,12 @@ export async function probeScreenshotStorage(): Promise<{
         configured: true,
         ok: false,
         status: res.status,
-        error: (await res.text().catch(() => '')).slice(0, 200),
+        error: 'storage_request_failed',
         host,
       };
     }
     return { configured: true, ok: true, status: res.status, host };
-  } catch (err) {
-    return { configured: true, ok: false, error: err instanceof Error ? err.message : String(err), host };
+  } catch {
+    return { configured: true, ok: false, error: 'storage_request_failed', host };
   }
 }

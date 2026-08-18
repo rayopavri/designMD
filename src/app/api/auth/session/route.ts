@@ -31,7 +31,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
 
-  const auth = adminAuth();
+  let auth: ReturnType<typeof adminAuth>;
+  try {
+    auth = adminAuth();
+  } catch (err) {
+    console.error('[auth/session] Firebase initialization failed:', safeDiagnosticErrorDetail(err));
+    return NextResponse.json({ error: 'auth_unavailable' }, { status: 503 });
+  }
 
   // 1. Verify the ID token (rejects expired/forged tokens).
   let decoded;
@@ -52,7 +58,13 @@ export async function POST(req: NextRequest) {
   }
 
   // 3. Upsert the DB row so we have a local user record.
-  const firebaseUser = await auth.getUser(decoded.uid);
+  let firebaseUser;
+  try {
+    firebaseUser = await auth.getUser(decoded.uid);
+  } catch (err) {
+    console.error('[auth/session] Firebase user lookup failed:', safeDiagnosticErrorDetail(err));
+    return NextResponse.json({ error: 'auth_unavailable' }, { status: 503 });
+  }
   const providerId = firebaseUser.providerData[0]?.providerId;
   let user;
   try {

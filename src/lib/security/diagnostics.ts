@@ -14,6 +14,8 @@ const DIAGNOSTIC_ERROR_TYPES = new Set([
 ]);
 
 const SAFE_DETAIL_PATTERN = /^(?:diagnostic|generation)_error type=(?:AbortError|Error|FetchError|PostgresError|TimeoutError|TypeError|ZodError|non_error_throw)$/;
+const DIAGNOSTIC_CONTROL_CHARACTER = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/;
+const DIAGNOSTIC_CONTROL_CHARACTERS = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g;
 
 function errorType(error: unknown): string {
   if (!(error instanceof Error)) return 'non_error_throw';
@@ -35,7 +37,7 @@ export function safeGenerationErrorDetail(error: unknown): string {
  * fragments, control characters, and malformed values are never retained.
  */
 export function safeDiagnosticUrl(value: unknown): string {
-  if (typeof value !== 'string' || /[\u0000-\u001f\u007f]/.test(value)) return 'invalid-url';
+  if (typeof value !== 'string' || DIAGNOSTIC_CONTROL_CHARACTER.test(value)) return 'invalid-url';
   try {
     const parsed = new URL(value);
     return parsed.protocol === 'http:' || parsed.protocol === 'https:' ? parsed.origin : 'invalid-url';
@@ -55,7 +57,7 @@ export function safePerfDiagnosticValue(key: string, value: unknown): string {
       : safeDiagnosticErrorDetail(value);
   }
   if (/url/i.test(key)) return safeDiagnosticUrl(value);
-  return String(value).replace(/[\u0000-\u001f\u007f]+/g, ' ').trim().slice(0, 160);
+  return String(value).replace(DIAGNOSTIC_CONTROL_CHARACTERS, ' ').trim().slice(0, 160);
 }
 
 /** Normalizes field names so dynamic inputs cannot add whitespace or delimiters. */
