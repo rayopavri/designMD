@@ -142,10 +142,11 @@ async function resolveSafeHost(
  */
 export function createPinnedDispatcher(
   addresses: readonly ResolvedAddress[],
+  connectOptions: undici.buildConnector.BuildOptions = {},
 ): undici.Dispatcher {
   const address = addresses[0];
   if (!address) throw new Error('Pinned dispatcher requires an address');
-  const connect = undici.buildConnector({});
+  const connect = undici.buildConnector(connectOptions);
   return new undici.Agent({
     connect(options, callback) {
       connect({ ...options, hostname: address.address }, callback);
@@ -292,23 +293,20 @@ function isBlockedIpv6(ip: string): boolean {
   if (bytes[0] === 0xfe && (bytes[1] & 0xc0) === 0x80) return true; // fe80::/10 link-local
   if ((bytes[0] & 0xfe) === 0xfc) return true; // fc00::/7 ULA
   if (bytes[0] === 0xfe && (bytes[1] & 0xc0) === 0xc0) return true; // fec0::/10 site-local
-  if (bytes[0] === 0 && bytes[1] === 0x64 && bytes[2] === 0xff && bytes[3] === 0x9b && bytes.slice(4, 12).every((byte) => byte === 0)) {
-    return true; // 64:ff9b::/96 NAT64
+  if (isNat64WellKnownPrefix(bytes) || isNat64LocalUsePrefix(bytes)) {
+    return isBlockedEmbeddedIpv4(bytes, 12);
   }
-  if (bytes[0] === 0 && bytes[1] === 0x64 && bytes[2] === 0xff && bytes[3] === 0x9b && bytes[4] === 0 && bytes[5] === 1) {
-    return true; // 64:ff9b:1::/48 local-use NAT64
+  if (bytes[0] === 0x20 && bytes[1] === 0x02) {
+    return isBlockedEmbeddedIpv4(bytes, 2); // 2002::/16 6to4
   }
-  if (bytes[0] === 0x20 && bytes[1] === 0x02) return true; // 2002::/16 6to4
   if (bytes[0] === 0x01 && bytes.slice(1, 8).every((byte) => byte === 0)) return true; // 100::/64 discard-only
   if (bytes[0] === 0x01 && bytes.slice(1, 7).every((byte) => byte === 0) && bytes[7] === 0x01) return true; // 100:0:0:1::/64 dummy prefix
-  if (bytes[0] === 0x20 && bytes[1] === 0x01 && (bytes[2] & 0xfe) === 0) return true; // 2001::/23 IETF protocol assignments
-  if (bytes[0] === 0x20 && bytes[1] === 0x01 && bytes[2] === 0 && bytes[3] === 0x02 && bytes[4] === 0 && bytes[5] === 0) return true; // 2001:2::/48 benchmarking
-  if (bytes[0] === 0x20 && bytes[1] === 0x01 && bytes[2] === 0 && (bytes[3] & 0xf0) === 0x10) return true; // 2001:10::/28 Orchid
-  if (bytes[0] === 0x20 && bytes[1] === 0x01 && bytes[2] === 0 && (bytes[3] & 0xf0) === 0x20) return true; // 2001:20::/28 Orchidv2
+  if (isIetfProtocolAssignmentPrefix(bytes) && !isGloballyReachableIetfAssignment(bytes)) {
+    return true;
+  }
   if (bytes[0] === 0x20 && bytes[1] === 0x01 && bytes[2] === 0x0d && bytes[3] === 0xb8) {
     return true; // 2001:db8::/32 documentation
   }
-  if (bytes[0] === 0x26 && bytes[1] === 0x20 && bytes[2] === 0 && bytes[3] === 0x4f && bytes[4] === 0x80 && bytes[5] === 0) return true; // 2620:4f:8000::/48 AS112
   if (bytes[0] === 0x3f && bytes[1] === 0xff && (bytes[2] & 0xf0) === 0) return true; // 3fff::/20 documentation
   if (bytes[0] === 0x5f && bytes[1] === 0) return true; // 5f00::/16 SRv6 SIDs
 
@@ -325,6 +323,45 @@ function isBlockedIpv6(ip: string): boolean {
     return isBlockedIpv4(Array.from(bytes.slice(12)).join('.'));
   }
   return false;
+}
+
+function isNat64WellKnownPrefix(bytes: Uint8Array): boolean {
+  return bytes[0] === 0
+    && bytes[1] === 0x64
+    && bytes[2] === 0xff
+    && bytes[3] === 0x9b
+    && bytes.slice(4, 12).every((byte) => byte === 0);
+}
+
+function isNat64LocalUsePrefix(bytes: Uint8Array): boolean {
+  return bytes[0] === 0
+    && bytes[1] === 0x64
+    && bytes[2] === 0xff
+    && bytes[3] === 0x9b
+    && bytes[4] === 0
+    && bytes[5] === 1;
+}
+
+function isBlockedEmbeddedIpv4(bytes: Uint8Array, start: number): boolean {
+  return isBlockedIpv4(Array.from(bytes.slice(start, start + 4)).join('.'));
+}
+
+function isIetfProtocolAssignmentPrefix(bytes: Uint8Array): boolean {
+  return bytes[0] === 0x20 && bytes[1] === 0x01 && (bytes[2] & 0xfe) === 0;
+}
+
+/** IANA's globally reachable more-specific allocations within 2001::/23. */
+function isGloballyReachableIetfAssignment(bytes: Uint8Array): boolean {
+  const isPcpAnycast = bytes[2] === 0
+    && bytes[3] === 1
+    && bytes.slice(4, 15).every((byte) => byte === 0)
+    && bytes[15] >= 1
+    && bytes[15] <= 3;
+  const isAmt = bytes[2] === 0 && bytes[3] === 3; // 2001:3::/32
+  const isAs112 = bytes[2] === 0 && bytes[3] === 4 && bytes[4] === 1 && bytes[5] === 0x12;
+  const isOrchidv2 = bytes[2] === 0 && (bytes[3] & 0xf0) === 0x20; // 2001:20::/28
+  const isDroneRemoteId = bytes[2] === 0 && (bytes[3] & 0xf0) === 0x30; // 2001:30::/28
+  return isPcpAnycast || isAmt || isAs112 || isOrchidv2 || isDroneRemoteId;
 }
 
 function ipv6Bytes(ip: string): Uint8Array | null {

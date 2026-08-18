@@ -1,8 +1,12 @@
 import assert from 'node:assert/strict';
 import { promises as dns } from 'node:dns';
+import { readFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
+import { createServer as createHttpsServer } from 'node:https';
 import { createRequire } from 'node:module';
+import path from 'node:path';
 import { afterEach, describe, it, mock } from 'node:test';
+import { createSecureContext } from 'node:tls';
 import { createPinnedDispatcher, isBlockedIp, safeFetchHtml } from './safe-fetch';
 
 const require = createRequire(import.meta.url);
@@ -62,14 +66,10 @@ describe('isBlockedIp', () => {
       '100::1',
       '100:0:0:1::1',
       '2001::1',
+      '2001:1::4',
       '2001:2::1',
-      '2001:3::1',
-      '2001:4:112::1',
       '2001:10::1',
-      '2001:20::1',
-      '2001:30::1',
       '2001:db8::1',
-      '2620:4f:8000::1',
       '3fff::1',
       '5f00::1',
       'ff00::1',
@@ -79,9 +79,22 @@ describe('isBlockedIp', () => {
   });
 
   it('allows public addresses', () => {
-    assert.equal(isBlockedIp('93.184.216.34'), false);
-    assert.equal(isBlockedIp('198.51.1.1'), false);
-    assert.equal(isBlockedIp('2606:2800:220:1:248:1893:25c8:1946'), false);
+    for (const ip of [
+      '93.184.216.34',
+      '198.51.1.1',
+      '2606:2800:220:1:248:1893:25c8:1946',
+      '64:ff9b::5db8:d822',
+      '64:ff9b:1::5db8:d822',
+      '2002:5db8:d822::1',
+      '2001:1::1',
+      '2001:3::1',
+      '2001:4:112::1',
+      '2001:20::1',
+      '2001:30::1',
+      '2620:4f:8000::1',
+    ]) {
+      assert.equal(isBlockedIp(ip), false, ip);
+    }
   });
 });
 
@@ -103,6 +116,47 @@ describe('safeFetchHtml', () => {
         headers: { host: `unresolvable.test:${listening.port}` },
       });
       assert.equal(await response.text(), `unresolvable.test:${listening.port}`);
+    } finally {
+      await dispatcher.destroy();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  it('pins TLS to the validated address while preserving original URL SNI', async () => {
+    const fixtures = path.join(process.cwd(), 'src/lib/security/fixtures');
+    const [key, cert] = await Promise.all([
+      readFile(path.join(fixtures, 'origin.test-key.txt')),
+      readFile(path.join(fixtures, 'origin.test-cert.txt')),
+    ]);
+    const context = createSecureContext({ key, cert });
+    let observedServername: string | undefined;
+    const server = createHttpsServer({
+      key,
+      cert,
+      SNICallback(servername, callback) {
+        observedServername = servername;
+        callback(null, context);
+      },
+    }, (req, res) => res.end(req.headers.host));
+    await new Promise<void>((resolve, reject) => {
+      server.once('error', reject);
+      server.listen(0, '127.0.0.1', resolve);
+    });
+    const listening = server.address();
+    assert.ok(listening && typeof listening !== 'string');
+    if (!listening || typeof listening === 'string') return;
+
+    const dispatcher = createPinnedDispatcher(
+      [{ address: '127.0.0.1', family: 4 }],
+      { ca: cert },
+    );
+    try {
+      const response = await undici.fetch(`https://origin.test:${listening.port}/`, {
+        dispatcher,
+        headers: { host: `origin.test:${listening.port}` },
+      });
+      assert.equal(await response.text(), `origin.test:${listening.port}`);
+      assert.equal(observedServername, 'origin.test');
     } finally {
       await dispatcher.destroy();
       await new Promise<void>((resolve) => server.close(() => resolve()));
