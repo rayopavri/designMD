@@ -8,7 +8,7 @@
  *   Body: { url: string }
  *
  * Upload mode (Content-Type: multipart/form-data):
- *   image:      File (image/png|image/jpeg|image/webp, max ~6 MB)
+ *   image:      File (image/png|image/jpeg|image/webp, max 4 MB)
  *   brandName:  string (1..120 chars)
  *
  * Response: 202 { jobId, status, currentStep }
@@ -31,8 +31,13 @@ import { getOrCreateAnonToken, attachAnonToken } from '@/lib/auth/anon-token';
 import { normalizeUrl } from '@/lib/generator/url';
 import { enqueueTask } from '@/lib/queue';
 import { rateLimitGenerate, markFreeGenerationUsed } from '@/lib/rate-limit';
-import { requestExceedsContentLength } from '@/lib/security/request-body';
-import { matchesImageSignature } from '@/lib/security/image-signature';
+import {
+  isMultipartFormData,
+  MAX_GENERATE_IMAGE_BYTES,
+  MAX_GENERATE_MULTIPART_BYTES,
+  requestExceedsContentLength,
+} from '@/lib/security/request-body';
+import { validateImageData } from '@/lib/security/image-signature';
 
 export const runtime = 'nodejs';
 
@@ -40,17 +45,16 @@ const UrlBodySchema = z.object({
   url: z.string().url(),
 });
 
-const MAX_IMAGE_BYTES = 6 * 1024 * 1024; // 6 MB raw — base64 expands ~33% but still fits comfortably
-const MAX_MULTIPART_BYTES = MAX_IMAGE_BYTES + 512 * 1024;
 const ALLOWED_MIME = new Set(['image/png', 'image/jpeg', 'image/webp']);
 const BRAND_NAME_MAX = 120;
 
 export async function POST(req: NextRequest) {
   const contentType = req.headers.get('content-type') ?? '';
   // Reject declared oversized payloads before auth, rate-limit, or multipart
-  // parsing. Chunked requests have no Content-Length; platform body limits are
-  // the outer enforcement layer, while File.size below remains defense-in-depth.
-  if (contentType.startsWith('multipart/form-data') && requestExceedsContentLength(req, MAX_MULTIPART_BYTES)) {
+  // parsing. The envelope is below Vercel's 4.5 MiB request limit. Chunked
+  // requests have no Content-Length; platform limits and File.size below are
+  // defense-in-depth for those requests.
+  if (isMultipartFormData(contentType) && requestExceedsContentLength(req, MAX_GENERATE_MULTIPART_BYTES)) {
     return NextResponse.json({ error: 'payload_too_large' }, { status: 413 });
   }
 
@@ -99,7 +103,7 @@ export async function POST(req: NextRequest) {
       return res;
     }
 
-    const res = contentType.startsWith('multipart/form-data')
+    const res = isMultipartFormData(contentType)
       ? await handleUpload(req, userId, anonToken, isEditor)
       : await handleUrl(req, userId, anonToken, isEditor);
 
@@ -284,15 +288,15 @@ async function handleUpload(req: NextRequest, userId: string | null, anonToken: 
       { status: 400 },
     );
   }
-  if (file.size === 0 || file.size > MAX_IMAGE_BYTES) {
+  if (file.size === 0 || file.size > MAX_GENERATE_IMAGE_BYTES) {
     return NextResponse.json(
-      { error: `Image must be 1 byte to ${MAX_IMAGE_BYTES / 1024 / 1024} MB. Got ${file.size}.` },
+      { error: `Image must be 1 byte to ${MAX_GENERATE_IMAGE_BYTES / 1024 / 1024} MB. Got ${file.size}.` },
       { status: 400 },
     );
   }
 
   const buf = Buffer.from(await file.arrayBuffer());
-  if (!matchesImageSignature(buf, file.type)) {
+  if (!(await validateImageData(buf, file.type))) {
     return NextResponse.json({ error: 'Invalid image data' }, { status: 400 });
   }
   const hash = createHash('sha256').update(buf).digest('hex');
