@@ -150,13 +150,37 @@ If Google sign-in ever regresses to "redirects to Google, comes back signed
 out, no error," check Network for a 404 on `/__/firebase/init.json` before
 anything else — that's this exact failure mode.
 
-**Current verification status (2026-08-18):** the Task 9 HTTP observation
-returned 404 for `/__/firebase/init.json` through both `uiuxskills.com` and
-the Firebase origin. HTTP status alone cannot establish the redirect flow or
-isolate the cause, but it leaves custom-domain redirect sign-in unverified.
-Resolve the 404 and complete the interactive Firebase matrix in
-[`docs/security/RELEASE-CHECKLIST.md`](docs/security/RELEASE-CHECKLIST.md)
-before enforcing CSP.
+**Hosting must have content deployed:** the reserved `/__/firebase/*` URLs are
+served by Firebase Hosting, and a Hosting site that exists but has zero
+releases returns a Firebase "Site Not Found" 404 for `init.json` even though
+`/__/auth/handler` (served by the Auth backend) still returns 200. This was
+the state from an unknown date until 2026-08-18, when a one-file placeholder
+site was deployed (`firebase deploy --only hosting --project designmd-2ff95`)
+and `init.json` began returning 200 both at the Firebase origin and through
+the `uiuxskills.com` rewrite. If the site is ever deleted or its content
+expires, redeploy a placeholder the same way.
+
+**Server-side session verification (2026-08-18 incident):** Next loads
+`firebase-admin` as an external CJS module via `require()`. `firebase-admin@14`
+→ `jwks-rsa@4` → `jose@^6`, and `jose@6` is ESM-only, so `/api/auth/session`
+and `/api/me` crashed on Vercel with `ERR_REQUIRE_ESM` — Google sign-in
+completed client-side, but the session-cookie exchange 500'd and every user
+appeared logged out. Local dev did not reproduce it (local Node ≥22.12
+supports `require(esm)`; Vercel's externals loader does not). Fixed by the
+`pnpm.overrides` entry `"jwks-rsa>jose": "^5.10.0"` in `package.json`
+(commit `11eb228`) — do not remove it while `jwks-rsa` still `require()`s
+`jose`, and check Vercel runtime errors after any server-side dependency
+upgrade.
+
+**Verification status (updated 2026-08-18):** the earlier 404 on
+`/__/firebase/init.json` was root-caused to the Firebase Hosting site having
+no content deployed (see "Hosting must have content deployed" above) and is
+resolved — `init.json` now returns 200 at both the Firebase origin and through
+`uiuxskills.com`. Google sign-in is confirmed working in production after the
+`jose` override fix. What remains open from the release checklist is the
+*interactive* browser matrix (CSP console/network inspection) in
+[`docs/security/RELEASE-CHECKLIST.md`](docs/security/RELEASE-CHECKLIST.md) —
+keep CSP report-only until that passes.
 
 The OAuth consent-screen app name (Google Cloud Console → **APIs & Services →
 OAuth consent screen**, project `designmd-2ff95`) should also be `UIUXskills`,

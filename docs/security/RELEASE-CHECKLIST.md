@@ -48,13 +48,14 @@ or other HTTP-only check is insufficient.
 
 These are evidence blockers, not unresolved source-code findings:
 
-- **Browser/Firebase/CSP:** the Task 9 environment had no browser runtime, so
-  the interactive matrix and CSP console/network inspection remain unverified.
-  HTTP-only observation found `/__/auth/handler` returning 200 and
-  `/__/firebase/init.json` returning 404 both through the custom domain and at
-  the Firebase Hosting origin; that does not isolate a rewrite defect or prove
-  the redirect flow. Resolve it in a real browser. Keep CSP report-only until
-  the full matrix passes.
+- **Browser/Firebase/CSP:** the interactive matrix and CSP console/network
+  inspection remain unverified. The earlier `/__/firebase/init.json` 404 was
+  root-caused (Firebase Hosting site had no content deployed; `/__/auth/*` is
+  served by the Auth backend and kept returning 200) and fixed by deploying a
+  placeholder Hosting site — `init.json` now returns 200 at the origin and
+  through the custom-domain rewrite, and production sign-in is confirmed
+  working (2026-08-18). The remaining gate is running the full matrix in a
+  real browser. Keep CSP report-only until the full matrix passes.
 - **Database-backed production build:** compilation/type stages were reached,
   but prerendering could not complete against the synthetic unreachable local
   database. Run `pnpm build` with approved production-like configuration and a
