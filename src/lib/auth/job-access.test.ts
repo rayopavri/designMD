@@ -108,19 +108,31 @@ describe('public generation job status', () => {
     assert.equal(publicGenerationError('running', 'extracting'), 'generation_failed');
   });
 
-  it('keeps internal error detail useful while removing credential-bearing values', () => {
+  it('returns an allowlisted diagnostic without retaining credential-bearing error text', () => {
     assert.equal(
       safeGenerationErrorDetail(
-        'Postgres error for postgresql://admin:database-secret@db.example/test?password=query-secret; Bearer bearer-secret',
+        new Error(
+          'Postgres error for postgresql://admin:database-secret@db.example/test?password=query-secret; Bearer bearer-secret',
+        ),
       ),
-      'Postgres error for postgresql://[redacted]@db.example/test?password=[redacted]; Bearer [redacted]',
+      'generation_error type=Error',
     );
   });
 
-  it('redacts quoted JSON credentials before they reach logs or database diagnostics', () => {
-    assert.equal(
-      safeGenerationErrorDetail('{"apiKey":"provider-secret","token":"session-secret"}'),
-      '{"apiKey":"[redacted]","token":"[redacted]"}',
-    );
+  it('does not retain provider prompt, request, content, URL, or authorization payloads', () => {
+    const providerPayload = JSON.stringify({
+      prompt: 'proprietary prompt text',
+      request: {
+        url: 'https://provider.example/v1/generate',
+        body: { content: 'private source content' },
+        headers: { authorization: 'Bearer provider-token' },
+      },
+      response: { content: 'model response content' },
+    });
+
+    const detail = safeGenerationErrorDetail(new Error(providerPayload));
+
+    assert.equal(detail, 'generation_error type=Error');
+    assert.doesNotMatch(detail, /prompt|request|content|provider\.example|provider-token/i);
   });
 });

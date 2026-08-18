@@ -295,7 +295,7 @@ export async function runScrapeAndExtract(payload: ScrapeAndExtractPayload): Pro
   try {
     await enqueueTask('generate-companion', { jobId });
   } catch (err) {
-    console.error('[scrape-and-extract] failed to enqueue companion task:', err);
+    console.error('[scrape-and-extract] failed to enqueue companion task:', safeGenerationErrorDetail(err));
     // Continue — the bundle has a placeholder companion; the worker can be
     // retried later or run from author-design-md as a future fallback.
   }
@@ -308,7 +308,7 @@ export async function runScrapeAndExtract(payload: ScrapeAndExtractPayload): Pro
     try {
       await enqueueTask('capture-screenshot', { bundleId, screenshotUrl: scrape.screenshotUrl });
     } catch (err) {
-      console.error('[scrape-and-extract] failed to enqueue capture-screenshot task:', err);
+      console.error('[scrape-and-extract] failed to enqueue capture-screenshot task:', safeGenerationErrorDetail(err));
     }
   }
 
@@ -360,7 +360,10 @@ async function failJob(jobId: string, step: string, err: unknown, batchId?: stri
   // waiting for the next cron tick. Best-effort: the supervisor backstops this.
   if (batchId) {
     await dispatchReady().catch((dispatchErr) =>
-      console.error(`[scrape-and-extract] dispatchReady after fail (${jobId}) failed:`, dispatchErr),
+      console.error(
+        `[scrape-and-extract] dispatchReady after fail (${jobId}) failed:`,
+        safeGenerationErrorDetail(dispatchErr),
+      ),
     );
   }
 }

@@ -87,23 +87,31 @@ export function publicGenerationJobStatus(
   };
 }
 
+const DIAGNOSTIC_ERROR_TYPES = new Set([
+  'AbortError',
+  'Error',
+  'FetchError',
+  'PostgresError',
+  'TimeoutError',
+  'TypeError',
+  'ZodError',
+]);
+
 /**
- * Keeps logs and internal diagnostics useful while removing obvious secret
- * carriers from thrown messages before they are persisted or logged.
+ * Emits only a small allowlisted diagnostic summary. Provider error messages
+ * can embed prompts, request bodies, URLs, and authorization headers, so a
+ * blacklist is not a safe boundary for logs or persisted job diagnostics.
  */
 export function safeGenerationErrorDetail(error: unknown): string {
-  const message = error instanceof Error ? error.message : String(error);
-  return message
-    .replace(/:\/\/[^\s/@]+@/g, '://[redacted]@')
-    .replace(/([?&](?:api[_-]?key|token|password|secret)=[^&\s;]+)/gi, (value) => {
-      const separator = value[0];
-      const key = value.slice(1, value.indexOf('='));
-      return `${separator}${key}=[redacted]`;
-    })
-    .replace(/(bearer\s+)[^\s,;]+/gi, '$1[redacted]')
-    .replace(
-      /((?:api[_-]?key|token|password|secret)["']?\s*[:=]\s*["']?)([^\s,;"']+)(["']?)/gi,
-      '$1[redacted]$3',
-    )
-    .slice(0, 1000);
+  if (!(error instanceof Error)) return 'generation_error type=non_error_throw';
+
+  const type = DIAGNOSTIC_ERROR_TYPES.has(error.name) ? error.name : 'Error';
+  const code = getDiagnosticErrorCode(error);
+  return code ? `generation_error type=${type} code=${code}` : `generation_error type=${type}`;
+}
+
+function getDiagnosticErrorCode(error: Error): string | null {
+  const value = (error as Error & { code?: unknown }).code;
+  if (typeof value !== 'string') return null;
+  return /^[A-Z0-9][A-Z0-9_-]{0,63}$/.test(value) ? value : null;
 }

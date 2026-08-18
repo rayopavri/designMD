@@ -22,6 +22,7 @@ import { db } from '@/lib/db/client';
 import { generationJobs } from '@/lib/db/schema';
 import { enqueueTask, type TaskName } from '@/lib/queue';
 import { env } from '@/lib/env';
+import { safeGenerationErrorDetail } from '@/lib/auth/job-access';
 
 // Arbitrary app-wide constant identifying the advisory lock that serializes
 // batch dispatch. pg_advisory_xact_lock is transaction-scoped (released on
@@ -106,7 +107,10 @@ export async function dispatchReady(): Promise<{ claimed: number }> {
       await enqueueTask(taskForPhase(job.phase), { jobId: job.id });
       claimed++;
     } catch (err) {
-      console.error(`[dispatchReady] enqueue failed for job ${job.id}; reverting to queued`, err);
+      console.error(
+        `[dispatchReady] enqueue failed for job ${job.id}; reverting to queued`,
+        safeGenerationErrorDetail(err),
+      );
       await db
         .update(generationJobs)
         .set({ status: 'queued', updatedAt: new Date() })
@@ -114,7 +118,7 @@ export async function dispatchReady(): Promise<{ claimed: number }> {
         .catch((revertErr) => {
           console.error(
             `[dispatchReady] revert failed for job ${job.id}; reaper will recover`,
-            revertErr,
+            safeGenerationErrorDetail(revertErr),
           );
         });
     }
@@ -185,7 +189,7 @@ export async function reapStale(): Promise<{ resumed: number; failed: number }> 
       } catch (err) {
         // Lease + attempts are already bumped; the next tick retries. We avoid
         // failing here so a transient QStash blip doesn't kill a recoverable job.
-        console.error(`[reapStale] re-enqueue failed for job ${job.id}`, err);
+        console.error(`[reapStale] re-enqueue failed for job ${job.id}`, safeGenerationErrorDetail(err));
       }
     } else {
       const [failedRow] = await db

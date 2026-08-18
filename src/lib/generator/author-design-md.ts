@@ -223,7 +223,10 @@ export async function runAuthorDesignMd(payload: AuthorDesignMdPayload): Promise
   // supervisor cron backstops this if the call is lost.
   if (batchId) {
     await dispatchReady().catch((dispatchErr) =>
-      console.error(`[author-design-md] dispatchReady after complete (${jobId}) failed:`, dispatchErr),
+      console.error(
+        `[author-design-md] dispatchReady after complete (${jobId}) failed:`,
+        safeGenerationErrorDetail(dispatchErr),
+      ),
     );
   }
 }
@@ -265,7 +268,10 @@ async function failJob(jobId: string, step: string, err: unknown, batchId?: stri
     .where(eq(generationJobs.id, jobId));
   if (batchId) {
     await dispatchReady().catch((dispatchErr) =>
-      console.error(`[author-design-md] dispatchReady after fail (${jobId}) failed:`, dispatchErr),
+      console.error(
+        `[author-design-md] dispatchReady after fail (${jobId}) failed:`,
+        safeGenerationErrorDetail(dispatchErr),
+      ),
     );
   }
 }
