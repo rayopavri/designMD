@@ -41,6 +41,17 @@ Anthropic SDK 0.117 adds required citation metadata to beta text blocks, making
 the previous hand-written content type predicate invalid. A tested structural
 extractor now handles citation-bearing text blocks and ignores non-text blocks.
 
+### Review follow-up: Node runtime floor
+
+`firebase-admin@14.2.0` requires Node.js 22 or newer. `package.json` now
+declares `engines.node: ">=22"`, which is the repository-controlled Vercel
+runtime selector and overrides the dashboard's Node setting. `README.md` and
+the Vercel runtime section of `TECH-STACK.md` now state the same Node 22+
+floor. `vercel.json` was inspected but has no Node-major configuration for
+Next.js functions; Vercel's documented mechanism is `package.json#engines`.
+The repository's GitHub workflows do not install or execute Node, so no
+`actions/setup-node` declaration was needed.
+
 ## Residual risk
 
 `pnpm why uuid --prod` identifies two moderate GHSA-w5hq-g745-h8pq paths:
@@ -72,3 +83,9 @@ an owner-approved exception or audit suppression.
   because the safe local `DATABASE_URL` has no running Postgres server. A clean
   output build reached the expected database query and failed with
   `ECONNREFUSED`; no source or dependency compatibility failure remained.
+- Review follow-up verification: `pnpm install --frozen-lockfile`,
+  `pnpm typecheck`, and `pnpm test` passed (100 tests); `pnpm lint` completed
+  with 0 errors and the same 4 pre-existing warnings. The build was not rerun
+  for the Node-engine metadata/documentation-only follow-up because it would
+  require a reachable database to pass prerendering and would not exercise a
+  changed runtime code path.

@@ -53,7 +53,7 @@ Full detail in [TECH-STACK.md](./TECH-STACK.md).
 
 ### Prerequisites
 
-- Node.js 20+
+- Node.js 22+
 - pnpm (`npm i -g pnpm`)
 - A Supabase project (or any Postgres 17 instance)
 

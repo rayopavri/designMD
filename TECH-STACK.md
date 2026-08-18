@@ -87,6 +87,9 @@ Only Vercel is on a paid tier (Pro, for the raised function limits); everything 
 
 ### Vercel (Pro plan)
 - Hosts the Next.js app, terminates TLS, serves CDN-cached static + edge functions.
+- **Node runtime:** Node.js 22+ is declared in `package.json` (`engines.node`).
+  Vercel uses this repository-controlled engine range to override the project's
+  dashboard default; Vercel manages compatible minor and patch updates.
 - **Constraints driving architecture:**
   - Function timeout: Pro allows 300s (standard) / 800s (Fluid Compute). Each pipeline worker pins `maxDuration = 180s` with a 174s in-process watchdog. The 3-worker split (`scrape-and-extract` → `author-design-md` → `generate-companion`) predates the Pro upgrade — kept for parallelism (author + companion run concurrently) and per-stage retry isolation, not the old 60s cap.
   - Cron jobs limited to once-per-day (tightened ~2026-05-21). Triggered the migration to GitHub Actions cron.
