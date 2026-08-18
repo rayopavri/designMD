@@ -65,19 +65,30 @@ cd designMD
 pnpm install
 ```
 
-Copy `.env.example` to `.env.local` and fill in the required variables:
+Create `.env.local` (there is no committed `.env.example`) and fill in the
+variables needed for the features you run locally:
 
 | Variable | Source |
 |---|---|
 | `DATABASE_URL` | Supabase → Project Settings → Database → Transaction pooler URL (port 6543) |
-| `FIREBASE_*` | Firebase Console → Project Settings |
+| `FIREBASE_ADMIN_CREDENTIALS_B64` + Firebase `NEXT_PUBLIC_*` values | Firebase Console → Project Settings / service account |
 | `ANTHROPIC_API_KEY` | console.anthropic.com |
-| `GOOGLE_GENERATIVE_AI_API_KEY` | Google AI Studio |
+| `GEMINI_API_KEY` | Google AI Studio |
 | `FIRECRAWL_API_KEY` | firecrawl.dev |
 | `UPSTASH_REDIS_REST_URL` + `_TOKEN` | Upstash console |
-| `QSTASH_URL` + `QSTASH_TOKEN` + `QSTASH_CURRENT_SIGNING_KEY` + `QSTASH_NEXT_SIGNING_KEY` | Upstash console |
+| `RATE_LIMIT_SECRET` | Generate a unique 32+ character secret |
+| `QSTASH_TOKEN` + `QSTASH_CURRENT_SIGNING_KEY` + `QSTASH_NEXT_SIGNING_KEY` | Upstash console, when QStash is enabled |
+| `CRON_SECRET` | Generate a unique 16+ character secret; match it in Vercel and GitHub Actions |
 
 Set `INLINE_TASKS=true` in `.env.local` to run the generation pipeline synchronously (bypasses QStash for local dev).
+
+Production has stricter requirements: `CRON_SECRET`, both Upstash Redis
+variables, and `RATE_LIMIT_SECRET` are mandatory; QStash signing keys are
+mandatory whenever `QSTASH_TOKEN` is set. Firebase Admin credentials are needed
+for server-side session verification. Rate limiting intentionally fails closed
+in production rather than allowing unmetered requests. Keep all server secrets
+out of `NEXT_PUBLIC_*` variables. See [SECURITY.md](./SECURITY.md) for the
+complete configuration and rotation process.
 
 ```bash
 pnpm db:migrate      # apply migrations
@@ -90,6 +101,9 @@ pnpm dev             # http://localhost:3000
 ```bash
 pnpm typecheck       # TypeScript check (no emit)
 pnpm lint            # ESLint
+pnpm test            # Node test suite
+pnpm audit --prod    # Production dependency advisories
+pnpm build           # Production build (requires a syntactically valid DATABASE_URL)
 pnpm db:studio       # Drizzle Studio (local DB browser)
 pnpm search:build    # Rebuild Orama search index
 ```
@@ -143,6 +157,11 @@ Each worker enqueues the next on success. A GitHub Actions watchdog (runs every 
 ## Deployment
 
 Every push to `main` triggers a production build on Vercel. There is no staging branch — see [AGENTS.md](./AGENTS.md) for the rationale.
+
+Use the [security release checklist](./docs/security/RELEASE-CHECKLIST.md)
+before release. CSP is deliberately report-only until its interactive browser
+matrix, including Firebase redirect authentication and generation polling,
+passes with enforcement enabled.
 
 ---
 

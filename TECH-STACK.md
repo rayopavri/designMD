@@ -109,6 +109,7 @@ Only Vercel is on a paid tier (Pro, for the raised function limits); everything 
 ### Upstash QStash (Free tier)
 - Durable HTTP task queue. Replaces a previous `void fetch()` fire-and-forget pattern that lost ~1 in N companion jobs.
 - **Signs every webhook delivery**; workers verify via `assertQStashSignature`. Local dev (`INLINE_TASKS=true`) bypasses signing with a shared token.
+- When `QSTASH_TOKEN` is configured, both `QSTASH_CURRENT_SIGNING_KEY` and `QSTASH_NEXT_SIGNING_KEY` are required. Production must not rely on the local internal-token fallback.
 - Chains the 3 workers: `scrape-and-extract` enqueues `author-design-md`, which enqueues `generate-companion`.
 
 ### Upstash Redis (Free tier)
@@ -116,11 +117,14 @@ Only Vercel is on a paid tier (Pro, for the raised function limits); everything 
 - **Anonymous:** 3 generations/hour per IP.
 - **Signed-in:** 10 generations/hour per user.
 - **Editors:** unmetered.
-- Graceful degrade: if env vars unset (local dev), all requests pass through.
+- Magic-link requests have separate 5-per-10-minute IP and 3-per-hour normalized-email limits. Email Redis keys contain HMAC digests, not raw email addresses.
+- Local development/test may run without Redis. Production requires `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, and `RATE_LIMIT_SECRET`; configuration or Redis failures produce a controlled `503 rate_limit_unavailable` response instead of allowing unmetered traffic.
 
 ### Firebase Auth (Free / Spark plan)
 - Google + email magic-link sign-in.
 - Server-side ID-token verification via Admin SDK.
+- `FIREBASE_ADMIN_CREDENTIALS_B64` stays server-only and is required for production server session verification and magic-link administration. Browser Firebase `NEXT_PUBLIC_*` settings are public identifiers, never substitutes for the Admin credential.
+- Different Firebase UIDs are never merged automatically, even for matching emails; the client receives a safe account-link-required response. Every post-auth `returnTo` is restricted to a same-origin internal path.
 - Authorized domains: `localhost`, `designmd-2ff95.firebaseapp.com`, `design-md-chi.vercel.app`, `uiuxskills.com`, `www.uiuxskills.com`.
 
 #### Custom auth domain (`NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=uiuxskills.com`)
@@ -157,6 +161,15 @@ domain, `src/lib/email/sign-in-email.ts`) — none of the above concerns it.
 - **Two side effects per tick:**
   1. `SELECT 1` — historically kept Neon out of autosuspend; on Supabase this is cosmetic (Free only pauses after 7 days idle).
   2. Marks any `generation_jobs` row in `queued` or `running` for more than 5 minutes as `failed` — watchdog for Vercel-killed pipelines. **This is the load-bearing reason the cron still runs every 5 min, not every 24h.**
+- Both `/api/cron/warm-db` and `/api/cron/supervise-batches` require `Authorization: Bearer <CRON_SECRET>` in production. The matching workflows fail before making a request if the GitHub `CRON_SECRET` is missing; Vercel and GitHub Actions must use the same rotated value.
+
+### Application security controls
+
+- **JSON-LD:** all JSON-LD script payloads use `serializeJsonForHtml`, escaping `<`, `>`, `&`, U+2028, and U+2029 before HTML insertion. A source-level regression test covers every JSON-LD script sink.
+- **CSP:** `next.config.ts` currently delivers `Content-Security-Policy-Report-Only`; `unsafe-eval` is absent. Enforcement is blocked on a real browser smoke matrix covering public pages, remote images, Firebase redirect sign-in/session, generation/upload, auth redirects, and job polling. HTTP status checks do not satisfy this gate.
+- **Outbound fetches:** admin logo recovery and metadata prefetch use a shared safe-fetch helper that rejects non-public addresses and unsafe redirect hops, pins validated DNS answers, and applies redirect, byte, and deadline caps.
+- **Uploads and polling:** generation uploads reject oversized declared bodies and files, validate/decode supported images, and cap decoded pixels. Job status reads require the owning signed-in session or anonymous token and return the same 404 for unknown and unauthorized IDs; public failures are stable diagnostic codes only.
+- **Release evidence:** see [`docs/security/RELEASE-CHECKLIST.md`](docs/security/RELEASE-CHECKLIST.md) and [`SECURITY.md`](SECURITY.md) for the exact checks, production variables, residual audit rationale, and secret-rotation procedure.
 
 ---
 
