@@ -133,7 +133,7 @@ The Vercel env var is set to the custom domain rather than the default
 continue to `uiuxskills.com`" instead of the raw Firebase project domain.
 This requires proxying **two** Firebase Hosting reserved paths from
 `uiuxskills.com` to `designmd-2ff95.firebaseapp.com` — both handled by the
-`rewrites()` block in `next.config.ts`:
+`rewrites()` block in `next.config.ts` source:
 
 - `/__/auth/:path*` — the OAuth handler/iframe pages themselves
   (`__/auth/handler`, `__/auth/iframe`).
@@ -148,6 +148,14 @@ This requires proxying **two** Firebase Hosting reserved paths from
 If Google sign-in ever regresses to "redirects to Google, comes back signed
 out, no error," check Network for a 404 on `/__/firebase/init.json` before
 anything else — that's this exact failure mode.
+
+**Current verification status (2026-08-18):** the Task 9 HTTP observation
+returned 404 for `/__/firebase/init.json` through both `uiuxskills.com` and
+the Firebase origin. HTTP status alone cannot establish the redirect flow or
+isolate the cause, but it leaves custom-domain redirect sign-in unverified.
+Resolve the 404 and complete the interactive Firebase matrix in
+[`docs/security/RELEASE-CHECKLIST.md`](docs/security/RELEASE-CHECKLIST.md)
+before enforcing CSP.
 
 The OAuth consent-screen app name (Google Cloud Console → **APIs & Services →
 OAuth consent screen**, project `designmd-2ff95`) should also be `UIUXskills`,

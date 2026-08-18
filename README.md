@@ -103,7 +103,7 @@ pnpm typecheck       # TypeScript check (no emit)
 pnpm lint            # ESLint
 pnpm test            # Node test suite
 pnpm audit --prod    # Production dependency advisories
-pnpm build           # Production build (requires a syntactically valid DATABASE_URL)
+pnpm build           # Production build (requires production env vars and a reachable DATABASE_URL for prerendering)
 pnpm db:studio       # Drizzle Studio (local DB browser)
 pnpm search:build    # Rebuild Orama search index
 ```

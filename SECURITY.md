@@ -68,9 +68,10 @@ exposed, say so in the first line so its rotation can start immediately.
 
 ## Required production configuration
 
-`src/lib/env.ts` validates the following startup requirements. Set secrets in
-Vercel (and the matching GitHub Actions secret where noted), never in source or
-`NEXT_PUBLIC_*` variables.
+`src/lib/env.ts` enforces `DATABASE_URL` in every environment and the cron and
+rate-limit controls below in production. The remaining values are required when
+their server-side features are enabled. Set secrets in Vercel (and the matching
+GitHub Actions secret where noted), never in source or `NEXT_PUBLIC_*` variables.
 
 | Variable | Requirement |
 | --- | --- |
