@@ -270,13 +270,14 @@ function isBlockedIpv4(ip: string): boolean {
   if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) {
     return true;
   }
-  const [a, b, c] = parts;
+  const [a, b, c, d] = parts;
   if (a === 0 || a === 10 || a === 127 || a >= 224) return true;
   if (a === 100 && b >= 64 && b <= 127) return true;
   if (a === 169 && b === 254) return true;
   if (a === 172 && b >= 16 && b <= 31) return true;
   if (a === 192 && b === 168) return true;
-  if (a === 192 && b === 0 && (c === 0 || c === 2)) return true;
+  if (a === 192 && b === 0 && c === 0 && d !== 9 && d !== 10) return true;
+  if (a === 192 && b === 0 && c === 2) return true;
   if (a === 192 && b === 88 && c === 99) return true;
   if (a === 198 && (b === 18 || b === 19)) return true;
   if (a === 198 && b === 51 && c === 100) return true;
@@ -293,7 +294,8 @@ function isBlockedIpv6(ip: string): boolean {
   if (bytes[0] === 0xfe && (bytes[1] & 0xc0) === 0x80) return true; // fe80::/10 link-local
   if ((bytes[0] & 0xfe) === 0xfc) return true; // fc00::/7 ULA
   if (bytes[0] === 0xfe && (bytes[1] & 0xc0) === 0xc0) return true; // fec0::/10 site-local
-  if (isNat64WellKnownPrefix(bytes) || isNat64LocalUsePrefix(bytes)) {
+  if (isNat64LocalUsePrefix(bytes)) return true; // 64:ff9b:1::/48 local use
+  if (isNat64WellKnownPrefix(bytes)) {
     return isBlockedEmbeddedIpv4(bytes, 12);
   }
   if (bytes[0] === 0x20 && bytes[1] === 0x02) {

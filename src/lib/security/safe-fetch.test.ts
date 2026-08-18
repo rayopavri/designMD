@@ -40,6 +40,7 @@ describe('isBlockedIp', () => {
       '169.254.169.254',
       '172.16.0.1',
       '192.168.1.1',
+      '192.0.0.11',
       '192.0.2.1',
       '198.18.0.1',
       '198.51.100.1',
@@ -78,13 +79,23 @@ describe('isBlockedIp', () => {
     }
   });
 
+  it('blocks the entire local-use IPv4/IPv6 translation prefix', () => {
+    for (const ip of [
+      '64:ff9b:1::5db8:d822',
+      '64:ff9b:1:0:c0:a801:100:0',
+    ]) {
+      assert.equal(isBlockedIp(ip), true, ip);
+    }
+  });
+
   it('allows public addresses', () => {
     for (const ip of [
       '93.184.216.34',
+      '192.0.0.9',
+      '192.0.0.10',
       '198.51.1.1',
       '2606:2800:220:1:248:1893:25c8:1946',
       '64:ff9b::5db8:d822',
-      '64:ff9b:1::5db8:d822',
       '2002:5db8:d822::1',
       '2001:1::1',
       '2001:3::1',
