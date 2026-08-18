@@ -1,7 +1,13 @@
 import assert from 'node:assert/strict';
 import { promises as dns } from 'node:dns';
+import { createServer } from 'node:http';
+import { createRequire } from 'node:module';
 import { afterEach, describe, it, mock } from 'node:test';
-import { isBlockedIp, safeFetchHtml } from './safe-fetch';
+import { createPinnedDispatcher, isBlockedIp, safeFetchHtml } from './safe-fetch';
+
+const require = createRequire(import.meta.url);
+const undici = require('undici') as typeof import('undici');
+type TestFetch = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
 afterEach(() => {
   mock.restoreAll();
@@ -11,6 +17,13 @@ function mockDns(addresses: string[]): void {
   mock.method(dns, 'lookup', async () =>
     addresses.map((address) => ({ address, family: address.includes(':') ? 6 : 4 })),
   );
+}
+
+function mockUndiciFetch(implementation: TestFetch) {
+  mock.method(globalThis, 'fetch', async () => {
+    throw new Error('safeFetchHtml must not use the unpinned global fetch');
+  });
+  return mock.method(undici, 'fetch', implementation as unknown as typeof undici.fetch);
 }
 
 describe('isBlockedIp', () => {
@@ -39,9 +52,26 @@ describe('isBlockedIp', () => {
       '::',
       '::1',
       '::ffff:127.0.0.1',
+      '::ffff:0:192.168.0.1',
+      '64:ff9b::c0a8:1',
+      '64:ff9b:1::c0a8:1',
+      '2002:c0a8:0101::1',
       'fe80::1',
+      'fec0::1',
       'fd00::1',
+      '100::1',
+      '100:0:0:1::1',
+      '2001::1',
+      '2001:2::1',
+      '2001:3::1',
+      '2001:4:112::1',
+      '2001:10::1',
+      '2001:20::1',
+      '2001:30::1',
       '2001:db8::1',
+      '2620:4f:8000::1',
+      '3fff::1',
+      '5f00::1',
       'ff00::1',
     ]) {
       assert.equal(isBlockedIp(ip), true, ip);
@@ -56,18 +86,49 @@ describe('isBlockedIp', () => {
 });
 
 describe('safeFetchHtml', () => {
+  it('pins a dispatcher connection while preserving the requested host header', async () => {
+    const server = createServer((req, res) => res.end(req.headers.host));
+    await new Promise<void>((resolve, reject) => {
+      server.once('error', reject);
+      server.listen(0, '127.0.0.1', resolve);
+    });
+    const listening = server.address();
+    assert.ok(listening && typeof listening !== 'string');
+    if (!listening || typeof listening === 'string') return;
+
+    const dispatcher = createPinnedDispatcher([{ address: '127.0.0.1', family: 4 }]);
+    try {
+      const response = await undici.fetch(`http://unresolvable.test:${listening.port}/`, {
+        dispatcher,
+        headers: { host: `unresolvable.test:${listening.port}` },
+      });
+      assert.equal(await response.text(), `unresolvable.test:${listening.port}`);
+    } finally {
+      await dispatcher.destroy();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
   it('rejects unsafe schemes before DNS lookup or fetch', async () => {
     const lookup = mock.method(dns, 'lookup', async () => []);
-    const request = mock.method(globalThis, 'fetch', async () => new Response('unexpected'));
+    const request = mockUndiciFetch(async () => new Response('unexpected'));
 
     assert.equal(await safeFetchHtml('file:///etc/passwd'), null);
     assert.equal(lookup.mock.calls.length, 0);
     assert.equal(request.mock.calls.length, 0);
   });
 
+  it('rejects URL userinfo before fetch', async () => {
+    mockDns(['93.184.216.34']);
+    const request = mockUndiciFetch(async () => new Response('unexpected'));
+
+    assert.equal(await safeFetchHtml('https://user:password@example.com'), null);
+    assert.equal(request.mock.calls.length, 0);
+  });
+
   it('does not fetch a hostname when any DNS answer is blocked', async () => {
     mockDns(['93.184.216.34', '127.0.0.1']);
-    const request = mock.method(globalThis, 'fetch', async () => new Response('unexpected'));
+    const request = mockUndiciFetch(async () => new Response('unexpected'));
 
     assert.equal(await safeFetchHtml('https://example.com'), null);
     assert.equal(request.mock.calls.length, 0);
@@ -75,7 +136,7 @@ describe('safeFetchHtml', () => {
 
   it('does not fetch when the overall deadline is already exhausted', async () => {
     const lookup = mock.method(dns, 'lookup', async () => []);
-    const request = mock.method(globalThis, 'fetch', async () => new Response('unexpected'));
+    const request = mockUndiciFetch(async () => new Response('unexpected'));
 
     assert.equal(await safeFetchHtml('https://example.com', { deadlineMs: 0 }), null);
     assert.equal(lookup.mock.calls.length, 0);
@@ -84,7 +145,7 @@ describe('safeFetchHtml', () => {
 
   it('returns null when DNS does not resolve within the overall deadline', async () => {
     mock.method(dns, 'lookup', async () => new Promise<never>(() => {}));
-    const request = mock.method(globalThis, 'fetch', async () => new Response('unexpected'));
+    const request = mockUndiciFetch(async () => new Response('unexpected'));
 
     const result = await Promise.race([
       safeFetchHtml('https://example.com', { deadlineMs: 5 }),
@@ -95,10 +156,110 @@ describe('safeFetchHtml', () => {
     assert.equal(request.mock.calls.length, 0);
   });
 
+  it('uses a dispatcher when fetching a validated hostname', async () => {
+    mockDns(['93.184.216.34']);
+    let dispatcher: unknown;
+    mockUndiciFetch(async (_input, init) => {
+      dispatcher = (init as (RequestInit & { dispatcher?: unknown }) | undefined)?.dispatcher;
+      return new Response('<title>Example</title>', {
+        headers: { 'content-type': 'text/html' },
+      });
+    });
+
+    assert.equal(await safeFetchHtml('https://example.com'), '<title>Example</title>');
+    assert.ok(dispatcher instanceof undici.Agent);
+  });
+
+  it('cancels a redirect body before following its location', async () => {
+    mockDns(['93.184.216.34']);
+    let cancelled = false;
+    let requestNumber = 0;
+    mockUndiciFetch(async () => {
+      requestNumber += 1;
+      if (requestNumber === 1) {
+        return new Response(
+          new ReadableStream({
+            cancel() {
+              cancelled = true;
+            },
+          }),
+          { status: 302, headers: { location: '/next' } },
+        );
+      }
+      assert.equal(cancelled, true);
+      return new Response('<title>Example</title>', {
+        headers: { 'content-type': 'text/html' },
+      });
+    });
+
+    assert.equal(await safeFetchHtml('https://example.com'), '<title>Example</title>');
+    assert.equal(cancelled, true);
+  });
+
+  it('copies capped bytes before cancelling the source stream', async () => {
+    mockDns(['93.184.216.34']);
+    const source = new TextEncoder().encode('abcdefgh');
+    mockUndiciFetch(async () =>
+      new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(source);
+          },
+          cancel() {
+            source.fill('z'.charCodeAt(0));
+          },
+        }),
+        { headers: { 'content-type': 'text/html' } },
+      ),
+    );
+
+    assert.equal(await safeFetchHtml('https://example.com', { maxBytes: 6 }), 'abcdef');
+  });
+
+  it('strips sensitive headers after a cross-origin redirect', async () => {
+    mockDns(['93.184.216.34']);
+    const headersByRequest: Headers[] = [];
+    let requestNumber = 0;
+    mockUndiciFetch(async (_input, init) => {
+      headersByRequest.push(new Headers(init?.headers));
+      requestNumber += 1;
+      if (requestNumber === 1) {
+        return new Response(null, {
+          status: 302,
+          headers: { location: 'https://other.example/next' },
+        });
+      }
+      return new Response('<title>Example</title>', {
+        headers: { 'content-type': 'text/html' },
+      });
+    });
+
+    assert.equal(
+      await safeFetchHtml('https://example.com', {
+        headers: {
+          authorization: 'Bearer private-token',
+          cookie: 'session=private',
+          'proxy-authorization': 'Basic private',
+          'x-api-key': 'private-key',
+          'x-access-token': 'private-access-token',
+          'x-request-id': 'safe-to-forward',
+        },
+      }),
+      '<title>Example</title>',
+    );
+    assert.equal(headersByRequest[0].get('authorization'), 'Bearer private-token');
+    assert.equal(headersByRequest[1].get('authorization'), null);
+    assert.equal(headersByRequest[1].get('cookie'), null);
+    assert.equal(headersByRequest[1].get('proxy-authorization'), null);
+    assert.equal(headersByRequest[1].get('x-api-key'), null);
+    assert.equal(headersByRequest[1].get('x-access-token'), null);
+    assert.equal(headersByRequest[1].get('x-request-id'), 'safe-to-forward');
+  });
+
   it('revalidates redirect destinations before fetching them', async () => {
     mockDns(['93.184.216.34']);
     const seen: string[] = [];
-    mock.method(globalThis, 'fetch', async (input: Parameters<typeof fetch>[0]) => {
+    mockUndiciFetch(async (input) => {
       seen.push(String(input));
       return new Response(null, {
         status: 302,
@@ -113,7 +274,7 @@ describe('safeFetchHtml', () => {
   it('returns HTML after a validated public redirect', async () => {
     mockDns(['93.184.216.34']);
     let requestNumber = 0;
-    mock.method(globalThis, 'fetch', async () => {
+    mockUndiciFetch(async () => {
       requestNumber += 1;
       if (requestNumber === 1) {
         return new Response(null, {
@@ -133,7 +294,7 @@ describe('safeFetchHtml', () => {
   it('stops after the configured redirect limit', async () => {
     mockDns(['93.184.216.34']);
     let requestNumber = 0;
-    mock.method(globalThis, 'fetch', async () => {
+    mockUndiciFetch(async () => {
       requestNumber += 1;
       return new Response(null, {
         status: 302,
@@ -150,13 +311,10 @@ describe('safeFetchHtml', () => {
 
   it('returns no more than the configured number of response bytes', async () => {
     mockDns(['93.184.216.34']);
-    mock.method(
-      globalThis,
-      'fetch',
-      async () =>
-        new Response('abcdefgh', {
-          headers: { 'content-type': 'text/html' },
-        }),
+    mockUndiciFetch(async () =>
+      new Response('abcdefgh', {
+        headers: { 'content-type': 'text/html' },
+      }),
     );
 
     assert.equal(
@@ -167,13 +325,8 @@ describe('safeFetchHtml', () => {
 
   it('returns null when the per-hop timeout aborts the request', async () => {
     mockDns(['93.184.216.34']);
-    mock.method(
-      globalThis,
-      'fetch',
-      async (
-        _input: Parameters<typeof fetch>[0],
-        init: Parameters<typeof fetch>[1],
-      ) =>
+    mockUndiciFetch(
+      async (_input, init) =>
         new Promise<Response>((_resolve, reject) => {
           init?.signal?.addEventListener('abort', () => reject(new Error('aborted')));
         }),

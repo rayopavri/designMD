@@ -1,10 +1,22 @@
 import { promises as dns } from 'node:dns';
 import net from 'node:net';
+import * as undici from 'undici';
 
 const DEFAULT_TIMEOUT_MS = 4_000;
 const DEFAULT_DEADLINE_MS = 8_000;
 const DEFAULT_MAX_BYTES = 64 * 1024;
 const DEFAULT_MAX_REDIRECTS = 4;
+const SENSITIVE_REDIRECT_HEADERS = [
+  'authorization',
+  'cookie',
+  'cookie2',
+  'proxy-authorization',
+  'x-api-key',
+  'x-auth-token',
+];
+
+type ResolvedAddress = { address: string; family: 4 | 6 };
+type FetchResponse = Awaited<ReturnType<typeof undici.fetch>>;
 
 export interface SafeFetchHtmlOptions {
   /** Overall time budget, including DNS, redirects, and body reads. */
@@ -37,6 +49,7 @@ export async function safeFetchHtml(
   }
   const deadline = Date.now() + deadlineMs;
   let current = initialUrl;
+  let forwardSensitiveHeaders = true;
 
   for (let hop = 0; hop <= maxRedirects; hop += 1) {
     if (Date.now() >= deadline) return null;
@@ -48,61 +61,145 @@ export async function safeFetchHtml(
       return null;
     }
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
-    if (!(await isSafeHost(parsed.hostname, deadline))) return null;
+    if (parsed.username || parsed.password) return null;
+    const addresses = await resolveSafeHost(parsed.hostname, deadline);
+    if (!addresses) return null;
 
     const remaining = deadline - Date.now();
     if (remaining <= 0) return null;
 
-    let response: Response;
-    try {
-      response = await fetch(parsed, {
-        method: 'GET',
-        redirect: 'manual',
-        signal: AbortSignal.timeout(Math.min(timeoutMs, remaining)),
-        headers: options.headers,
-      });
-    } catch {
-      return null;
-    }
+    const request = await fetchPinned(
+      parsed,
+      addresses,
+      requestHeaders(options.headers, parsed, forwardSensitiveHeaders),
+      AbortSignal.timeout(Math.min(timeoutMs, remaining)),
+    );
+    if (!request) return null;
+    const { response, dispatcher } = request;
 
     if (response.status >= 300 && response.status < 400) {
       const location = response.headers.get('location');
+      await cancelResponseBody(response);
+      await dispatcher.destroy().catch(() => {});
       if (!location) return null;
       try {
-        current = new URL(location, parsed).toString();
+        const next = new URL(location, parsed);
+        if (next.origin !== parsed.origin) forwardSensitiveHeaders = false;
+        current = next.toString();
       } catch {
         return null;
       }
       continue;
     }
 
-    if (!response.ok || !isAllowedHtmlContentType(response, options.contentType)) return null;
-    return readCapped(response, maxBytes);
+    try {
+      if (!response.ok || !isAllowedHtmlContentType(response, options.contentType)) return null;
+      return await readCapped(response, maxBytes);
+    } finally {
+      await dispatcher.destroy().catch(() => {});
+    }
   }
 
   return null;
 }
 
-async function isSafeHost(hostname: string, deadline: number): Promise<boolean> {
+async function resolveSafeHost(
+  hostname: string,
+  deadline: number,
+): Promise<ResolvedAddress[] | null> {
   const host = hostname.toLowerCase().replace(/^\[|\]$/g, '');
   if (!host || host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local')) {
-    return false;
+    return null;
   }
 
-  if (net.isIP(host)) return !isBlockedIp(host);
+  const family = net.isIP(host);
+  if (family === 4 || family === 6) {
+    return isBlockedIp(host) ? null : [{ address: host, family }];
+  }
 
-  let addresses: { address: string }[];
+  let addresses: ResolvedAddress[];
   try {
     const remaining = deadline - Date.now();
-    if (remaining <= 0) return false;
-    addresses = await withTimeout(
+    if (remaining <= 0) return null;
+    const resolved = await withTimeout(
       dns.lookup(host, { all: true, verbatim: true }),
       remaining,
     );
+    addresses = resolved.flatMap(({ address, family }) =>
+      family === 4 || family === 6 ? [{ address, family }] : [],
+    );
   } catch {
-    return false;
+    return null;
   }
-  return addresses.length > 0 && addresses.every(({ address }) => !isBlockedIp(address));
+  return addresses.length > 0 && addresses.every(({ address }) => !isBlockedIp(address))
+    ? addresses
+    : null;
+}
+
+/**
+ * Builds a short-lived dispatcher that connects only to an address validated
+ * for this request. The URL hostname remains intact for Host and TLS SNI.
+ */
+export function createPinnedDispatcher(
+  addresses: readonly ResolvedAddress[],
+): undici.Dispatcher {
+  const address = addresses[0];
+  if (!address) throw new Error('Pinned dispatcher requires an address');
+  const connect = undici.buildConnector({});
+  return new undici.Agent({
+    connect(options, callback) {
+      connect({ ...options, hostname: address.address }, callback);
+    },
+  });
+}
+
+async function fetchPinned(
+  url: URL,
+  addresses: readonly ResolvedAddress[],
+  headers: Headers,
+  signal: AbortSignal,
+): Promise<{ response: FetchResponse; dispatcher: undici.Dispatcher } | null> {
+  for (const address of addresses) {
+    const dispatcher = createPinnedDispatcher([address]);
+    try {
+      const response = await undici.fetch(url, {
+        method: 'GET',
+        redirect: 'manual',
+        signal,
+        headers,
+        dispatcher,
+      });
+      return { response, dispatcher };
+    } catch {
+      await dispatcher.destroy().catch(() => {});
+      if (signal.aborted) return null;
+    }
+  }
+  return null;
+}
+
+function requestHeaders(
+  source: HeadersInit | undefined,
+  url: URL,
+  forwardSensitiveHeaders: boolean,
+): Headers {
+  const headers = new Headers(source);
+  if (!forwardSensitiveHeaders) {
+    for (const name of [...headers.keys()]) {
+      if (isSensitiveRedirectHeader(name)) headers.delete(name);
+    }
+  }
+  headers.set('host', url.host);
+  return headers;
+}
+
+function isSensitiveRedirectHeader(name: string): boolean {
+  return SENSITIVE_REDIRECT_HEADERS.includes(name)
+    || /(?:auth|token|secret|credential|api[-_]?key|cookie)/i.test(name);
+}
+
+async function cancelResponseBody(response: FetchResponse): Promise<void> {
+  await response.body?.cancel().catch(() => {});
 }
 
 function withTimeout<T>(operation: Promise<T>, timeoutMs: number): Promise<T> {
@@ -129,14 +226,14 @@ export function isBlockedIp(ip: string): boolean {
   return true;
 }
 
-function isAllowedHtmlContentType(response: Response, policy: SafeFetchHtmlOptions['contentType']): boolean {
+function isAllowedHtmlContentType(response: FetchResponse, policy: SafeFetchHtmlOptions['contentType']): boolean {
   const contentType = response.headers.get('content-type')?.toLowerCase() ?? '';
   if (!contentType) return true;
   if (policy === 'html') return contentType.includes('html');
   return contentType.includes('html') || contentType.includes('text');
 }
 
-async function readCapped(response: Response, maxBytes: number): Promise<string | null> {
+async function readCapped(response: FetchResponse, maxBytes: number): Promise<string | null> {
   if (!response.body) return '';
 
   const reader = response.body.getReader();
@@ -149,7 +246,7 @@ async function readCapped(response: Response, maxBytes: number): Promise<string 
       if (!value) continue;
 
       const remaining = maxBytes - total;
-      chunks.push(value.subarray(0, remaining));
+      chunks.push(new Uint8Array(value.subarray(0, remaining)));
       total += Math.min(value.byteLength, remaining);
     }
   } catch {
@@ -194,15 +291,37 @@ function isBlockedIpv6(ip: string): boolean {
   if (bytes[0] === 0xff) return true; // ff00::/8 multicast
   if (bytes[0] === 0xfe && (bytes[1] & 0xc0) === 0x80) return true; // fe80::/10 link-local
   if ((bytes[0] & 0xfe) === 0xfc) return true; // fc00::/7 ULA
+  if (bytes[0] === 0xfe && (bytes[1] & 0xc0) === 0xc0) return true; // fec0::/10 site-local
+  if (bytes[0] === 0 && bytes[1] === 0x64 && bytes[2] === 0xff && bytes[3] === 0x9b && bytes.slice(4, 12).every((byte) => byte === 0)) {
+    return true; // 64:ff9b::/96 NAT64
+  }
+  if (bytes[0] === 0 && bytes[1] === 0x64 && bytes[2] === 0xff && bytes[3] === 0x9b && bytes[4] === 0 && bytes[5] === 1) {
+    return true; // 64:ff9b:1::/48 local-use NAT64
+  }
+  if (bytes[0] === 0x20 && bytes[1] === 0x02) return true; // 2002::/16 6to4
+  if (bytes[0] === 0x01 && bytes.slice(1, 8).every((byte) => byte === 0)) return true; // 100::/64 discard-only
+  if (bytes[0] === 0x01 && bytes.slice(1, 7).every((byte) => byte === 0) && bytes[7] === 0x01) return true; // 100:0:0:1::/64 dummy prefix
+  if (bytes[0] === 0x20 && bytes[1] === 0x01 && (bytes[2] & 0xfe) === 0) return true; // 2001::/23 IETF protocol assignments
+  if (bytes[0] === 0x20 && bytes[1] === 0x01 && bytes[2] === 0 && bytes[3] === 0x02 && bytes[4] === 0 && bytes[5] === 0) return true; // 2001:2::/48 benchmarking
+  if (bytes[0] === 0x20 && bytes[1] === 0x01 && bytes[2] === 0 && (bytes[3] & 0xf0) === 0x10) return true; // 2001:10::/28 Orchid
+  if (bytes[0] === 0x20 && bytes[1] === 0x01 && bytes[2] === 0 && (bytes[3] & 0xf0) === 0x20) return true; // 2001:20::/28 Orchidv2
   if (bytes[0] === 0x20 && bytes[1] === 0x01 && bytes[2] === 0x0d && bytes[3] === 0xb8) {
     return true; // 2001:db8::/32 documentation
   }
+  if (bytes[0] === 0x26 && bytes[1] === 0x20 && bytes[2] === 0 && bytes[3] === 0x4f && bytes[4] === 0x80 && bytes[5] === 0) return true; // 2620:4f:8000::/48 AS112
+  if (bytes[0] === 0x3f && bytes[1] === 0xff && (bytes[2] & 0xf0) === 0) return true; // 3fff::/20 documentation
+  if (bytes[0] === 0x5f && bytes[1] === 0) return true; // 5f00::/16 SRv6 SIDs
 
   const isIpv4Mapped = bytes.slice(0, 10).every((byte) => byte === 0)
     && bytes[10] === 0xff
     && bytes[11] === 0xff;
   const isIpv4Compatible = bytes.slice(0, 12).every((byte) => byte === 0);
-  if (isIpv4Mapped || isIpv4Compatible) {
+  const isIpv4Translated = bytes.slice(0, 8).every((byte) => byte === 0)
+    && bytes[8] === 0xff
+    && bytes[9] === 0xff
+    && bytes[10] === 0
+    && bytes[11] === 0;
+  if (isIpv4Mapped || isIpv4Compatible || isIpv4Translated) {
     return isBlockedIpv4(Array.from(bytes.slice(12)).join('.'));
   }
   return false;
