@@ -4,12 +4,16 @@ import { Suspense, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AuthCard } from "@/components/ui/AuthCard";
 import { postAuthDestination, useAuth } from "@/lib/ui-data/mockAuth";
+import { safeInternalPath } from "@/lib/security/redirects";
 import { BG, BORDER_SOFT, INK, MONO, MUTED, SUB, SURFACE, VIOLET, LIME, PEACH, CYAN } from "@/lib/ui-data/tokens";
 
 function Login() {
   const router = useRouter();
   const search = useSearchParams().toString();
-  const returnTo = useMemo(() => new URLSearchParams(search).get("returnTo") ?? "/", [search]);
+  const returnTo = useMemo(
+    () => safeInternalPath(new URLSearchParams(search).get("returnTo"), "/generate"),
+    [search],
+  );
   const { user } = useAuth();
 
   // If already signed in, bounce straight to the destination.

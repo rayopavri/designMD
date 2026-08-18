@@ -8,6 +8,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { adminAuth } from '@/lib/auth/firebase-admin';
+import { isAccountLinkRequiredError } from '@/lib/auth/account-linking';
 import { SESSION_COOKIE, SESSION_DURATION_MS } from '@/lib/auth/session';
 import { upsertUserFromFirebase } from '@/lib/db/queries/users';
 
@@ -63,6 +64,9 @@ export async function POST(req: NextRequest) {
       authProvider: deriveProvider(providerId),
     });
   } catch (err) {
+    if (isAccountLinkRequiredError(err)) {
+      return NextResponse.json({ error: 'account_link_required' }, { status: 409 });
+    }
     console.error('[auth/session] failed to upsert user row:', err);
     return NextResponse.json({ error: 'Failed to create user record' }, { status: 500 });
   }

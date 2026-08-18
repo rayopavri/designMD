@@ -18,6 +18,7 @@ import {
   VIOLET,
 } from "@/lib/ui-data/tokens";
 import { hasSeenWelcome, markWelcomeSeen, updateProfile, useAuth } from "@/lib/ui-data/mockAuth";
+import { safeInternalPath } from "@/lib/security/redirects";
 
 const TOOLS = [
   { id: "claude", label: "Claude" },
@@ -31,7 +32,10 @@ const TOOLS = [
 function Welcome() {
   const router = useRouter();
   const search = useSearchParams().toString();
-  const returnTo = useMemo(() => new URLSearchParams(search).get("returnTo") ?? "/generate", [search]);
+  const returnTo = useMemo(
+    () => safeInternalPath(new URLSearchParams(search).get("returnTo"), "/generate"),
+    [search],
+  );
   const { user } = useAuth();
 
   const [displayName, setDisplayName] = useState(user?.displayName ?? "");

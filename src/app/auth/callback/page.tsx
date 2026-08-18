@@ -15,6 +15,7 @@ import {
   consumeStoredEmailForSignIn,
   postAuthDestination,
 } from '@/lib/ui-data/mockAuth';
+import { safeInternalPath } from '@/lib/security/redirects';
 
 export default function AuthCallbackPage() {
   return (
@@ -27,7 +28,7 @@ export default function AuthCallbackPage() {
 function AuthCallbackContent() {
   const router = useRouter();
   const params = useSearchParams();
-  const returnTo = params.get('returnTo');
+  const returnTo = safeInternalPath(params.get('returnTo'), '/generate');
   const [status, setStatus] = useState<'pending' | 'need_email' | 'error'>('pending');
   const [emailInput, setEmailInput] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);

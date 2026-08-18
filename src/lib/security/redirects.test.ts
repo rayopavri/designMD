@@ -18,4 +18,17 @@ describe('safeInternalPath', () => {
     assert.equal(safeInternalPath('/account\nnext', '/'), '/');
     assert.equal(safeInternalPath('/account\u0000next', '/'), '/');
   });
+
+  it('rejects malformed and authority-changing encodings', () => {
+    for (const value of ['/%2F%2Fevil.example', '/%5Cevil.example', '/account%0Anext', '/%']) {
+      assert.equal(safeInternalPath(value, '/generate'), '/generate', value);
+    }
+  });
+
+  it('preserves safely encoded internal paths', () => {
+    assert.equal(
+      safeInternalPath('/library/%E2%9C%93?source=%2Fgenerate', '/generate'),
+      '/library/%E2%9C%93?source=%2Fgenerate',
+    );
+  });
 });

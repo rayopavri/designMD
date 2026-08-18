@@ -30,6 +30,7 @@ import {
   type User as FirebaseUser,
 } from 'firebase/auth';
 import { clientAuth, googleProvider } from '@/lib/auth/firebase-client';
+import { safeInternalPath } from '@/lib/security/redirects';
 
 export type AuthProvider = 'google' | 'email';
 
@@ -161,7 +162,13 @@ export function useAuthModal() {
 }
 
 export function openAuthModal(returnTo: string | null = null, intent: string | null = null) {
-  setState({ modal: { open: true, returnTo, intent } });
+  setState({
+    modal: {
+      open: true,
+      returnTo: returnTo === null ? null : safeInternalPath(returnTo, '/generate'),
+      intent,
+    },
+  });
 }
 
 export function closeAuthModal() {
@@ -287,7 +294,10 @@ export async function mockSignInGoogle(returnTo?: string | null): Promise<void> 
     if (returnTo === undefined) {
       window.sessionStorage.removeItem(GOOGLE_REDIRECT_RETURN_KEY);
     } else {
-      window.sessionStorage.setItem(GOOGLE_REDIRECT_RETURN_KEY, returnTo ?? '');
+      window.sessionStorage.setItem(
+        GOOGLE_REDIRECT_RETURN_KEY,
+        safeInternalPath(returnTo, '/generate'),
+      );
     }
   }
   setState({ loading: true, googleSignInError: null });
@@ -380,7 +390,7 @@ export function markWelcomeSeen() {
  * Compute where to send a user after sign-in. Single source of truth.
  */
 export function postAuthDestination(returnTo: string | null | undefined): string {
-  const dest = returnTo && returnTo.startsWith('/') ? returnTo : '/generate';
+  const dest = safeInternalPath(returnTo, '/generate');
   const userId = state.user?.id;
   if (userId && !hasSeenWelcome(userId)) {
     return `/welcome?returnTo=${encodeURIComponent(dest)}`;

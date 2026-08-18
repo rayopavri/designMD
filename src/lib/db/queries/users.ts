@@ -6,6 +6,9 @@
  * subsequent sign-ins refresh profile fields and `lastSeenAt`.
  */
 import { eq, sql } from 'drizzle-orm';
+import {
+  reuseExistingUserIdentity,
+} from '@/lib/auth/account-linking';
 import { db } from '@/lib/db/client';
 import { users, type User } from '@/lib/db/schema';
 
@@ -70,26 +73,22 @@ export async function upsertUserFromFirebase(input: FirebaseUserInput): Promise<
     // with the same address. Firebase treats these as separate identities
     // unless account linking is forced, so the `onConflictDoUpdate` above
     // (keyed on firebaseUid) can't catch it and the insert trips the
-    // `email` unique constraint instead. Link the new provider to the
-    // existing row rather than leaving the account permanently unable to
-    // sign in with the other provider.
+    // `email` unique constraint instead. Never transfer the existing row
+    // (and its role flags) to a different Firebase identity. Firebase must
+    // perform an explicit authenticated provider link so both credentials
+    // resolve to the same UID before this application reuses the account.
     if (!isEmailUniqueViolation(err)) throw err;
 
     const [existing] = await db.select().from(users).where(eq(users.email, input.email)).limit(1);
     if (!existing) throw err;
 
-    const [row] = await db
-      .update(users)
-      .set({
-        firebaseUid: input.firebaseUid,
-        emailVerified: input.emailVerified || existing.emailVerified,
-        lastSeenAt: sql`now()`,
-      })
-      .where(eq(users.id, existing.id))
-      .returning();
-
-    if (!row) throw new Error('Failed to link user');
-    return row;
+    // The UID conflict handler above covers normal reauthentication. This
+    // defensive race fallback returns the original row unchanged, preserving
+    // all authorization flags rather than updating it by email.
+    return reuseExistingUserIdentity(existing, {
+      firebaseUid: input.firebaseUid,
+      emailVerified: input.emailVerified,
+    });
   }
 }
 
