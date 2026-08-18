@@ -13,6 +13,7 @@ import { and, desc, eq, gte, isNotNull, sql } from 'drizzle-orm';
 import { requireEditor } from '@/lib/auth/session';
 import { db } from '@/lib/db/client';
 import { bundles, generationJobs } from '@/lib/db/schema';
+import { safePersistedGenerationErrorDetail } from '@/lib/security/diagnostics';
 
 export const runtime = 'nodejs';
 
@@ -70,6 +71,9 @@ export async function GET(req: NextRequest) {
     running: byStatus.running ?? 0,
     completed: byStatus.completed ?? 0,
     failed: byStatus.failed ?? 0,
-    recentFailures,
+    recentFailures: recentFailures.map((failure) => ({
+      ...failure,
+      errorMessage: safePersistedGenerationErrorDetail(failure.errorMessage),
+    })),
   });
 }

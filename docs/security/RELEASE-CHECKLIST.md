@@ -44,11 +44,27 @@ or other HTTP-only check is insufficient.
 - [ ] Record every blocked resource or CSP console violation, then allow only the verified required origin/directive. `unsafe-eval` must remain absent in production.
 - [ ] After all matrix items pass, change the header from report-only to enforced, rerun the full browser matrix, and attach the evidence to the release record.
 
-### Current release blocker (2026-08-18)
+## Current unverified release gates (2026-08-18)
 
-The Task 9 verification environment has no available browser runtime, so it
-cannot run the interactive matrix or inspect CSP console/network violations.
-Keep CSP report-only until a release operator can complete the matrix above in
-a real browser. This blocker does not invalidate the independently tested
-JSON-LD serialization, cron authentication, SSRF, rate-limit, account-linking,
-upload, or job-polling controls.
+These are evidence blockers, not unresolved source-code findings:
+
+- **Browser/Firebase/CSP:** the Task 9 environment had no browser runtime, so
+  the interactive matrix and CSP console/network inspection remain unverified.
+  HTTP-only observation found `/__/auth/handler` returning 200 and
+  `/__/firebase/init.json` returning 404 both through the custom domain and at
+  the Firebase Hosting origin; that does not isolate a rewrite defect or prove
+  the redirect flow. Resolve it in a real browser. Keep CSP report-only until
+  the full matrix passes.
+- **Database-backed production build:** compilation/type stages were reached,
+  but prerendering could not complete against the synthetic unreachable local
+  database. Run `pnpm build` with approved production-like configuration and a
+  safe reachable database before claiming the build passed.
+- **Authenticated cron:** unauthenticated cron behavior is covered by tests and
+  returned 401 in the recorded smoke. The authenticated smoke still requires
+  authorized access to the configured secret and a reachable production-like
+  database; do not print the secret.
+
+Accepted release residuals are tracked in `SECURITY.md`: the two moderate UUID
+advisory paths under Firebase Admin/Cloud Storage and drift risk in the static
+IANA special-use address registry. They are not substitutes for the unverified
+gates above and must be reassessed at each security release.

@@ -38,15 +38,24 @@ exposed, say so in the first line so its rotation can start immediately.
   not be changed to enforced mode until the browser smoke matrix in
   [`docs/security/RELEASE-CHECKLIST.md`](docs/security/RELEASE-CHECKLIST.md)
   passes, including Firebase redirect sign-in and generation polling.
-- Server-side URL retrieval uses a shared SSRF-safe fetch boundary: only
-  public HTTP(S) destinations are accepted, every redirect hop is revalidated,
-  connections are pinned to validated DNS answers, and response bodies,
-  redirects, and time are bounded.
+- Provider-controlled public-page and screenshot retrieval uses a shared
+  SSRF-safe fetch boundary: only public HTTP(S) destinations are accepted,
+  every redirect hop is revalidated, connections are pinned to validated DNS
+  answers, and response bodies, redirects, and time are bounded. Binary image
+  responses also require an allowlisted content type with a matching file
+  signature. Fixed first-party/provider API endpoints are separate trusted
+  service boundaries.
+- Logs, persisted operational failures, and error responses retain only stable
+  application codes, allowlisted exception types, bounded non-secret fields,
+  and credential-free URL origins. Provider exception text, prompts, request
+  bodies, tokens, stacks, and log-control characters must not cross this
+  diagnostic boundary; legacy job errors are redacted again when projected.
 - Magic-link requests are limited to 5 per 10 minutes by IP and 3 per hour by
   normalized email. Email identifiers are HMAC-hashed before entering Redis.
-  Generation limits are 3 per hour by anonymous IP and 10 per hour by signed-in
-  user; editors are exempt. Production limiter configuration and Redis failures
-  fail closed with a controlled `503 rate_limit_unavailable` response.
+  Anonymous clients receive one free generation per IP, with a separate hard
+  abuse ceiling of 3 attempts per hour; signed-in users receive 10 generations
+  per hour and editors are exempt. Production limiter configuration and Redis
+  failures fail closed with a controlled `503 rate_limit_unavailable` response.
 - Generation uploads have declared-body, file-size, image-signature, decode,
   and pixel-count limits. Job polling requires the owning session or the
   matching anonymous cookie; unauthorized and unknown job IDs both return 404.
@@ -116,13 +125,25 @@ The patched UUID floor is outside those parents' declared compatibility ranges.
 This application imports only `firebase-admin/app` and `firebase-admin/auth`,
 not Firebase Admin Storage, and exploitation additionally requires a Storage
 path to call UUID v3/v5/v6 with an attacker-controlled output buffer. This is
-an open residual risk, not an audit suppression or approved exception. Recheck
-the paths on every Firebase Admin/Cloud Storage release and remove the entry
-when upstream supports a patched UUID version.
+an accepted release residual, not an audit suppression or permanent exception.
+Recheck the paths on every Firebase Admin/Cloud Storage release and remove the
+entry when upstream supports a patched UUID version.
+
+## SSRF registry residual
+
+The SSRF boundary rejects the IANA special-use IPv4 and IPv6 ranges encoded in
+`src/lib/security/safe-fetch.ts`, including private, loopback, link-local,
+documentation, benchmarking, multicast, and reserved space. That registry is
+static rather than fetched at runtime, by design: a network dependency must
+not decide whether another network request is safe. Registry drift is an
+accepted release residual. Recompare the encoded ranges with the authoritative
+IANA registries during security releases and whenever address policy changes;
+add newly reserved ranges before relying on the boundary for them.
 
 ## Release gate
 
 Before every production release, run the commands and service checks in
 [`docs/security/RELEASE-CHECKLIST.md`](docs/security/RELEASE-CHECKLIST.md).
-Do not claim CSP enforcement, a production build, or an authenticated browser
-flow passed without fresh evidence from that checklist.
+Do not claim CSP enforcement, a production build, an authenticated browser
+flow, or an authenticated cron smoke passed without fresh evidence from that
+checklist.

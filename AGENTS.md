@@ -92,7 +92,7 @@ Google sign-in uses `signInWithRedirect` (not popup — see the comment in `src/
 
 ## Feature flags
 
-The previous `PHASE_2_SHELVES_ENABLED` flag (formerly in `src/lib/ui-data/featureFlags.ts`) has been removed. Phase 2 surfaces (CLI shelf, skills/agents/MCPs) are currently not rendered. The `discovery_candidates` and related Phase 2 schema tables exist but are not yet wired to fetchers, classifiers, or admin UI — see `ROADMAP.md`.
+The previous `PHASE_2_SHELVES_ENABLED` flag (formerly in `src/lib/ui-data/featureFlags.ts`) has been removed. Phase 2 surfaces (CLI shelf, skills/agents/MCPs) are currently not rendered. The `discovery_candidates` schema, Hacker News fetcher, pre-guardrail, query layer, and authenticated `discover-fetch` worker exist, but the worker is operationally inert until the classifier, scheduler/cron, and admin review UI are added — see `ROADMAP.md`.
 
 ## Search
 
@@ -100,7 +100,7 @@ Orama in-process full-text index. Rebuilt with `pnpm search:build`. Served from 
 
 ## Rate limiting
 
-Upstash Redis sliding window on `/api/generate`: 3/hour anonymous (by IP), 10/hour signed-in, unlimited for editors.
+Upstash Redis gates `/api/generate`: anonymous clients receive one free generation per IP plus a 3/hour hard abuse ceiling; signed-in users receive 10/hour; editors are unlimited.
 
 ---
 

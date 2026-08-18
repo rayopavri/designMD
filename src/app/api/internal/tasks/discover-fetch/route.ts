@@ -4,8 +4,8 @@
  * Auth: assertTaskAuth handles both QStash signature (production) and
  * x-internal-task-token (local dev) — same as the generation workers.
  *
- * This only fans out HTTP fetches + DB writes (no AI), so it stays well under
- * the function cap; maxDuration 60 matches the Hobby ceiling.
+ * This only fans out HTTP fetches + DB writes (no AI), so it is explicitly
+ * bounded at maxDuration 60 even though the production plan allows more.
  */
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';

@@ -45,8 +45,8 @@ function AuthCallbackContent() {
         });
         if (!res.ok) throw new Error('Server rejected session');
         router.replace(postAuthDestination(returnTo));
-      } catch (err) {
-        setErrorMessage(err instanceof Error ? err.message : 'Unknown error');
+      } catch {
+        setErrorMessage('We could not complete sign-in. Please request a new link and try again.');
         setStatus('error');
       }
     }
@@ -86,8 +86,8 @@ function AuthCallbackContent() {
         });
         if (!res.ok) throw new Error('Server rejected session');
         router.replace(postAuthDestination(returnTo));
-      } catch (err) {
-        setErrorMessage(err instanceof Error ? err.message : 'Unknown error');
+      } catch {
+        setErrorMessage('We could not complete sign-in. Please request a new link and try again.');
         setStatus('error');
       }
     })();

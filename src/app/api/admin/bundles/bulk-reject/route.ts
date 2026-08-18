@@ -38,11 +38,8 @@ export async function POST(req: NextRequest) {
   let body: z.infer<typeof BodySchema>;
   try {
     body = BodySchema.parse(await req.json());
-  } catch (err) {
-    return NextResponse.json(
-      { error: 'Invalid body', details: err instanceof Error ? err.message : String(err) },
-      { status: 400 },
-    );
+  } catch {
+    return NextResponse.json({ error: 'Invalid body' }, { status: 400 });
   }
 
   const { slugs, reviewNotes } = body;

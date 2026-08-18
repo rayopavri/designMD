@@ -391,8 +391,8 @@ async function writeDraftBundle(input: {
     primaryCategoryId = cat?.id ?? null;
     if (!primaryCategoryId) {
       console.warn(
-        `[scrape-and-extract] Gemini returned unknown category slug: "${brand.category}". ` +
-          `Bundle will land uncategorized — check the enum in EXTRACTION_SCHEMA.`,
+        '[scrape-and-extract] Gemini returned an unknown category slug; ' +
+          'bundle will land uncategorized — check the enum in EXTRACTION_SCHEMA.',
       );
     }
   }

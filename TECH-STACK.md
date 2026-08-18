@@ -1,6 +1,6 @@
 # UIUXskills · Tech Stack Report
 
-> Snapshot as of 2026-05-23
+> Snapshot as of 2026-08-18
 > Production URL: https://uiuxskills.com
 
 ---
@@ -46,7 +46,7 @@ Only Vercel is on a paid tier (Pro, for the raised function limits); everything 
 ### Drizzle ORM
 - Type-safe SQL. Schema lives at `src/lib/db/schema.ts` — 16 tables, 7 enums, 7 triggers.
 - Driver: `postgres-js` against the Supabase transaction pooler (port 6543). `src/lib/db/client.ts` sets `prepare: false` automatically when the URL contains `:6543` because PgBouncer transaction mode forbids prepared statements. SSL is required even in local dev (only skipped for `localhost`/`127.0.0.1`).
-- `@neondatabase/serverless` is no longer used in the runtime; it may still appear in `package.json` until cleaned up.
+- `@neondatabase/serverless` is not a declared runtime dependency; it remains in the lockfile only through Drizzle's optional peer graph.
 
 ### Zod
 - Runtime validation. Used for QStash worker payloads, API query params, and Gemini response narrowing.
@@ -55,7 +55,7 @@ Only Vercel is on a paid tier (Pro, for the raised function limits); everything 
 - Server-side auth verification (admin SDK) + client-side sign-in flow (JS SDK).
 
 ### sharp
-- Image processing. Clamps Firecrawl's fixed desktop viewport screenshots to 1600×2400 JPEG before sending to Gemini so the model retains text and component detail. Native dependency (Vercel ships its built binary).
+- Image processing. Firecrawl requests a fixed 1440×900 desktop viewport. Screenshots already within the extraction bounds retain their validated source MIME; oversized or unusually tall inputs are resized/cropped to at most 1600×2400 and converted to JPEG before Gemini. Durable previews are normalized to 1200×750 WebP. Native dependency (Vercel ships its built binary).
 
 ---
 
@@ -87,7 +87,7 @@ Only Vercel is on a paid tier (Pro, for the raised function limits); everything 
 ## Infrastructure
 
 ### Vercel (Pro plan)
-- Hosts the Next.js app, terminates TLS, serves CDN-cached static + edge functions.
+- Hosts the Next.js app, terminates TLS, and serves CDN-cached static assets plus serverless functions (Node.js for application APIs; Edge for the OG route and current middleware).
 - **Node runtime:** Node.js 22+ is declared in `package.json` (`engines.node`).
   Vercel uses this repository-controlled engine range to override the project's
   dashboard default; Vercel manages compatible minor and patch updates.
@@ -115,7 +115,7 @@ Only Vercel is on a paid tier (Pro, for the raised function limits); everything 
 
 ### Upstash Redis (Free tier)
 - Sliding-window rate limit on `/api/generate` via `@upstash/ratelimit`.
-- **Anonymous:** 3 generations/hour per IP.
+- **Anonymous:** one free generation per IP, with a separate 3-attempt/hour hard abuse ceiling.
 - **Signed-in:** 10 generations/hour per user.
 - **Editors:** unmetered.
 - Magic-link requests have separate 5-per-10-minute IP and 3-per-hour normalized-email limits. Email Redis keys contain HMAC digests, not raw email addresses.
@@ -166,17 +166,17 @@ The **magic-link email** is already branded (sent via Resend from a verified
 domain, `src/lib/email/sign-in-email.ts`) — none of the above concerns it.
 
 ### GitHub Actions (Free for public repos)
-- Workflow at `.github/workflows/warm-db.yml`. Runs every 5 minutes.
-- **Two side effects per tick:**
+- Workflows at `.github/workflows/warm-db.yml` and `.github/workflows/supervise-batches.yml`. Both run every 5 minutes; Vercel also invokes the supervisor every minute on Pro.
+- **Warm-db side effects per tick:**
   1. `SELECT 1` — historically kept Neon out of autosuspend; on Supabase this is cosmetic (Free only pauses after 7 days idle).
-  2. Marks any `generation_jobs` row in `queued` or `running` for more than 5 minutes as `failed` — watchdog for Vercel-killed pipelines. **This is the load-bearing reason the cron still runs every 5 min, not every 24h.**
+  2. Marks non-batch `generation_jobs` rows in `queued` or `running` without an update for more than 5 minutes as failed. Batch jobs are instead resumed or failed by `supervise-batches` on a 7-minute lease.
 - Both `/api/cron/warm-db` and `/api/cron/supervise-batches` require `Authorization: Bearer <CRON_SECRET>` in production. The matching workflows fail before making a request if the GitHub `CRON_SECRET` is missing; Vercel and GitHub Actions must use the same rotated value.
 
 ### Application security controls
 
 - **JSON-LD:** all JSON-LD script payloads use `serializeJsonForHtml`, escaping `<`, `>`, `&`, U+2028, and U+2029 before HTML insertion. A source-level regression test covers every JSON-LD script sink.
 - **CSP:** `next.config.ts` currently delivers `Content-Security-Policy-Report-Only`; `unsafe-eval` is absent. Enforcement is blocked on a real browser smoke matrix covering public pages, remote images, Firebase redirect sign-in/session, generation/upload, auth redirects, and job polling. HTTP status checks do not satisfy this gate.
-- **Outbound fetches:** admin logo recovery, metadata prefetch, and Firecrawl screenshot downloads use a shared safe-fetch helper that rejects non-public addresses and unsafe redirect hops, pins validated DNS answers, and applies redirect, deadline, and byte caps. Screenshot responses additionally require an allowed image MIME type with a matching signature.
+- **Outbound fetches:** admin logo recovery, metadata prefetch, and Firecrawl screenshot downloads use a shared safe-fetch helper that rejects non-public addresses and unsafe redirect hops, pins validated DNS answers, and applies redirect, deadline, and byte caps. Screenshot responses additionally require an allowed image MIME type with a matching signature. The special-use IP range registry is static and is reviewed as an accepted release residual in `SECURITY.md`.
 - **Uploads and polling:** generation uploads reject oversized declared bodies and files, validate/decode supported images, and cap decoded pixels. Job status reads require the owning signed-in session or anonymous token and return the same 404 for unknown and unauthorized IDs; public failures are stable diagnostic codes only.
 - **Release evidence:** see [`docs/security/RELEASE-CHECKLIST.md`](docs/security/RELEASE-CHECKLIST.md) and [`SECURITY.md`](SECURITY.md) for the exact checks, production variables, residual audit rationale, and secret-rotation procedure.
 
@@ -208,9 +208,11 @@ domain, `src/lib/email/sign-in-email.ts`) — none of the above concerns it.
 ## Phase 2 surfaces
 
 The CLI shelf and skills/agents/MCP surfaces are not currently rendered. The
-old `PHASE_2_SHELVES_ENABLED` feature flag has been removed; Phase 2 tables
-such as `discovery_candidates` remain in the schema but are not wired to
-fetchers, classifiers, or admin UI. See `ROADMAP.md` for the active plan.
+old `PHASE_2_SHELVES_ENABLED` feature flag has been removed. The
+`discovery_candidates` schema, Hacker News fetcher, pre-guardrail, query layer,
+and authenticated `discover-fetch` worker exist; the worker remains
+operationally inert until the classifier, scheduler/cron, and admin review UI
+are implemented. See `ROADMAP.md` for the active plan.
 
 ---
 

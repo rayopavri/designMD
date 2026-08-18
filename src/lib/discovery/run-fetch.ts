@@ -14,6 +14,7 @@ import {
 } from '@/lib/db/queries/discovery';
 import { screenCandidate } from './guardrail';
 import { fetchShowHN, type RawCandidate } from './sources/hackernews';
+import { safeDiagnosticErrorDetail, safeDiagnosticUrl } from '@/lib/security/diagnostics';
 
 export const DISCOVERY_SOURCES = ['hackernews'] as const;
 export type DiscoverySource = (typeof DISCOVERY_SOURCES)[number];
@@ -63,10 +64,10 @@ export async function runDiscoverFetch(input: DiscoverFetchInput): Promise<Disco
       if (!screen.ok) {
         if (screen.reason.startsWith('duplicate')) summary.duplicates += 1;
         else summary.rejected += 1;
-        summary.rejections.push({ url: item.sourceUrl, reason: screen.reason });
+        summary.rejections.push({ url: safeDiagnosticUrl(item.sourceUrl), reason: screen.reason });
         await logGuardrailRejection({
           layer: screen.layer,
-          url: item.sourceUrl,
+          url: safeDiagnosticUrl(item.sourceUrl),
           reason: screen.reason,
           details: screen.details,
         });
@@ -95,11 +96,10 @@ export async function runDiscoverFetch(input: DiscoverFetchInput): Promise<Disco
     });
     return summary;
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
     await recordSourceRun(input.source, {
       lastRunStatus: 'error',
       itemsFound: summary.fetched,
-      errors: message.slice(0, 1000),
+      errors: safeDiagnosticErrorDetail(err),
     }).catch(() => {
       /* best-effort: the original error is what matters */
     });

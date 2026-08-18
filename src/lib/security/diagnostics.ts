@@ -14,6 +14,7 @@ const DIAGNOSTIC_ERROR_TYPES = new Set([
 ]);
 
 const SAFE_DETAIL_PATTERN = /^(?:diagnostic|generation)_error type=(?:AbortError|Error|FetchError|PostgresError|TimeoutError|TypeError|ZodError|non_error_throw)$/;
+const SAFE_GENERATION_DETAIL_PATTERN = /^generation_error type=(?:AbortError|Error|FetchError|PostgresError|TimeoutError|TypeError|ZodError|non_error_throw)$/;
 const DIAGNOSTIC_CONTROL_CHARACTER = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/;
 const DIAGNOSTIC_CONTROL_CHARACTERS = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g;
 
@@ -30,6 +31,18 @@ export function safeDiagnosticErrorDetail(error: unknown): string {
 /** Backwards-compatible generation-specific form for persisted job diagnostics. */
 export function safeGenerationErrorDetail(error: unknown): string {
   return `generation_error type=${errorType(error)}`;
+}
+
+/**
+ * Redacts legacy generation_jobs.error_message values before an admin route
+ * projects them. Current writers persist the allowlisted form above, but old
+ * rows may still contain provider response text, prompts, URLs, or stacks.
+ */
+export function safePersistedGenerationErrorDetail(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  return typeof value === 'string' && SAFE_GENERATION_DETAIL_PATTERN.test(value)
+    ? value
+    : 'generation_failed';
 }
 
 /**

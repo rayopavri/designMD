@@ -10,12 +10,13 @@ import { eq } from 'drizzle-orm';
 import { requireEditor } from '@/lib/auth/session';
 import { db } from '@/lib/db/client';
 import { bundles, generationJobs } from '@/lib/db/schema';
+import { safePersistedGenerationErrorDetail } from '@/lib/security/diagnostics';
 
 export const runtime = 'nodejs';
 
 // A running job whose updatedAt hasn't changed in 4 minutes is permanently
-// stuck (worker SIGKILLed at the 60s Hobby cap before cleanup, past the 3-min
-// reaper). Surface it as failed so the UI shows the real state. Queued jobs are
+// stuck (worker terminated before cleanup and the supervisor did not recover
+// it). Surface it as failed so the UI shows the real state. Queued jobs are
 // excluded — they may be legitimately waiting their turn in a sequential batch
 // and should not be falsely failed.
 const STALE_JOB_MS = 4 * 60 * 1000;
@@ -58,7 +59,9 @@ export async function GET(req: NextRequest) {
       j.status === 'running' &&
       j.updatedAt != null &&
       now - new Date(j.updatedAt).getTime() > STALE_JOB_MS;
-    if (!isStuck) return j;
+    if (!isStuck) {
+      return { ...j, errorMessage: safePersistedGenerationErrorDetail(j.errorMessage) };
+    }
     return {
       ...j,
       status: 'failed' as const,

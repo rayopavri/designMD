@@ -83,7 +83,7 @@ variables needed for the features you run locally:
 | `QSTASH_TOKEN` + `QSTASH_CURRENT_SIGNING_KEY` + `QSTASH_NEXT_SIGNING_KEY` | Upstash console, when QStash is enabled |
 | `CRON_SECRET` | Generate a unique 16+ character secret; match it in Vercel and GitHub Actions |
 
-Set `INLINE_TASKS=true` in `.env.local` to run the generation pipeline synchronously (bypasses QStash for local dev).
+Set `INLINE_TASKS=true` in `.env.local` to dispatch the generation workers in-process through local worker requests (bypasses QStash for local dev; the workers still run asynchronously).
 
 Production has stricter requirements: `CRON_SECRET`, both Upstash Redis
 variables, `RATE_LIMIT_SECRET`, `QSTASH_TOKEN`, and both QStash signing keys
@@ -159,9 +159,9 @@ Bundle generation runs as three QStash task workers:
 
 After `scrape-and-extract` persists the draft and phase payload, it dispatches
 `author-design-md` and `generate-companion` in parallel. Both hydrate their
-inputs from the durable job state. A GitHub Actions watchdog (runs every 5 min)
-marks any job stuck in `queued` or `running` for more than 5 minutes as
-`failed`.
+inputs from the durable job state. Five-minute GitHub Actions watchdogs fail
+stale single-generation jobs after 5 minutes and reconcile batch jobs on a
+7-minute lease; the Vercel supervisor cron also runs every minute on Pro.
 
 Gemini is the default provider for extraction and authoring. Setting
 `AI_PROVIDER=openrouter` deliberately routes those Gemini-owned calls through

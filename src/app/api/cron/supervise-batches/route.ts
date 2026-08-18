@@ -2,8 +2,8 @@
  * Bulk-upload supervisor cron.
  *
  * Triggered every 5 minutes by the supervise-batches GitHub Actions workflow
- * (the Hobby plan caps Vercel crons at once/day; the vercel.json entry is a
- * once-daily backstop and becomes an every-minute tick on Pro). It reconciles
+ * as an independent backstop; the vercel.json entry runs every minute on the
+ * current Pro deployment. It reconciles
  * batch state from the DB, which is the single source of truth:
  *   1. reapStale()     — resume or fail jobs that stopped making progress.
  *   2. dispatchReady() — start queued jobs up to the global concurrency cap.

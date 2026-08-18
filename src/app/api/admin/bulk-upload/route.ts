@@ -35,6 +35,7 @@ import { dispatchReady } from '@/lib/generator/batch';
 import { normalizeUrl } from '@/lib/generator/url';
 import { prefetchBrandNames } from '@/lib/generator/prefetch-names';
 import { env } from '@/lib/env';
+import { safeDiagnosticErrorDetail } from '@/lib/security/diagnostics';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -266,7 +267,10 @@ export async function POST(req: NextRequest) {
     } catch (err) {
       // Non-fatal: re-run still targets the newest draft; the extras just
       // linger as drafts. Don't fail the batch over cleanup.
-      console.warn('[bulk-upload] failed to archive duplicate drafts:', err);
+      console.warn(
+        '[bulk-upload] failed to archive duplicate drafts:',
+        safeDiagnosticErrorDetail(err),
+      );
     }
   }
 
@@ -305,7 +309,10 @@ export async function POST(req: NextRequest) {
   try {
     await dispatchReady();
   } catch (err) {
-    console.error('[bulk-upload] initial dispatchReady failed (supervisor will recover):', err);
+    console.error(
+      '[bulk-upload] initial dispatchReady failed (supervisor will recover):',
+      safeDiagnosticErrorDetail(err),
+    );
   }
 
   const enqueuedCount = toEnqueue.length;

@@ -31,6 +31,7 @@ import {
 } from 'firebase/auth';
 import { clientAuth, googleProvider } from '@/lib/auth/firebase-client';
 import { safeInternalPath } from '@/lib/security/redirects';
+import { safeDiagnosticErrorDetail } from '@/lib/security/diagnostics';
 
 export type AuthProvider = 'google' | 'email';
 
@@ -184,8 +185,7 @@ async function exchangeIdTokenForSession(firebaseUser: FirebaseUser): Promise<Au
     body: JSON.stringify({ idToken }),
   });
   if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    console.error(`[auth] /api/auth/session rejected the sign-in: ${res.status} ${body}`);
+    console.error(`[auth] /api/auth/session rejected the sign-in: status=${res.status}`);
     return null;
   }
   const data = (await res.json()) as { user: ServerUserRow };
@@ -230,7 +230,10 @@ function ensureInitialized() {
       err && typeof err === 'object' && 'code' in err
         ? String((err as { code: unknown }).code)
         : 'auth/unknown-error';
-    console.error('[auth] google redirect sign-in failed:', err);
+    console.error(
+      '[auth] google redirect sign-in failed:',
+      safeDiagnosticErrorDetail(err),
+    );
     setState({ loading: false, googleSignInError: code });
   });
 
@@ -341,7 +344,10 @@ export async function mockSignInEmail(email: string): Promise<void> {
         useFirebaseFallback = true;
       }
     } catch (err) {
-      console.error('[auth] branded email-link request failed; falling back:', err);
+      console.error(
+        '[auth] branded email-link request failed; falling back:',
+        safeDiagnosticErrorDetail(err),
+      );
       useFirebaseFallback = true;
     }
 
@@ -355,9 +361,7 @@ export async function mockSignInEmail(email: string): Promise<void> {
     window.localStorage.setItem(EMAIL_LINK_STORAGE_KEY, email);
     setState({ loading: false });
   } catch (err) {
-    // Log the real error (e.g. Firebase auth/operation-not-allowed) so failures
-    // are diagnosable instead of silently surfacing a generic UI message.
-    console.error('[auth] email sign-in send failed:', err);
+    console.error('[auth] email sign-in send failed:', safeDiagnosticErrorDetail(err));
     setState({ loading: false });
     throw err;
   }

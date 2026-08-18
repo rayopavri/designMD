@@ -10,7 +10,7 @@
  *
  * Query params:
  *   limit  - max bundles to process this call (default 25, cap 50). Keeps
- *            us under the 60s Vercel Hobby function ceiling.
+ *            us under this route's explicit 60s function budget.
  *
  * Auth: editor-only.
  */

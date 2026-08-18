@@ -29,9 +29,10 @@ export const maxDuration = 15;
 // author, 70s on Anthropic) that throw inside the try/catch so failJob runs
 // and the row flips to `failed` within seconds. The watchdog is the
 // last-resort fallback for the case where the worker dies before its catch
-// runs (Vercel SIGKILL on the 180s maxDuration, OOM, etc.). Cron runs every 5
-// min and a single worker can now run up to 180s, so 5 min stale is the
-// tightest cutoff that's safe — anything shorter risks reaping a live job.
+// runs (platform termination, OOM, etc.). The 300s scrape/author budgets are
+// last-resort caps; healthy workers advance updatedAt between provider
+// substages, each of which is bounded at 150s or less. Five minutes without
+// progress therefore indicates a stale single-generation job.
 const STUCK_JOB_AGE_MS = 5 * 60_000;
 
 export async function GET(req: NextRequest) {

@@ -17,6 +17,7 @@ import { bundles } from '@/lib/db/schema';
 import { enqueueTask } from '@/lib/queue';
 import { probeScreenshotStorage } from '@/lib/storage/screenshots';
 import { isAutoCapturedScreenshot } from '@/lib/db/queries/bundles';
+import { safeDiagnosticErrorDetail } from '@/lib/security/diagnostics';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -108,7 +109,10 @@ export async function POST(req: NextRequest) {
       );
       return true;
     } catch (err) {
-      console.error('[backfill-screenshots] enqueue failed:', err instanceof Error ? err.message : err);
+      console.error(
+        '[backfill-screenshots] enqueue failed:',
+        safeDiagnosticErrorDetail(err),
+      );
       return false;
     }
   });

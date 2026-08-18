@@ -31,11 +31,10 @@ import { safeGenerationErrorDetail } from '@/lib/auth/job-access';
 const DISPATCH_LOCK_KEY = 4_727_001;
 
 // A running job that hasn't bumped updated_at within this window is presumed
-// dead. Must exceed the Vercel function timeout (180s on the Pro plan) plus
-// QStash's single-retry window so we never reap a worker that is legitimately
-// still executing a slow substage or about to be retried by QStash. Each
-// worker invocation bumps updated_at at its first step, so this is measured
-// from the last sign of progress, not from job creation.
+// dead. Must exceed the 300s Vercel function timeout on the Pro plan with
+// cleanup margin so we never reap a worker that is legitimately still
+// executing. A QStash retry bumps updated_at at its first step, so this is
+// measured from the last sign of progress, not from job creation.
 const LEASE_MS = 420_000; // 7 minutes
 
 // Total dispatch attempts (initial + reaper resumes) before a stuck job is
@@ -131,7 +130,7 @@ export async function dispatchReady(): Promise<{ claimed: number }> {
  * Recover jobs that are 'running' but have stopped making progress (updated_at
  * older than the lease). Covers BOTH bulk-upload batch jobs and single-generate
  * jobs (batchId null) — a single generation whose worker was SIGKILLed mid-phase
- * (e.g. the author call overran the 60s Hobby cap before the in-process timeout
+ * (e.g. a worker was terminated before its in-process timeout
  * could abort it) would otherwise sit in `running` forever, since the happy-path
  * failJob never ran and dispatchReady only manages batch slots. For each:
  *   - attempts < REAP_MAX_ATTEMPTS  → resume: renew the lease, bump attempts,

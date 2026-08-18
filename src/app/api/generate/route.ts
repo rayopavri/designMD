@@ -66,8 +66,9 @@ export async function POST(req: NextRequest) {
     const userId = user?.id ?? null;
     const isEditor = user?.isEditor ?? false;
 
-    // Resolve the anon cookie first so the rate-limit gate can key the
-    // one-free-generation limit on the browser (via __anon_id), not the IP.
+    // Resolve the anon cookie first so a newly issued ownership token can be
+    // attached to every response. Anonymous generation limits are keyed by IP;
+    // the cookie authorizes later polling of the job it creates.
     const { token: anonToken, isNew } = await getOrCreateAnonToken(userId);
 
     // Rate-limit gate. Editors are unmetered; signed-in get 10/hour by userId;
@@ -172,9 +173,9 @@ async function handleUrl(req: NextRequest, userId: string | null, anonToken: str
   // Existing in-flight job for this user/url? Only applies to signed-in
   // users — anonymous gets a fresh job each time. (Rate limiting will
   // be the abuse gate; we don't try to dedupe by IP here.)
-  // Skip jobs whose updatedAt hasn't moved in 4 min — those are stuck (worker
-  // was SIGKILLed at the 60s Hobby cap before cleanup, past the 3-min reaper)
-  // and should not block a fresh run.
+  // Skip jobs whose updatedAt hasn't moved in 4 min — that exceeds every
+  // individual provider substage timeout and should not block a fresh run.
+  // The supervisor's 7-min lease remains the durable recovery backstop.
   const STALE_JOB_MS = 4 * 60 * 1000;
   if (userId) {
     try {

@@ -9,6 +9,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { searchBundles } from '@/lib/search';
 import { listPublishedBundles } from '@/lib/db/queries/bundles';
 import { rateLimitByIp, tooManyRequests } from '@/lib/rate-limit/by-ip';
+import { safeDiagnosticErrorDetail } from '@/lib/security/diagnostics';
 
 export const runtime = 'nodejs';
 
@@ -29,7 +30,10 @@ export async function GET(req: NextRequest) {
     const hits = await searchBundles(q);
     return NextResponse.json({ data: hits });
   } catch (err) {
-    console.error('[search] Orama error, falling back to DB:', err);
+    console.error(
+      '[search] Orama error, falling back to DB:',
+      safeDiagnosticErrorDetail(err),
+    );
     const { items } = await listPublishedBundles({ q, limit: 30 });
     const fallback = items.map((b) => ({
       slug: b.slug,

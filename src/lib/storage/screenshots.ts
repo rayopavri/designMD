@@ -106,12 +106,7 @@ export async function probeScreenshotStorage(): Promise<{
 
   // Surfaced to the admin page so a wrong SUPABASE_URL (e.g. a different
   // project, or the Postgres URL pasted by mistake) is immediately visible.
-  let host: string | undefined;
-  try {
-    host = new URL(base).host;
-  } catch {
-    host = base;
-  }
+  const host = safeDiagnosticUrl(base);
 
   try {
     const res = await fetch(`${base}/storage/v1/object/${BUCKET}/__healthcheck__.webp`, {

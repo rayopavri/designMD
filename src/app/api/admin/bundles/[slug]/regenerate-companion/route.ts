@@ -19,6 +19,7 @@ import { db } from '@/lib/db/client';
 import { bundles } from '@/lib/db/schema';
 import { requireEditor } from '@/lib/auth/session';
 import { generateCompanionPromptFromSpec } from '@/lib/ai/generate-companion-prompt';
+import { safeDiagnosticErrorDetail } from '@/lib/security/diagnostics';
 
 export const runtime = 'nodejs';
 // One Sonnet call (45s in-SDK timeout); 60s function budget gives it headroom.
@@ -81,13 +82,8 @@ export async function POST(_req: NextRequest, ctx: RouteContext) {
       .update(bundles)
       .set({ companionStatus: 'failed', updatedAt: new Date() })
       .where(eq(bundles.id, existing.id));
-    return NextResponse.json(
-      {
-        error: 'Companion generation failed',
-        details: err instanceof Error ? err.message : String(err),
-      },
-      { status: 502 },
-    );
+    console.error('[admin companion regenerate] failed:', safeDiagnosticErrorDetail(err));
+    return NextResponse.json({ error: 'Companion generation failed' }, { status: 502 });
   }
 
   return NextResponse.json({ ok: true, slug, bundleId: existing.id });

@@ -6,8 +6,8 @@
  * errorStep='manual-unstick', then calls dispatchReady() to refill the
  * freed concurrency slots so the batch keeps moving.
  *
- * Use when a Firecrawl / Gemini / Sonnet call hung past Vercel's 60s
- * maxDuration in production — the SIGKILL would have prevented
+ * Use when a Firecrawl / Gemini / Sonnet call hung past its worker watchdog
+ * in production — a platform SIGKILL would have prevented
  * failJob() AND slot-refill from running, stranding the row AND
  * tying up a concurrency slot. The worker watchdogs and the
  * supervise-batches cron catch this automatically, but this endpoint
@@ -19,16 +19,15 @@ import { requireEditor } from '@/lib/auth/session';
 import { db } from '@/lib/db/client';
 import { generationJobs } from '@/lib/db/schema';
 import { dispatchReady } from '@/lib/generator/batch';
+import { safeDiagnosticErrorDetail } from '@/lib/security/diagnostics';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
 
-// A healthy job hits one of (Vercel Hobby 60s function cap — see TECH-STACK.md):
-//   scrape:   maxDuration 60s + at most 1 QStash retry = ~130s worst case
-//   author:   maxDuration 60s + at most 1 QStash retry = ~130s worst case
-//   companion:maxDuration 60s + at most 1 QStash retry = ~130s worst case
-// 4 minutes is comfortably past all of these (and past the 3-min supervisor
-// reaper), so anything older is definitively stuck — not a slow legitimate run.
+// Four minutes without a DB heartbeat is beyond every individual provider
+// substage timeout and intentionally offers a manual escape before the
+// supervisor's 7-minute stale lease. The 300s scrape/author platform budgets
+// are last-resort caps; live workers advance updatedAt between phases.
 const UNSTUCK_THRESHOLD_MS = 4 * 60 * 1000;
 
 export async function POST(
@@ -90,7 +89,7 @@ export async function POST(
     await dispatchReady();
     advanced = true;
   } catch (err) {
-    console.error('[unstick] dispatchReady failed:', err);
+    console.error('[unstick] dispatchReady failed:', safeDiagnosticErrorDetail(err));
   }
 
   return NextResponse.json({

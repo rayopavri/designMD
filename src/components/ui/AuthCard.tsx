@@ -53,7 +53,7 @@ function describeGoogleError(code: string | null): string {
   if (code === "auth/session-exchange-failed") {
     return "Signed in with Google, but we couldn't finish setting up your session. Try again in a moment.";
   }
-  return code ? `Couldn't sign in (${code}). Try again.` : "Couldn't sign in. Try again.";
+  return "Couldn't sign in. Try again.";
 }
 
 const GoogleMark = () => (
@@ -134,21 +134,9 @@ export function AuthCard({ variant = "compact", intent, onSkip, title, returnTo 
       setLoadingProvider(null);
       // Global auth subscriber closes the modal once the user clicks the
       // link and `/auth/callback` completes sign-in.
-    } catch (err) {
+    } catch {
       if (!mountedRef.current) return;
-      // Surface the real Firebase reason instead of a generic message. The
-      // usual culprits: auth/operation-not-allowed (email-link sign-in not
-      // enabled in the Firebase console) and auth/unauthorized-continue-uri
-      // (the /auth/callback origin isn't in the authorized domains list).
-      const code =
-        err && typeof err === "object" && "code" in err
-          ? String((err as { code: unknown }).code)
-          : null;
-      setError(
-        code
-          ? `Couldn't send the link (${code}). Try again.`
-          : "Couldn't send the link. Try again.",
-      );
+      setError("Couldn't send the link. Try again.");
       setLoadingProvider(null);
     }
   }

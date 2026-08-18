@@ -5,11 +5,9 @@ name: supervise-batches
 # killed worker. The happy path dispatches inline (each worker refills on
 # completion); this cron is the backstop that recovers orphaned batches.
 #
-# Why GitHub Actions and not a Vercel cron: the Hobby plan caps cron jobs at
-# once per day, same constraint that moved warm-db here. GitHub Actions has a
-# 5-min schedule floor — fine, since LEASE_MS is 6 min and inline dispatch
-# covers the happy path. The vercel.json entry stays as a once-daily backstop
-# (and becomes an every-minute tick automatically if the project moves to Pro).
+# GitHub Actions remains an independent 5-minute backstop. The Pro deployment
+# also runs the vercel.json supervisor cron every minute; LEASE_MS is 7 minutes,
+# and inline dispatch covers the happy path.
 #
 # Auth: the endpoint requires a credential. Set CRON_SECRET on Vercel and add
 # the same value as a GitHub Actions secret named CRON_SECRET.

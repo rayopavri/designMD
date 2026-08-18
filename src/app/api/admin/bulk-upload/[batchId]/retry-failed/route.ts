@@ -15,6 +15,7 @@ import { requireEditor } from '@/lib/auth/session';
 import { db } from '@/lib/db/client';
 import { generationJobs } from '@/lib/db/schema';
 import { dispatchReady } from '@/lib/generator/batch';
+import { safeDiagnosticErrorDetail } from '@/lib/security/diagnostics';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
@@ -61,7 +62,7 @@ export async function POST(
     await dispatchReady();
     dispatched = true;
   } catch (err) {
-    console.error('[retry-failed] dispatchReady failed:', err);
+    console.error('[retry-failed] dispatchReady failed:', safeDiagnosticErrorDetail(err));
   }
 
   return NextResponse.json({ retried: reset.length, dispatched });

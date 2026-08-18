@@ -22,6 +22,7 @@ import { db } from '@/lib/db/client';
 import { bundles, generationJobs } from '@/lib/db/schema';
 import { requireEditor } from '@/lib/auth/session';
 import { enqueueTask } from '@/lib/queue';
+import { safeDiagnosticErrorDetail } from '@/lib/security/diagnostics';
 
 export const runtime = 'nodejs';
 
@@ -50,11 +51,8 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
   try {
     const parsedBody = Body.parse(await req.json().catch(() => ({})));
     feedback = parsedBody.feedback || undefined;
-  } catch (err) {
-    return NextResponse.json(
-      { error: 'Invalid feedback', details: err instanceof Error ? err.message : String(err) },
-      { status: 400 },
-    );
+  } catch {
+    return NextResponse.json({ error: 'Invalid feedback' }, { status: 400 });
   }
 
   const [bundle] = await db
@@ -97,8 +95,8 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
 
   if (inFlight) {
     // A running job with no DB update for 4+ min is considered stuck (the QStash
-    // worker was SIGKILLed at the 60s Hobby cap but never wrote a terminal
-    // status, and the supervisor's 3-min reaper hasn't caught it yet). Allow the
+    // worker was terminated before it wrote a terminal
+    // status, and the supervisor's 7-min reaper hasn't caught it yet). Allow the
     // replacement by marking it failed first; queued jobs are always live.
     const STUCK_THRESHOLD_MS = 4 * 60 * 1000;
     const isStuck =
@@ -144,13 +142,8 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
   try {
     await enqueueTask('scrape-and-extract', { jobId: job.id, feedback });
   } catch (err) {
-    return NextResponse.json(
-      {
-        error: 'Failed to enqueue pipeline task',
-        details: err instanceof Error ? err.message : String(err),
-      },
-      { status: 502 },
-    );
+    console.error('[admin rerun] enqueue failed:', safeDiagnosticErrorDetail(err));
+    return NextResponse.json({ error: 'Failed to enqueue pipeline task' }, { status: 502 });
   }
 
   return NextResponse.json({ ok: true, jobId: job.id, bundleId: bundle.id });

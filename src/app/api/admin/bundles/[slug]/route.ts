@@ -24,6 +24,7 @@ import {
 import { scoreFromLint } from '@/lib/generator/coverage';
 import { appendWcagRows } from '@/lib/ai/generate-design-md';
 import { normalizeUrl, extractDomain } from '@/lib/generator/url';
+import { safeDiagnosticErrorDetail } from '@/lib/security/diagnostics';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -154,11 +155,8 @@ export async function PATCH(req: NextRequest, ctx: RouteContext) {
   let body: z.infer<typeof PatchSchema>;
   try {
     body = PatchSchema.parse(await req.json());
-  } catch (err) {
-    return NextResponse.json(
-      { error: 'Invalid body', details: err instanceof Error ? err.message : String(err) },
-      { status: 400 },
-    );
+  } catch {
+    return NextResponse.json({ error: 'Invalid body' }, { status: 400 });
   }
 
   if (Object.keys(body).length === 0) {
@@ -220,11 +218,8 @@ export async function PATCH(req: NextRequest, ctx: RouteContext) {
       try {
         lintSummary = await lintDesignMd(stripped);
       } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        return NextResponse.json(
-          { error: 'Failed to lint design.md', details: msg },
-          { status: 400 },
-        );
+        console.error('[admin patch bundle] lint failed:', safeDiagnosticErrorDetail(err));
+        return NextResponse.json({ error: 'Failed to lint design.md' }, { status: 400 });
       }
       const finalMd =
         lintSummary.derivedDonts.length > 0
@@ -290,12 +285,12 @@ export async function PATCH(req: NextRequest, ctx: RouteContext) {
     }
     if (/all_valid_design_styles|all_valid_tools|check constraint/i.test(msg)) {
       return NextResponse.json(
-        { error: 'Invalid value in designStyle or compatibleTools', details: msg },
+        { error: 'Invalid value in designStyle or compatibleTools' },
         { status: 400 },
       );
     }
-    console.error('[admin patch bundle]', err);
-    return NextResponse.json({ error: 'Update failed', details: msg }, { status: 500 });
+    console.error('[admin patch bundle]', safeDiagnosticErrorDetail(err));
+    return NextResponse.json({ error: 'Update failed' }, { status: 500 });
   }
 
   const row = await loadBundle(slug);

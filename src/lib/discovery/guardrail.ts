@@ -21,6 +21,7 @@ import {
   activeBundleExistsByNormalizedUrl,
   candidateExistsByFingerprint,
 } from '@/lib/db/queries/discovery';
+import { safeDiagnosticErrorDetail, safeDiagnosticUrl } from '@/lib/security/diagnostics';
 
 export type GuardrailResult =
   | { ok: true; normalizedUrl: string; domain: string; fingerprint: string }
@@ -38,7 +39,10 @@ export async function screenCandidate(rawUrl: string): Promise<GuardrailResult> 
       ok: false,
       layer: 'url',
       reason: 'invalid_url',
-      details: { rawUrl, error: err instanceof Error ? err.message : String(err) },
+      details: {
+        url: safeDiagnosticUrl(rawUrl),
+        error: safeDiagnosticErrorDetail(err),
+      },
     };
   }
 
@@ -68,7 +72,12 @@ export async function screenCandidate(rawUrl: string): Promise<GuardrailResult> 
     return { ok: false, layer: 'dedup', reason: 'duplicate_candidate', details: { fingerprint } };
   }
   if (await activeBundleExistsByNormalizedUrl(normalizedUrl)) {
-    return { ok: false, layer: 'dedup', reason: 'duplicate_bundle', details: { normalizedUrl } };
+    return {
+      ok: false,
+      layer: 'dedup',
+      reason: 'duplicate_bundle',
+      details: { url: safeDiagnosticUrl(normalizedUrl) },
+    };
   }
 
   return { ok: true, normalizedUrl, domain, fingerprint };

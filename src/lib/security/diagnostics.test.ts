@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 import {
   safeDiagnosticErrorDetail,
   safeDiagnosticUrl,
+  safePersistedGenerationErrorDetail,
   safePerfDiagnosticValue,
 } from './diagnostics';
 
@@ -40,6 +41,19 @@ describe('diagnostic redaction', () => {
     );
     const unsafeUrl = 'https://example.test/path\u0085forged';
     assert.equal(safeDiagnosticUrl(unsafeUrl), 'invalid-url');
-    assert.equal(safeDiagnosticUrl(unsafeUrl), 'invalid-url');
+  });
+
+  it('redacts historical persisted job errors before admin projection', () => {
+    assert.equal(
+      safePersistedGenerationErrorDetail('generation_error type=TimeoutError'),
+      'generation_error type=TimeoutError',
+    );
+    assert.equal(
+      safePersistedGenerationErrorDetail(
+        'Provider rejected prompt=private system prompt authorization=Bearer provider-token\u2028forged',
+      ),
+      'generation_failed',
+    );
+    assert.equal(safePersistedGenerationErrorDetail(null), null);
   });
 });

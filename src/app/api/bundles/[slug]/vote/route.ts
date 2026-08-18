@@ -81,11 +81,8 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
   let body: z.infer<typeof VoteSchema>;
   try {
     body = VoteSchema.parse(await req.json());
-  } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Invalid body' },
-      { status: 400 },
-    );
+  } catch {
+    return NextResponse.json({ error: 'Invalid body' }, { status: 400 });
   }
 
   await db

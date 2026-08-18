@@ -13,6 +13,7 @@ import { desc, eq } from 'drizzle-orm';
 import { db } from '@/lib/db/client';
 import { bundles, generationJobs } from '@/lib/db/schema';
 import { requireEditor } from '@/lib/auth/session';
+import { safePersistedGenerationErrorDetail } from '@/lib/security/diagnostics';
 
 export const runtime = 'nodejs';
 
@@ -61,5 +62,9 @@ export async function GET(_req: NextRequest, ctx: RouteContext) {
     .orderBy(desc(generationJobs.createdAt))
     .limit(1);
 
-  return NextResponse.json({ job: job ?? null });
+  return NextResponse.json({
+    job: job
+      ? { ...job, errorMessage: safePersistedGenerationErrorDetail(job.errorMessage) }
+      : null,
+  });
 }

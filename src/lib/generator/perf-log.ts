@@ -13,10 +13,10 @@
  *   [perf] companion.hydrate skip 12ms reason=payload-consumed-or-malformed
  *   [perf] worker.author done 64200ms jobId=...
  *
- * Why this exists: the author (Gemini, 240s abort) and companion (Sonnet, 90s ×
+ * Why this exists: the author (Gemini, 150s abort) and companion (Sonnet, 70s ×
  * retries) steps were observed timing out, and we can't reproduce locally
- * (Vercel keeps the keys Sensitive). A 240s author "timeout" surfaces here as
- * `author.gemini err 240000ms thoughts=...`, which separates a genuinely slow
+ * (Vercel keeps the keys Sensitive). A 150s author "timeout" surfaces here as
+ * `author.gemini err 150000ms thoughts=...`, which separates a genuinely slow
  * generation (high thoughts/output tokens) from a fast failure (auth / quota /
  * cold-start hang before first byte) and from the silent companion payload-race
  * (`companion.hydrate skip`, where the author cleared phase_payload first).
@@ -39,6 +39,7 @@ type PerfFields = Record<string, string | number | boolean | null | undefined>;
  * the output stays compact when token usage isn't available.
  */
 export function perf(stage: string, outcome: PerfOutcome, ms: number, fields?: PerfFields): void {
+  const safeStage = safePerfDiagnosticKey(stage);
   let extra = '';
   if (fields) {
     extra = Object.entries(fields)
@@ -49,5 +50,5 @@ export function perf(stage: string, outcome: PerfOutcome, ms: number, fields?: P
   // console.log is the established observability channel in this pipeline
   // (see the pre-existing `[generate-design-md]` / `[firecrawl]` lines) and
   // is what Vercel captures into function logs.
-  console.log(`[perf] ${stage} ${outcome} ${ms}ms${extra ? ` ${extra}` : ''}`);
+  console.log(`[perf] ${safeStage} ${outcome} ${ms}ms${extra ? ` ${extra}` : ''}`);
 }

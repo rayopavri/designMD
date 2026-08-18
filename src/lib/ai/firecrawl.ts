@@ -174,7 +174,7 @@ export async function scrapeUrlSmart(
 ): Promise<ScrapeResult> {
   // Total Firecrawl budget. The scrape-and-extract worker runs on Vercel Pro
   // (300s standard / 800s Fluid cap — see TECH-STACK.md) with maxDuration
-  // pinned to 180s and a 174s watchdog; Phase 1 also runs Gemini brand
+  // pinned to 300s and a 290s watchdog; Phase 1 also runs Gemini brand
   // extraction (~8-25s), orphan resolution (~50ms), DB writes (~200ms), and
   // QStash enqueue (~500ms), so we keep Firecrawl under 120s. The pre-step
   // budget checks below assume the worst-case per-step wrapper budgets and
@@ -420,7 +420,7 @@ export async function scrapeUrl(url: string): Promise<ScrapeResult> {
   // Rich capture: dismiss-overlay actions + a real desktop viewport. waitFor is
   // the pre-action settle; PREP_ACTIONS add ~2.6s more of wait/dismiss. timeout
   // bumped 25s→30s to cover the extra action time — still far under the 120s
-  // FIRECRAWL_BUDGET_MS in scrapeUrlSmart and the 174s worker watchdog.
+  // FIRECRAWL_BUDGET_MS in scrapeUrlSmart and the 290s worker watchdog.
   const richOpts = {
     formats: primaryFormats,
     waitFor: 1_000,

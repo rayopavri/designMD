@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db/client';
 import { categories } from '@/lib/db/schema';
 import { requireEditor } from '@/lib/auth/session';
+import { safeDiagnosticErrorDetail } from '@/lib/security/diagnostics';
 
 export const runtime = 'nodejs';
 
@@ -34,11 +35,8 @@ export async function POST(req: NextRequest) {
   let body: z.infer<typeof BodySchema>;
   try {
     body = BodySchema.parse(await req.json());
-  } catch (err) {
-    return NextResponse.json(
-      { error: 'Invalid body', details: err instanceof Error ? err.message : String(err) },
-      { status: 400 },
-    );
+  } catch {
+    return NextResponse.json({ error: 'Invalid body' }, { status: 400 });
   }
 
   const slug = toSlug(body.name);
@@ -68,6 +66,7 @@ export async function POST(req: NextRequest) {
         { status: 409 },
       );
     }
-    return NextResponse.json({ error: 'Failed to create category', details: msg }, { status: 500 });
+    console.error('[admin categories] create failed:', safeDiagnosticErrorDetail(err));
+    return NextResponse.json({ error: 'Failed to create category' }, { status: 500 });
   }
 }

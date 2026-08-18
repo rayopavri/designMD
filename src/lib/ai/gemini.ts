@@ -1211,7 +1211,7 @@ export async function generateTextFromGemini(input: GeminiTextInput): Promise<Ge
       },
     }),
   ).catch((err: unknown) => {
-    // Log how long we ran before the abort. A genuine 240s author timeout
+    // Log how long we ran before the abort. A genuine 150s author timeout
     // surfaces as genMs≈timeoutMs; a fast reject (auth/quota/cold-start hang)
     // surfaces as a small genMs — the two need different fixes.
     perf('author.gemini', 'err', Date.now() - genStartedAt, {

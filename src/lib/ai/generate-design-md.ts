@@ -15,7 +15,7 @@
  *
  * Provider: Gemini 3.1 Flash-Lite direct — single provider, no fallback.
  * Same GEMINI_API_KEY billing surface as extraction. The per-call timeout
- * (AUTHOR_TIMEOUT_MS) is sized to fit inside the author worker's 180s Pro
+ * (AUTHOR_TIMEOUT_MS) is sized to fit inside the author worker's 300s Pro
  * budget so a hang aborts cleanly and failJob() can mark the row failed;
  * transient 429s are retried inside generateTextFromGemini (withGeminiRetry)
  * and, at the job level, by QStash + the supervisor. Companion-prompt worker
@@ -31,6 +31,7 @@ import {
   type ExtractedMotion,
   type ExtractedElevation,
 } from './gemini';
+import { safePerfDiagnosticValue } from '@/lib/security/diagnostics';
 
 const SYSTEM_PROMPT = `You write the markdown body of canonical Google DESIGN.md files.
 
@@ -353,7 +354,7 @@ async function generateMarkdownBody(input: Input, yaml: string): Promise<string>
     '',
     'Source page (scraped markdown, truncated):',
     '```',
-    // Trimmed to keep author latency inside the 60s Hobby budget — ~10k chars
+    // Trimmed to keep author latency and prompt cost bounded — ~10k chars
     // (~2.5k tokens) is enough grounding for voice/structure without inflating
     // time-to-first-token on content-heavy pages.
     input.scrapedMarkdown.slice(0, 10_000),
@@ -435,7 +436,7 @@ function logMissingHeadings(provider: string, text: string): void {
   const missing = REQUIRED_HEADINGS.filter((h) => !text.includes(h));
   if (missing.length > 0) {
     console.warn(
-      `[generate-design-md] ${provider} output missing required headings: ${missing.join(', ')}`,
+      `[generate-design-md] provider=${safePerfDiagnosticValue('provider', provider)} output missing required headings: ${missing.join(', ')}`,
     );
   }
 }
@@ -454,7 +455,7 @@ const AUTHOR_TIMEOUT_MS = 150_000;
  * generateTextFromGemini applies AUTHOR_TIMEOUT_MS via AbortSignal and retries
  * transient 429s internally (withGeminiRetry). A genuine hang aborts at the
  * timeout and surfaces as a failure, which QStash + the supervisor re-run; the
- * worker's 54s watchdog is the ultimate backstop.
+ * worker's 290s watchdog is the ultimate backstop.
  */
 async function callAuthorModel(userPrompt: string): Promise<string> {
   const res = await generateTextFromGemini({
@@ -465,7 +466,7 @@ async function callAuthorModel(userPrompt: string): Promise<string> {
     temperature: 0.4,
   });
   console.log(
-    `[generate-design-md] gemini-direct ${res.modelUsed} ${res.latencyMs}ms chars=${res.content.length}`,
+    `[generate-design-md] gemini-direct model=${safePerfDiagnosticValue('model', res.modelUsed)} ${res.latencyMs}ms chars=${res.content.length}`,
   );
   const text = res.content.trim();
   if (!text) throw new Error('Gemini direct returned empty markdown body');
