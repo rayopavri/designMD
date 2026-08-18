@@ -265,12 +265,19 @@ export function buildSpecUserPrompt(input: SpecInput): string {
  * Shared Sonnet call for both companion paths: identical model, cached system
  * prompt, timeout, and text extraction — only the user message differs.
  *
- * Uses the .beta.messages endpoint because @anthropic-ai/sdk@0.32 only surfaces
- * typed `cache_control` on the beta path. Runtime behavior is identical to
- * .messages.create() on the same model — Sonnet 4.6 — and prompt caching is GA
- * on the Anthropic API. Upgrading the SDK to the current major would resolve
- * this but is out of scope.
+ * Uses the .beta.messages endpoint because that path exposes typed
+ * `cache_control`. Runtime behavior is identical to .messages.create() on the
+ * same model — Sonnet 4.6 — and prompt caching is GA on the Anthropic API.
  */
+export function extractCompanionText<T extends { type: string }>(content: readonly T[]): string {
+  return content
+    .flatMap((block) => block.type === 'text' && 'text' in block && typeof block.text === 'string'
+      ? [block.text]
+      : [])
+    .join('\n')
+    .trim();
+}
+
 async function runCompanionSonnet(userPrompt: string): Promise<string> {
   const startedAt = Date.now();
   const res = await anthropic()
@@ -311,11 +318,7 @@ async function runCompanionSonnet(userPrompt: string): Promise<string> {
     cacheWrite: u?.cache_creation_input_tokens,
   });
 
-  const text = res.content
-    .filter((c): c is { type: 'text'; text: string } => c.type === 'text')
-    .map((c) => c.text)
-    .join('\n')
-    .trim();
+  const text = extractCompanionText(res.content);
 
   if (!text) throw new Error('Sonnet returned empty companion prompt');
   return text;
