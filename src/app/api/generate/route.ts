@@ -28,6 +28,7 @@ import { db } from '@/lib/db/client';
 import { bundles, generationJobs } from '@/lib/db/schema';
 import { getCurrentUser } from '@/lib/auth/session';
 import { getOrCreateAnonToken, attachAnonToken } from '@/lib/auth/anon-token';
+import { safeGenerationErrorDetail } from '@/lib/auth/job-access';
 import { normalizeUrl } from '@/lib/generator/url';
 import { enqueueTask } from '@/lib/queue';
 import { rateLimitGenerate, markFreeGenerationUsed } from '@/lib/rate-limit';
@@ -116,11 +117,8 @@ export async function POST(req: NextRequest) {
     if (isNew && anonToken) attachAnonToken(res, anonToken);
     return res;
   } catch (err) {
-    console.error('[/api/generate] unhandled error:', err);
-    return NextResponse.json(
-      { error: 'Internal server error', details: err instanceof Error ? err.message : String(err) },
-      { status: 500 },
-    );
+    console.error('[/api/generate] unhandled error:', safeGenerationErrorDetail(err));
+    return NextResponse.json({ error: 'generation_failed' }, { status: 500 });
   }
 }
 
@@ -128,21 +126,15 @@ async function handleUrl(req: NextRequest, userId: string | null, anonToken: str
   let body: z.infer<typeof UrlBodySchema>;
   try {
     body = UrlBodySchema.parse(await req.json());
-  } catch (err) {
-    return NextResponse.json(
-      { error: 'Invalid body', details: err instanceof Error ? err.message : String(err) },
-      { status: 400 },
-    );
+  } catch {
+    return NextResponse.json({ error: 'invalid_request' }, { status: 400 });
   }
 
   let normalized: string;
   try {
     normalized = normalizeUrl(body.url);
-  } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Invalid URL' },
-      { status: 400 },
-    );
+  } catch {
+    return NextResponse.json({ error: 'invalid_request' }, { status: 400 });
   }
 
   // Existing active bundle for this URL? Matches the scope of the
@@ -163,11 +155,8 @@ async function handleUrl(req: NextRequest, userId: string | null, anonToken: str
       )
       .limit(1);
   } catch (err) {
-    console.error('[/api/generate] bundles lookup failed:', err);
-    return NextResponse.json(
-      { error: 'Database error', details: err instanceof Error ? err.message : String(err) },
-      { status: 500 },
-    );
+    console.error('[/api/generate] bundles lookup failed:', safeGenerationErrorDetail(err));
+    return NextResponse.json({ error: 'database_unavailable' }, { status: 503 });
   }
   if (existing) {
     // Only expose the slug for a published bundle (publicly resolvable);
@@ -211,11 +200,8 @@ async function handleUrl(req: NextRequest, userId: string | null, anonToken: str
         );
       }
     } catch (err) {
-      console.error('[/api/generate] inflight job lookup failed:', err);
-      return NextResponse.json(
-        { error: 'Database error', details: err instanceof Error ? err.message : String(err) },
-        { status: 500 },
-      );
+      console.error('[/api/generate] inflight job lookup failed:', safeGenerationErrorDetail(err));
+      return NextResponse.json({ error: 'database_unavailable' }, { status: 503 });
     }
   }
 
@@ -236,25 +222,19 @@ async function handleUrl(req: NextRequest, userId: string | null, anonToken: str
       })
       .returning({ id: generationJobs.id });
   } catch (err) {
-    console.error('[/api/generate] job insert failed:', err);
-    return NextResponse.json(
-      { error: 'Database error', details: err instanceof Error ? err.message : String(err) },
-      { status: 500 },
-    );
+    console.error('[/api/generate] job insert failed:', safeGenerationErrorDetail(err));
+    return NextResponse.json({ error: 'database_unavailable' }, { status: 503 });
   }
 
   if (!job) {
-    return NextResponse.json({ error: 'Failed to create job' }, { status: 500 });
+    return NextResponse.json({ error: 'database_unavailable' }, { status: 503 });
   }
 
   try {
     await enqueueTask('scrape-and-extract', { jobId: job.id });
   } catch (err) {
-    console.error('[/api/generate] enqueueTask failed:', err);
-    return NextResponse.json(
-      { error: 'Queue error', details: err instanceof Error ? err.message : String(err) },
-      { status: 500 },
-    );
+    console.error('[/api/generate] enqueueTask failed:', safeGenerationErrorDetail(err));
+    return NextResponse.json({ error: 'queue_unavailable' }, { status: 503 });
   }
 
   return NextResponse.json(
@@ -305,49 +285,65 @@ async function handleUpload(req: NextRequest, userId: string | null, anonToken: 
 
   // Dedupe in-flight upload jobs by user+hash (signed-in users only).
   if (userId) {
-    const [inflight] = await db
-      .select()
-      .from(generationJobs)
-      .where(
-        and(
-          eq(generationJobs.userId, userId),
-          eq(generationJobs.imageHash, hash),
-          inArray(generationJobs.status, ['queued', 'running']),
-        ),
-      )
-      .limit(1);
-    if (inflight) {
-      return NextResponse.json(
-        { jobId: inflight.id, status: inflight.status, currentStep: inflight.currentStep ?? null },
-        { status: 202 },
-      );
+    try {
+      const [inflight] = await db
+        .select()
+        .from(generationJobs)
+        .where(
+          and(
+            eq(generationJobs.userId, userId),
+            eq(generationJobs.imageHash, hash),
+            inArray(generationJobs.status, ['queued', 'running']),
+          ),
+        )
+        .limit(1);
+      if (inflight) {
+        return NextResponse.json(
+          { jobId: inflight.id, status: inflight.status, currentStep: inflight.currentStep ?? null },
+          { status: 202 },
+        );
+      }
+    } catch (err) {
+      console.error('[/api/generate] upload inflight job lookup failed:', safeGenerationErrorDetail(err));
+      return NextResponse.json({ error: 'database_unavailable' }, { status: 503 });
     }
   }
 
-  const [job] = await db
-    .insert(generationJobs)
-    .values({
-      url: sourceKey,
-      normalizedUrl: null,
-      status: 'queued',
-      currentStep: 'queued',
-      userId,
-      sourceType: 'upload',
-      imageData: base64,
-      imageMimeType: file.type,
-      imageHash: hash,
-      brandName,
-      anonToken: userId ? null : anonToken,
-      // Editor-owned jobs auto-publish when the quality bar is met (≥60%).
-      autoPublish: isEditor,
-    })
-    .returning({ id: generationJobs.id });
-
-  if (!job) {
-    return NextResponse.json({ error: 'Failed to create job' }, { status: 500 });
+  let job: { id: string } | undefined;
+  try {
+    [job] = await db
+      .insert(generationJobs)
+      .values({
+        url: sourceKey,
+        normalizedUrl: null,
+        status: 'queued',
+        currentStep: 'queued',
+        userId,
+        sourceType: 'upload',
+        imageData: base64,
+        imageMimeType: file.type,
+        imageHash: hash,
+        brandName,
+        anonToken: userId ? null : anonToken,
+        // Editor-owned jobs auto-publish when the quality bar is met (≥60%).
+        autoPublish: isEditor,
+      })
+      .returning({ id: generationJobs.id });
+  } catch (err) {
+    console.error('[/api/generate] upload job insert failed:', safeGenerationErrorDetail(err));
+    return NextResponse.json({ error: 'database_unavailable' }, { status: 503 });
   }
 
-  await enqueueTask('scrape-and-extract', { jobId: job.id });
+  if (!job) {
+    return NextResponse.json({ error: 'database_unavailable' }, { status: 503 });
+  }
+
+  try {
+    await enqueueTask('scrape-and-extract', { jobId: job.id });
+  } catch (err) {
+    console.error('[/api/generate] upload enqueueTask failed:', safeGenerationErrorDetail(err));
+    return NextResponse.json({ error: 'queue_unavailable' }, { status: 503 });
+  }
   return NextResponse.json(
     { jobId: job.id, status: 'queued', currentStep: 'queued' },
     { status: 202 },

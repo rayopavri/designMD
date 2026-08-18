@@ -1,15 +1,21 @@
 /**
  * GET /api/generate/[id]
  *
- * Poll a generator job's status. No auth — the UUID jobId is the access
- * token. IDs are not enumerable and are only known to the requester
- * (the response of POST /api/generate). This lets anonymous users poll
- * their own job through to completion.
+ * Poll a generator job's status. A UUID identifies a job but does not grant
+ * access: signed-in jobs require their owner session and anonymous jobs
+ * require the httpOnly browser token that created them.
  */
 import { NextResponse, type NextRequest } from 'next/server';
 import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db/client';
 import { bundles, generationJobs } from '@/lib/db/schema';
+import { getCurrentUser } from '@/lib/auth/session';
+import { readAnonToken } from '@/lib/auth/anon-token';
+import {
+  canReadGenerationJob,
+  publicGenerationJobStatus,
+  safeGenerationErrorDetail,
+} from '@/lib/auth/job-access';
 import { rateLimitByIp, tooManyRequests } from '@/lib/rate-limit/by-ip';
 
 export const runtime = 'nodejs';
@@ -41,45 +47,39 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
     return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
   }
 
-  const [job] = await db
-    .select()
-    .from(generationJobs)
-    .where(eq(generationJobs.id, id))
-    .limit(1);
-
-  if (!job) {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  }
-
-  // Detect stuck-running rows: job never transitioned out of running because
-  // the worker process was killed before cleanup could run.
-  const isStuck =
-    (job.status === 'running' || job.status === 'queued') &&
-    job.updatedAt != null &&
-    Date.now() - new Date(job.updatedAt).getTime() > STALE_JOB_MS;
-
-  let resultBundleSlug: string | null = null;
-  if (job.resultBundleId) {
-    const [b] = await db
-      .select({ slug: bundles.slug })
-      .from(bundles)
-      .where(eq(bundles.id, job.resultBundleId))
+  try {
+    const [job] = await db
+      .select()
+      .from(generationJobs)
+      .where(eq(generationJobs.id, id))
       .limit(1);
-    resultBundleSlug = b?.slug ?? null;
-  }
 
-  return NextResponse.json({
-    jobId: job.id,
-    url: job.url,
-    status: isStuck ? 'failed' : job.status,
-    currentStep: job.currentStep,
-    errorMessage: isStuck ? 'Generation timed out — please try again.' : job.errorMessage,
-    errorStep: isStuck ? 'watchdog' : job.errorStep,
-    resultBundleId: job.resultBundleId,
-    resultBundleSlug,
-    createdAt: job.createdAt,
-    updatedAt: job.updatedAt,
-    companionStartedAt: job.companionStartedAt,
-    companionDoneAt: job.companionDoneAt,
-  });
+    const [user, anonToken] = await Promise.all([getCurrentUser(), readAnonToken()]);
+    if (!job || !canReadGenerationJob(job, { userId: user?.id ?? null, anonToken })) {
+      // Do not reveal whether the UUID belongs to another user.
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    }
+
+    // Detect stuck-running rows: job never transitioned out of running because
+    // the worker process was killed before cleanup could run.
+    const isStuck =
+      (job.status === 'running' || job.status === 'queued') &&
+      job.updatedAt != null &&
+      Date.now() - new Date(job.updatedAt).getTime() > STALE_JOB_MS;
+
+    let resultBundleSlug: string | null = null;
+    if (job.resultBundleId) {
+      const [b] = await db
+        .select({ slug: bundles.slug })
+        .from(bundles)
+        .where(eq(bundles.id, job.resultBundleId))
+        .limit(1);
+      resultBundleSlug = b?.slug ?? null;
+    }
+
+    return NextResponse.json(publicGenerationJobStatus(job, { resultBundleSlug, isStuck }));
+  } catch (err) {
+    console.error('[/api/generate/[id]] status lookup failed:', safeGenerationErrorDetail(err));
+    return NextResponse.json({ error: 'generation_unavailable' }, { status: 503 });
+  }
 }

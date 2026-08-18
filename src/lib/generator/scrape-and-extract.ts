@@ -35,6 +35,7 @@ import { extractDomain } from '@/lib/generator/url';
 import { uniqueBundleSlug } from '@/lib/generator/slug';
 import { dispatchReady } from '@/lib/generator/batch';
 import type { AuthorPhasePayload } from '@/lib/generator/phase-payload';
+import { safeGenerationErrorDetail } from '@/lib/auth/job-access';
 
 // QStash payloads are capped at 1MB. Trim the scraped markdown before
 // passing to Phase 2 — design.md authoring only needs a representative
@@ -333,7 +334,7 @@ async function setJobStep(
     // bail if even the bare update fails.
     if (!stamps) throw err;
     console.warn(
-      `[scrape-and-extract] setJobStep with stamps failed (${err instanceof Error ? err.message : String(err)}) — retrying without telemetry columns`,
+      `[scrape-and-extract] setJobStep with stamps failed (${safeGenerationErrorDetail(err)}) — retrying without telemetry columns`,
     );
     await db
       .update(generationJobs)
@@ -343,7 +344,7 @@ async function setJobStep(
 }
 
 async function failJob(jobId: string, step: string, err: unknown, batchId?: string | null): Promise<void> {
-  const message = err instanceof Error ? err.message : String(err);
+  const message = safeGenerationErrorDetail(err);
   console.error(`[scrape-and-extract] job ${jobId} failed at ${step}:`, message);
   await db
     .update(generationJobs)

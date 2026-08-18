@@ -21,6 +21,7 @@ import { bundles, generationJobs } from '@/lib/db/schema';
 import { generateCompanionPrompt } from '@/lib/ai/generate-companion-prompt';
 import { parseAuthorPhasePayload, type AuthorPhasePayload } from '@/lib/generator/phase-payload';
 import { perf } from '@/lib/generator/perf-log';
+import { safeGenerationErrorDetail } from '@/lib/auth/job-access';
 
 export interface GenerateCompanionPayload {
   jobId: string;
@@ -56,7 +57,7 @@ export async function runGenerateCompanion(payload: GenerateCompanionPayload): P
     });
     console.warn(
       `[generate-companion] cannot hydrate phase_payload for job ${jobId}; skipping:`,
-      err instanceof Error ? err.message : err,
+      safeGenerationErrorDetail(err),
     );
     return;
   }
@@ -101,8 +102,9 @@ export async function runGenerateCompanion(payload: GenerateCompanionPayload): P
       .where(eq(bundles.id, bundleId));
     await stampJob(jobId, { companionDoneAt: new Date() });
   } catch (err) {
-    console.error(`[generate-companion] Sonnet failed for ${bundleId}:`, err);
-    await markFailed(bundleId, err instanceof Error ? err.message : String(err));
+    const message = safeGenerationErrorDetail(err);
+    console.error(`[generate-companion] Sonnet failed for ${bundleId}:`, message);
+    await markFailed(bundleId, message);
     await stampJob(jobId, { companionDoneAt: new Date() });
   }
 }
@@ -125,6 +127,6 @@ async function stampJob(
       .set({ ...stamps, updatedAt: new Date() })
       .where(eq(generationJobs.id, jobId));
   } catch (err) {
-    console.warn('[generate-companion] telemetry stamp failed:', err);
+    console.warn('[generate-companion] telemetry stamp failed:', safeGenerationErrorDetail(err));
   }
 }

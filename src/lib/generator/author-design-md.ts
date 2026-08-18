@@ -23,6 +23,7 @@ import { db } from '@/lib/db/client';
 import { bundles, generationJobs } from '@/lib/db/schema';
 import { generateDesignMd, appendWcagRows } from '@/lib/ai/generate-design-md';
 import { dispatchReady } from '@/lib/generator/batch';
+import { safeGenerationErrorDetail } from '@/lib/auth/job-access';
 import { parseAuthorPhasePayload, type AuthorPhasePayload } from '@/lib/generator/phase-payload';
 import { scoreFromLint } from '@/lib/generator/coverage';
 import {
@@ -134,7 +135,7 @@ export async function runAuthorDesignMd(payload: AuthorDesignMdPayload): Promise
         .where(eq(bundles.id, bundleId));
     } catch (err) {
       // Non-fatal: coverage scoring can proceed with the in-memory copy.
-      console.warn('[author-design-md] failed to persist WCAG-appended design.md:', err instanceof Error ? err.message : err);
+      console.warn('[author-design-md] failed to persist WCAG-appended design.md:', safeGenerationErrorDetail(err));
     }
   }
 
@@ -240,7 +241,7 @@ async function setJobStep(
   } catch (err) {
     if (!stamps) throw err;
     console.warn(
-      `[author-design-md] setJobStep with stamps failed (${err instanceof Error ? err.message : String(err)}) — retrying without telemetry columns`,
+      `[author-design-md] setJobStep with stamps failed (${safeGenerationErrorDetail(err)}) — retrying without telemetry columns`,
     );
     await db
       .update(generationJobs)
@@ -250,7 +251,7 @@ async function setJobStep(
 }
 
 async function failJob(jobId: string, step: string, err: unknown, batchId?: string | null): Promise<void> {
-  const message = err instanceof Error ? err.message : String(err);
+  const message = safeGenerationErrorDetail(err);
   console.error(`[author-design-md] job ${jobId} failed at ${step}:`, message);
   await db
     .update(generationJobs)
